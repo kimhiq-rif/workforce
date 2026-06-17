@@ -39,6 +39,12 @@ Remote:
 
 `workforce -> https://github.com/kimhiq-rif/workforce.git`
 
+Verified:
+
+- Initial push to GitHub succeeded on 2026-06-17.
+- Branch `main` tracks `workforce/main`.
+- Follow-up updates should be committed and pushed from this persistent project folder.
+
 If Git is available, use normal commit/push flow from this folder.
 
 If Git is not available in PATH, install Git or use another Git client, then sync this folder to the repository.

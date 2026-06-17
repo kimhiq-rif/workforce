@@ -29,6 +29,7 @@ Local URL: `http://localhost:3000`
 - QA PASS: Dev server is now running from the persistent project folder on `http://localhost:3000`.
 - QA PASS: `/login` returns 200 from the persistent project folder.
 - QA PASS: `/more` redirects to `/login` while signed out, as expected.
+- QA PASS: GitHub sync was initialized successfully. Branch `main` now tracks `workforce/main`.
 
 ## Owner Drawer / Auth
 
