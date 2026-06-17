@@ -1,0 +1,491 @@
+"use client";
+// Copyright © 2026 Workforce. All rights reserved.
+
+import { useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { createClient } from "@/lib/supabase/client";
+import { DashboardShell } from "@/components/layout/DashboardShell";
+import { ChevronLeft, ChevronRight, Phone, MapPin, X, Banknote } from "lucide-react";
+import { formatCurrency, formatThaiDate, formatEnDate, formatTime } from "@/lib/format";
+import { wageReasonLabel } from "@/lib/wage-logic";
+import type { Worker } from "@/types/database";
+
+type AttendanceRow = {
+  event_date: string;
+  arrival_time: string | null;
+  status: string;
+  is_late: boolean;
+  wage_amount: number | null;
+  wage_reason: string | null;
+  site?: { name_th: string; name_en: string } | null;
+};
+
+type AdvanceRow = {
+  id: string;
+  amount: number;
+  reason: string | null;
+  status: string;
+  created_at: string;
+};
+
+interface WorkerProfileClientProps {
+  worker: Worker & { site?: { id: string; name_th: string; name_en: string; status: string } | null };
+  attendanceHistory: AttendanceRow[];
+  advances: AdvanceRow[];
+  sites: { id: string; name_th: string; name_en: string }[];
+  ownerId: string;
+  today: string;
+}
+
+export function WorkerProfileClient({ worker: initialWorker, attendanceHistory, advances: initialAdvances, sites, ownerId, today }: WorkerProfileClientProps) {
+  const router = useRouter();
+  const supabase = createClient();
+  const [worker, setWorker] = useState(initialWorker);
+  const [advances, setAdvances] = useState(initialAdvances);
+  const [toast, setToast] = useState("");
+  const [showAdvanceModal, setShowAdvanceModal] = useState(false);
+  const [editingWage, setEditingWage] = useState(false);
+  const [newWage, setNewWage] = useState(String(initialWorker.daily_wage));
+
+  function showToast(msg: string) {
+    setToast(msg);
+    setTimeout(() => setToast(""), 3000);
+  }
+
+  // ── Stats ────────────────────────────────────────────────────────────────────
+  const daysWorked = attendanceHistory.filter((a) => a.status !== "missing" && a.wage_amount && a.wage_amount > 0).length;
+  const totalEarned = attendanceHistory.reduce((s, a) => s + (a.wage_amount ?? 0), 0);
+  const lateDays = attendanceHistory.filter((a) => a.is_late).length;
+  const pendingAdvances = advances.filter((a) => a.status === "pending").reduce((s, a) => s + a.amount, 0);
+
+  async function handleSaveWage() {
+    const wage = Number(newWage);
+    if (!wage || wage <= 0) return;
+
+    const { error } = await supabase
+      .from("workers")
+      .update({ daily_wage: wage })
+      .eq("id", worker.id);
+
+    if (error) { showToast("เกิดข้อผิดพลาด · Error"); return; }
+    setWorker((w) => ({ ...w, daily_wage: wage }));
+    setEditingWage(false);
+    showToast(`อัปเดตค่าแรงเป็น ฿${formatCurrency(wage)} แล้ว`);
+  }
+
+  async function handleReassignSite(siteId: string) {
+    const { error } = await supabase
+      .from("workers")
+      .update({ assigned_site_id: siteId || null })
+      .eq("id", worker.id);
+
+    if (!error) router.refresh();
+  }
+
+  async function handleDeactivate() {
+    if (!confirm(`ยืนยันการลบ ${worker.name_th}? · Confirm deactivate?`)) return;
+    await supabase.from("workers").update({ is_active: false }).eq("id", worker.id);
+    router.push("/workers");
+  }
+
+  // ── Right panel ─────────────────────────────────────────────────────────────
+  const rightPanel = (
+    <>
+      <section className="attention-card">
+        <h2>สถิติ 30 วัน <span>30-day stats</span></h2>
+        <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 4 }}>
+          {[
+            { th: "วันทำงาน", en: "Days worked", val: daysWorked, color: "#22C55E" },
+            { th: "มาสาย", en: "Late days", val: lateDays, color: "#F97316" },
+            { th: "รายได้รวม", en: "Total earned", val: `฿${formatCurrency(totalEarned)}`, color: "var(--text-primary)" },
+            { th: "เบิกค้างจ่าย", en: "Pending advance", val: pendingAdvances > 0 ? `฿${formatCurrency(pendingAdvances)}` : "ไม่มี", color: pendingAdvances > 0 ? "#EF4444" : "#22C55E" },
+          ].map((item) => (
+            <div key={item.th} style={{ display: "flex", justifyContent: "space-between", fontSize: 14, padding: "4px 0", borderBottom: "1px solid var(--border)" }}>
+              <span style={{ color: "var(--text-muted)" }}>{item.th} · {item.en}</span>
+              <strong style={{ color: item.color }}>{item.val}</strong>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section className="attention-card">
+        <h2>ไซต์ที่ทำงาน <span>Assigned site</span></h2>
+        <select
+          value={worker.assigned_site_id ?? ""}
+          onChange={(e) => handleReassignSite(e.target.value)}
+          style={{ width: "100%", padding: "9px 12px", border: "1px solid var(--border)", borderRadius: 8, fontSize: 14, background: "white" }}
+        >
+          <option value="">ยังไม่กำหนด · Not assigned</option>
+          {sites.map((s) => (
+            <option key={s.id} value={s.id}>{s.name_th} · {s.name_en}</option>
+          ))}
+        </select>
+      </section>
+
+      <section className="attention-card">
+        <button
+          onClick={handleDeactivate}
+          style={{ width: "100%", padding: "10px", background: "#FEF2F2", color: "#B91C1C", border: "1px solid #FECACA", borderRadius: 8, cursor: "pointer", fontSize: 14, fontWeight: 600 }}
+        >
+          ลบพนักงาน · Remove worker
+        </button>
+      </section>
+    </>
+  );
+
+  return (
+    <>
+      <DashboardShell rightPanel={rightPanel}>
+        {/* Desktop */}
+        <div className="desktop-only">
+          <Link href="/workers" style={{ display: "inline-flex", alignItems: "center", gap: 4, color: "var(--text-muted)", fontSize: 13, textDecoration: "none", marginBottom: 10 }}>
+            <ChevronLeft size={16} /> กลับ · Back to Workers
+          </Link>
+
+          {/* Profile header */}
+          <div style={{ display: "flex", alignItems: "center", gap: 20, marginBottom: 28 }}>
+            <div className="avatar" style={{ width: 72, height: 72, fontSize: 26 }}>{worker.name_th[0]}</div>
+            <div style={{ flex: 1 }}>
+              <h1 style={{ fontSize: 31, fontWeight: 700, marginBottom: 2 }}>{worker.name_th}</h1>
+              <p style={{ fontSize: 14, color: "var(--text-muted)" }}>{worker.name_en} · {worker.role_th ?? worker.role_en ?? "ไม่ระบุตำแหน่ง"}</p>
+              <div style={{ display: "flex", gap: 12, marginTop: 8, flexWrap: "wrap" }}>
+                {worker.phone && (
+                  <a href={`tel:${worker.phone}`} style={{ display: "flex", alignItems: "center", gap: 4, color: "var(--brand-primary)", fontSize: 13, textDecoration: "none" }}>
+                    <Phone size={16} /> {worker.phone}
+                  </a>
+                )}
+                {worker.site && (
+                  <Link href={`/sites/${worker.site.id}`} style={{ display: "flex", alignItems: "center", gap: 4, color: "var(--brand-primary)", fontSize: 13, textDecoration: "none" }}>
+                    <MapPin size={16} /> {worker.site.name_th}
+                  </Link>
+                )}
+                {worker.is_temporary && (
+                  <span style={{ background: "#FFF7ED", color: "#C2410C", borderRadius: 6, padding: "2px 8px", fontSize: 12, fontWeight: 600 }}>ชั่วคราว · Temporary</span>
+                )}
+              </div>
+            </div>
+
+            {/* Daily wage editor */}
+            <div style={{ textAlign: "right" }}>
+              <div style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 2 }}>ค่าแรง/วัน · Daily wage</div>
+              {editingWage ? (
+                <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                  <input
+                    value={newWage}
+                    onChange={(e) => setNewWage(e.target.value)}
+                    type="number"
+                    style={{ width: 100, padding: "6px 10px", border: "1px solid var(--border)", borderRadius: 8, fontSize: 18, textAlign: "right" }}
+                    autoFocus
+                    onKeyDown={(e) => e.key === "Enter" && handleSaveWage()}
+                  />
+                  <button className="btn-primary" style={{ padding: "6px 14px" }} onClick={handleSaveWage}>บันทึก</button>
+                  <button onClick={() => { setEditingWage(false); setNewWage(String(worker.daily_wage)); }} style={{ background: "transparent", border: "none", cursor: "pointer" }}><X size={18} /></button>
+                </div>
+              ) : (
+                <div
+                  style={{ fontSize: 26, fontWeight: 700, cursor: "pointer", color: "var(--brand-primary)" }}
+                  onClick={() => setEditingWage(true)}
+                  title="Click to edit"
+                >
+                  ฿{formatCurrency(worker.daily_wage)}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Action buttons */}
+          <div style={{ display: "flex", gap: 10, marginBottom: 28 }}>
+            <button
+              className="btn-primary"
+              onClick={() => setShowAdvanceModal(true)}
+              style={{ background: "#F59E0B" }}
+            >
+              <Banknote size={18} />
+              บันทึกเบิกเงิน
+              <small>Record advance</small>
+            </button>
+          </div>
+
+          {/* Attendance history */}
+          <div>
+            <h2 style={{ fontSize: 19, fontWeight: 600, marginBottom: 14 }}>
+              ประวัติการทำงาน 30 วัน
+              <span style={{ display: "block", fontSize: 13, fontWeight: 400, color: "var(--text-muted)" }}>Attendance history · last 30 days</span>
+            </h2>
+
+            <div className="table-card">
+              <div className="table-header" style={{ gridTemplateColumns: "1.4fr 1.2fr 110px 110px 100px" }}>
+                <span>วันที่ <small>Date</small></span>
+                <span>ไซต์ <small>Site</small></span>
+                <span>เวลาเข้า <small>Arrival</small></span>
+                <span>สถานะ <small>Status</small></span>
+                <span>ค่าแรง <small>Wage</small></span>
+              </div>
+
+              {attendanceHistory.length === 0 ? (
+                <div style={{ padding: "28px", textAlign: "center", color: "var(--text-muted)", fontSize: 14 }}>
+                  ยังไม่มีประวัติ · No attendance history
+                </div>
+              ) : (
+                attendanceHistory.map((a) => {
+                  const wl = wageReasonLabel(a.wage_reason);
+                  return (
+                    <div
+                      key={a.event_date}
+                      className="table-row"
+                      style={{ gridTemplateColumns: "1.4fr 1.2fr 110px 110px 100px", display: "grid", padding: "11px 20px", gap: 12, alignItems: "center" }}
+                    >
+                      <span>
+                        <span className="cell-th">{formatThaiDate(a.event_date)}</span>
+                        <span className="cell-en">{formatEnDate(a.event_date)}</span>
+                      </span>
+                      <span style={{ fontSize: 14 }}>{a.site?.name_th ?? "-"}</span>
+                      <span style={{ fontSize: 15, fontWeight: 600 }}>
+                        {a.arrival_time ? formatTime(a.arrival_time) : <span style={{ color: "var(--text-muted)" }}>-</span>}
+                      </span>
+                      <span>
+                        <AttHistoryBadge status={a.status} isLate={a.is_late} wageReason={a.wage_reason} />
+                      </span>
+                      <span style={{ fontSize: 15, fontWeight: 600 }}>
+                        {a.wage_amount != null ? (
+                          <span title={wl.th}>฿{formatCurrency(a.wage_amount)}</span>
+                        ) : <span style={{ color: "var(--text-muted)" }}>-</span>}
+                      </span>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </div>
+
+          {/* Advances section */}
+          {advances.length > 0 && (
+            <div style={{ marginTop: 28 }}>
+              <h2 style={{ fontSize: 19, fontWeight: 600, marginBottom: 14 }}>
+                เบิกเงินล่าสุด
+                <span style={{ display: "block", fontSize: 13, fontWeight: 400, color: "var(--text-muted)" }}>Recent advances</span>
+              </h2>
+              <div className="table-card">
+                {advances.map((adv) => (
+                  <div
+                    key={adv.id}
+                    style={{ display: "grid", gridTemplateColumns: "1fr 120px 100px", gap: 12, padding: "11px 20px", alignItems: "center", borderBottom: "1px solid var(--border)" }}
+                  >
+                    <span>
+                      <span className="cell-th">{adv.reason ?? "เบิกเงิน"}</span>
+                      <span className="cell-en">{formatThaiDate(adv.created_at)}</span>
+                    </span>
+                    <span style={{ fontSize: 15, fontWeight: 600 }}>฿{formatCurrency(adv.amount)}</span>
+                    <span>
+                      <span style={{
+                        background: adv.status === "pending" ? "#FFF7ED" : "#F0FDF4",
+                        color: adv.status === "pending" ? "#C2410C" : "#15803D",
+                        padding: "3px 8px", borderRadius: 6, fontSize: 11, fontWeight: 600,
+                      }}>
+                        {adv.status === "pending" ? "ค้างจ่าย" : "จ่ายแล้ว"}
+                      </span>
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Mobile */}
+        <div className="mobile-only">
+          <MobileWorkerProfile
+            worker={worker}
+            attendanceHistory={attendanceHistory}
+            advances={advances}
+            stats={{ daysWorked, totalEarned, lateDays, pendingAdvances }}
+            onAddAdvance={() => setShowAdvanceModal(true)}
+          />
+        </div>
+
+        {toast && <div className="toast">{toast}</div>}
+      </DashboardShell>
+
+      {showAdvanceModal && (
+        <AddAdvanceModal
+          worker={worker}
+          ownerId={ownerId}
+          onClose={() => setShowAdvanceModal(false)}
+          onAdded={(adv) => {
+            setAdvances((prev) => [adv, ...prev]);
+            setShowAdvanceModal(false);
+            showToast(`บันทึกเบิก ฿${formatCurrency(adv.amount)} แล้ว`);
+          }}
+        />
+      )}
+    </>
+  );
+}
+
+function AttHistoryBadge({ status, isLate, wageReason }: { status: string; isLate: boolean; wageReason: string | null }) {
+  if (wageReason?.includes("rain")) {
+    return <span style={{ background: "#EFF6FF", color: "#1D4ED8", padding: "3px 8px", borderRadius: 6, fontSize: 11, fontWeight: 600 }}>ฝน</span>;
+  }
+  if (isLate) return <span style={{ background: "#FFF7ED", color: "#C2410C", padding: "3px 8px", borderRadius: 6, fontSize: 11, fontWeight: 600 }}>สาย · Late</span>;
+  if (status === "on_site") return <span style={{ background: "#F0FDF4", color: "#15803D", padding: "3px 8px", borderRadius: 6, fontSize: 11, fontWeight: 600 }}>ทำงาน · On site</span>;
+  if (status === "half_day_am" || status === "half_day_pm") return <span style={{ background: "#FFFBEB", color: "#B45309", padding: "3px 8px", borderRadius: 6, fontSize: 11, fontWeight: 600 }}>ครึ่งวัน</span>;
+  return <span style={{ background: "#F3F4F6", color: "#6B7280", padding: "3px 8px", borderRadius: 6, fontSize: 11 }}>{status}</span>;
+}
+
+function MobileWorkerProfile({ worker, attendanceHistory, advances, stats, onAddAdvance }: {
+  worker: any;
+  attendanceHistory: AttendanceRow[];
+  advances: AdvanceRow[];
+  stats: { daysWorked: number; totalEarned: number; lateDays: number; pendingAdvances: number };
+  onAddAdvance: () => void;
+}) {
+  return (
+    <div>
+      <div className="mobile-topbar">
+        <Link href="/workers" className="mobile-topbar-back"><ChevronLeft size={24} /></Link>
+        <div style={{ flex: 1 }}>
+          <h1 style={{ color: "white", fontSize: 19 }}>{worker.name_th}</h1>
+          <p style={{ color: "rgba(255,255,255,0.75)", fontSize: 12 }}>{worker.name_en}</p>
+        </div>
+      </div>
+
+      <div style={{ padding: "16px", display: "flex", flexDirection: "column", gap: 16 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 10 }}>
+          <div className="mini-stat">
+            <strong>{stats.daysWorked}</strong>
+            <span>วันทำงาน</span>
+            <small>Days</small>
+          </div>
+          <div className="mini-stat">
+            <strong style={{ color: "#F97316" }}>{stats.lateDays}</strong>
+            <span>มาสาย</span>
+            <small>Late</small>
+          </div>
+          <div className="mini-stat">
+            <strong>฿{formatCurrency(stats.totalEarned)}</strong>
+            <span>รายได้รวม</span>
+            <small>Earned</small>
+          </div>
+          <div className="mini-stat">
+            <strong style={{ color: stats.pendingAdvances > 0 ? "#EF4444" : "#22C55E" }}>
+              {stats.pendingAdvances > 0 ? `฿${formatCurrency(stats.pendingAdvances)}` : "-"}
+            </strong>
+            <span>เบิกค้างจ่าย</span>
+            <small>Advance</small>
+          </div>
+        </div>
+
+        <button className="btn-primary" style={{ width: "100%", justifyContent: "center", background: "#F59E0B" }} onClick={onAddAdvance}>
+          <Banknote size={18} />
+          บันทึกเบิกเงิน · Record advance
+        </button>
+
+        <div>
+          <div style={{ fontSize: 16, fontWeight: 600, marginBottom: 10 }}>ประวัติการทำงาน <small style={{ color: "var(--text-muted)", fontSize: 12 }}>30-day history</small></div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            {attendanceHistory.slice(0, 20).map((a) => (
+              <div key={a.event_date} style={{ background: "white", borderRadius: 10, padding: "10px 14px", display: "flex", justifyContent: "space-between", alignItems: "center", border: "1px solid var(--border)" }}>
+                <div>
+                  <strong style={{ fontSize: 14 }}>{formatThaiDate(a.event_date)}</strong>
+                  <small style={{ display: "block", color: "var(--text-muted)", fontSize: 12 }}>{a.site?.name_th ?? "-"}</small>
+                </div>
+                <div style={{ textAlign: "right" }}>
+                  <strong style={{ fontSize: 14 }}>{a.arrival_time ? formatTime(a.arrival_time) : "-"}</strong>
+                  <small style={{ display: "block", color: a.is_late ? "#F97316" : "#22C55E", fontSize: 11 }}>
+                    {a.is_late ? "สาย" : a.status === "on_site" ? "ปกติ" : a.status}
+                  </small>
+                </div>
+                <strong style={{ fontSize: 15, minWidth: 70, textAlign: "right" }}>
+                  {a.wage_amount != null ? `฿${formatCurrency(a.wage_amount)}` : "-"}
+                </strong>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function AddAdvanceModal({ worker, ownerId, onClose, onAdded }: {
+  worker: Worker;
+  ownerId: string;
+  onClose: () => void;
+  onAdded: (adv: AdvanceRow) => void;
+}) {
+  const supabase = createClient();
+  const [amount, setAmount] = useState("");
+  const [reason, setReason] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+
+  async function handleSave() {
+    const amt = Number(amount);
+    if (!amt || amt <= 0) { setError("กรอกยอดที่ถูกต้อง · Enter valid amount"); return; }
+    setSaving(true);
+
+    const { data, error: dbError } = await supabase
+      .from("advances")
+      .insert({
+        owner_id: ownerId,
+        worker_id: worker.id,
+        amount: amt,
+        reason: reason || null,
+        status: "pending",
+      })
+      .select()
+      .single();
+
+    setSaving(false);
+    if (dbError) { setError("เกิดข้อผิดพลาด · " + dbError.message); return; }
+    onAdded(data as AdvanceRow);
+  }
+
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 998, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
+      <div style={{ background: "white", borderRadius: 16, padding: "28px 24px", width: "100%", maxWidth: 380 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 20 }}>
+          <h2 style={{ fontSize: 20, fontWeight: 700 }}>เบิกเงิน <small style={{ fontSize: 13, fontWeight: 400, color: "var(--text-muted)" }}>Advance · {worker.name_th}</small></h2>
+          <button onClick={onClose} style={{ background: "transparent", border: "none", cursor: "pointer" }}><X size={24} /></button>
+        </div>
+
+        {error && <div style={{ background: "#FEF2F2", color: "#B91C1C", borderRadius: 8, padding: "10px 14px", marginBottom: 16, fontSize: 14 }}>{error}</div>}
+
+        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+          <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+            <span style={{ fontSize: 13, fontWeight: 600 }}>ยอดเงิน Amount (฿) *</span>
+            <input
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              type="number"
+              min="0"
+              step="100"
+              placeholder="500"
+              style={{ padding: "10px 12px", border: "1px solid var(--border)", borderRadius: 8, fontSize: 18 }}
+              autoFocus
+            />
+          </label>
+          <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+            <span style={{ fontSize: 13, fontWeight: 600 }}>เหตุผล Reason</span>
+            <input
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              placeholder="เบิกล่วงหน้า / เงินด่วน"
+              style={{ padding: "9px 12px", border: "1px solid var(--border)", borderRadius: 8, fontSize: 14 }}
+            />
+          </label>
+        </div>
+
+        <div style={{ display: "flex", gap: 12, marginTop: 22 }}>
+          <button onClick={onClose} style={{ flex: 1, padding: "11px", border: "1px solid var(--border)", borderRadius: 10, background: "white", cursor: "pointer", fontSize: 14 }}>
+            ยกเลิก · Cancel
+          </button>
+          <button onClick={handleSave} disabled={saving} className="btn-primary" style={{ flex: 2, justifyContent: "center", background: "#F59E0B" }}>
+            {saving ? "กำลังบันทึก…" : "บันทึก · Save"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}

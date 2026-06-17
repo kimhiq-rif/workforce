@@ -1,0 +1,56 @@
+// Copyright © 2026 Workforce. All rights reserved.
+import { type NextRequest, NextResponse } from "next/server";
+import { createServerClient } from "@supabase/ssr";
+
+type MiddlewareCookieToSet = {
+  name: string;
+  value: string;
+  options: Parameters<NextResponse["cookies"]["set"]>[2];
+};
+
+export async function middleware(request: NextRequest) {
+  let supabaseResponse = NextResponse.next({ request });
+
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll() {
+          return request.cookies.getAll();
+        },
+        setAll(cookiesToSet: MiddlewareCookieToSet[]) {
+          cookiesToSet.forEach(({ name, value }) =>
+            request.cookies.set(name, value)
+          );
+          supabaseResponse = NextResponse.next({ request });
+          cookiesToSet.forEach(({ name, value, options }) =>
+            supabaseResponse.cookies.set(name, value, options)
+          );
+        },
+      },
+    }
+  );
+
+  const { data: { user } } = await supabase.auth.getUser();
+
+  const pathname = request.nextUrl.pathname;
+  const isAuthPage = pathname.startsWith("/login");
+  const isPublicPath = pathname.startsWith("/_next") || pathname.startsWith("/api") || pathname.startsWith("/icons") || pathname === "/manifest.json" || pathname === "/sw.js";
+
+  if (isPublicPath) return supabaseResponse;
+
+  if (!user && !isAuthPage) {
+    return NextResponse.redirect(new URL("/login", request.url));
+  }
+
+  if (user && isAuthPage) {
+    return NextResponse.redirect(new URL("/", request.url));
+  }
+
+  return supabaseResponse;
+}
+
+export const config = {
+  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
+};
