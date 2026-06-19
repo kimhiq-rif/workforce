@@ -18,6 +18,8 @@ interface AttendanceCount {
   site_id: string;
   status: string;
   wage_amount: number | null;
+  arrival_time: string | null;
+  worker: { name_th: string } | null;
 }
 
 interface DashboardClientProps {
@@ -48,7 +50,10 @@ export function DashboardClient({
     const reported = counts.filter((a) => a.status !== "missing").length;
     const total = counts.length;
     const hasPendingWage = pendingWageDecisions.some((d) => d.site_id === site.id);
-    return { ...site, reported, total, hasPendingWage };
+    const todayWorkers = counts
+      .filter((a) => a.status !== "missing" && a.arrival_time)
+      .sort((a, b) => (a.arrival_time ?? "").localeCompare(b.arrival_time ?? ""));
+    return { ...site, reported, total, hasPendingWage, todayWorkers };
   });
 
   const liveSites = siteStats.filter((s) => s.status === "live").length;
@@ -314,34 +319,33 @@ function AvatarStack({ count }: { count: number }) {
 function SiteCard({
   site,
 }: {
-  site: DashboardSite & { reported: number; total: number; hasPendingWage: boolean };
+  site: DashboardSite & { reported: number; total: number; hasPendingWage: boolean; todayWorkers: AttendanceCount[] };
 }) {
   const accent = ACCENT[site.status] ?? ACCENT.waiting;
-  const progressPct = site.total > 0 ? (site.reported / site.total) * 100 : 0;
   const isLong = site.project_type === "long";
+  const statusColor = siteStatusColor(site.status);
+
+  const MAX_VISIBLE = 5;
+  const visibleWorkers = site.todayWorkers.slice(0, MAX_VISIBLE);
+  const extraCount = site.todayWorkers.length > MAX_VISIBLE ? site.todayWorkers.length - MAX_VISIBLE : 0;
 
   return (
-    <Link href={`/sites/${site.id}`} className={`site-card-photo${site.status === "live" ? " live" : ""}`} style={{ display: "block" }}>
+    <Link
+      href={`/sites/${site.id}`}
+      className={`site-card-photo${site.status === "live" ? " live" : ""}`}
+      style={{ display: "block", borderTop: `3px solid ${statusColor}` }}
+    >
       {/* Photo header / gradient header */}
       <div className="site-card-photo-header">
         {site.photo_url ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={site.photo_url}
-            alt={site.name_en ?? ""}
-            style={{ width: "100%", height: "100%", objectFit: "cover" }}
-          />
+          <img src={site.photo_url} alt={site.name_en ?? ""} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
         ) : (
-          <div
-            className="site-card-photo-bg"
-            style={{ background: accent.gradient }}
-          />
+          <div className="site-card-photo-bg" style={{ background: accent.gradient }} />
         )}
-        {/* Status badge overlay */}
         <div className="site-card-photo-status">
           <SiteStatusBadge status={site.status} />
         </div>
-        {/* Project type badge */}
         <div style={{
           position: "absolute", top: 8, left: 8,
           background: isLong ? "rgba(255,106,0,0.85)" : "rgba(124,58,237,0.8)",
@@ -359,71 +363,54 @@ function SiteCard({
       <div className="site-card-photo-body">
         <div className="site-card-name">{site.name_th}</div>
         <div className="site-card-sub">
-          {site.name_en}
-          {site.location_en ? ` · ${site.location_en}` : ""}
+          {site.name_en}{site.location_en ? ` · ${site.location_en}` : ""}
         </div>
 
         {site.hasPendingWage && (
-          <div
-            style={{
-              marginTop: 8,
-              padding: "4px 8px",
-              background: "#FEF2F2",
-              borderRadius: 5,
-              fontSize: 11,
-              color: "#B91C1C",
-              fontWeight: 500,
-              display: "inline-block",
-            }}
-          >
+          <div style={{ marginTop: 6, padding: "3px 8px", background: "#FEF2F2", borderRadius: 5, fontSize: 11, color: "#B91C1C", fontWeight: 500, display: "inline-block" }}>
             รอตัดสินค่าแรง · Wage pending
           </div>
         )}
 
-        {/* Bottom row */}
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            marginTop: 12,
-            paddingTop: 12,
-            borderTop: "1px solid var(--border)",
-          }}
-        >
-          {/* Short: worker count only — no donut */}
-          {!isLong ? (
-            <>
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <AvatarStack count={site.total} />
-                {site.total > 0 && (
-                  <span style={{ fontSize: 11, color: "var(--text-muted)" }}>
-                    {site.total} คน
+        {/* Worker strip */}
+        <div style={{ marginTop: 12, paddingTop: 12, borderTop: "1px solid var(--border)" }}>
+          {visibleWorkers.length > 0 ? (
+            <div style={{ display: "flex", gap: 6, alignItems: "flex-start" }}>
+              {visibleWorkers.map((w, i) => (
+                <div key={i} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2, minWidth: 38, maxWidth: 44 }}>
+                  <div style={{
+                    width: 32, height: 32, borderRadius: "50%",
+                    background: AVATAR_COLORS[i % AVATAR_COLORS.length],
+                    color: "white", display: "flex", alignItems: "center", justifyContent: "center",
+                    fontSize: 12, fontWeight: 700, flexShrink: 0,
+                  }}>
+                    {w.worker?.name_th?.[0] ?? "?"}
+                  </div>
+                  <span style={{ fontSize: 9.5, fontWeight: 600, color: "var(--text-primary)", textAlign: "center", width: "100%", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    {w.worker?.name_th?.split(" ")[0] ?? "-"}
                   </span>
-                )}
+                  <span style={{ fontSize: 9, color: "var(--text-muted)", textAlign: "center" }}>
+                    {w.arrival_time ? w.arrival_time.slice(0, 5) : "–"}
+                  </span>
+                </div>
+              ))}
+              {extraCount > 0 && (
+                <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2, minWidth: 38 }}>
+                  <div style={{ width: 32, height: 32, borderRadius: "50%", background: "#E5E7EB", color: "#6B7280", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 700 }}>
+                    +{extraCount}
+                  </div>
+                </div>
+              )}
+              <div style={{ marginLeft: "auto", textAlign: "right", flexShrink: 0 }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: statusColor }}>{site.reported}</div>
+                <div style={{ fontSize: 9.5, color: "var(--text-muted)" }}>/{site.total} คน</div>
               </div>
-              <span style={{ fontSize: 11, color: "var(--text-muted)", fontStyle: "italic" }}>
-                {site.reported}/{site.total} รายงาน
-              </span>
-            </>
+            </div>
           ) : (
-            /* Long: avatars + donut showing reported/total workers */
-            <>
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <AvatarStack count={site.total} />
-                {site.total > 0 && (
-                  <span style={{ fontSize: 11, color: "var(--text-muted)" }}>
-                    {site.total} คน
-                  </span>
-                )}
-              </div>
-              <DonutProgress
-                value={progressPct}
-                reported={site.reported}
-                total={site.total}
-                color={accent.text}
-              />
-            </>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <span style={{ fontSize: 11, color: "var(--text-muted)", fontStyle: "italic" }}>ยังไม่มีรายงาน · No reports yet</span>
+              <span style={{ fontSize: 11, color: "var(--text-muted)" }}>{site.total} คน</span>
+            </div>
           )}
         </div>
       </div>
@@ -440,7 +427,7 @@ function MobileDashboard({
   totalReported,
   totalExpected,
 }: {
-  sites: (DashboardSite & { reported: number; total: number; hasPendingWage: boolean })[];
+  sites: (DashboardSite & { reported: number; total: number; hasPendingWage: boolean; todayWorkers: AttendanceCount[] })[];
   openReceiptsCount: number;
   pendingWageDecisions: number;
   liveSites: number;

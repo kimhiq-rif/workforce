@@ -35,12 +35,13 @@ export default async function DashboardPage() {
     .eq("is_active", true)
     .order("created_at", { ascending: true });
 
-  // Fetch today's attendance counts per site
+  // Fetch today's attendance counts per site (with worker name for card avatar strip)
   const { data: attendanceCounts } = await supabase
     .from("attendance_events")
-    .select("site_id, status, wage_amount")
+    .select("site_id, status, wage_amount, arrival_time, worker:worker_id(name_th)")
     .eq("owner_id", ownerId)
-    .eq("event_date", today);
+    .eq("event_date", today)
+    .order("arrival_time", { ascending: true, nullsFirst: false });
 
   // Fetch open receipts
   const { data: openReceipts } = await supabase
