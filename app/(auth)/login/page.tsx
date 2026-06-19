@@ -4,21 +4,23 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { Eye, EyeOff, Lock } from "lucide-react";
+import { Eye, EyeOff, Lock, HardHat } from "lucide-react";
 
 function WorkforceLogo({ size = 56 }: { size?: number }) {
-  const s = size;
   return (
-    <svg width={s} height={s} viewBox="0 0 56 56" fill="none" xmlns="http://www.w3.org/2000/svg">
-      {/* W strokes */}
-      <path d="M6 14L13 36L22 22" stroke="white" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round"/>
-      <path d="M28 22L37 36L44 14" stroke="white" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round"/>
-      {/* Pin teardrop */}
-      <path d="M28 12C23.5 12 19.5 16 19.5 20.8C19.5 27.2 28 38 28 38C28 38 36.5 27.2 36.5 20.8C36.5 16 32.5 12 28 12Z" fill="#FF6A00"/>
+    <svg width={size} height={size} viewBox="0 0 56 56" fill="none" xmlns="http://www.w3.org/2000/svg">
+      {/* W — left arm */}
+      <path d="M5 13L15 44L25 26" stroke="white" strokeWidth="5.5" strokeLinecap="round" strokeLinejoin="round"/>
+      {/* W — right arm */}
+      <path d="M31 26L41 44L51 13" stroke="white" strokeWidth="5.5" strokeLinecap="round" strokeLinejoin="round"/>
+      {/* Pin — centered at x=28, sits in the V of the W */}
+      <path d="M28 6C22 6 17 11 17 17C17 25 28 36 28 36C28 36 39 25 39 17C39 11 34 6 28 6Z" fill="#FF6A00"/>
       {/* Clock face */}
-      <circle cx="28" cy="21" r="5.5" fill="white"/>
-      <line x1="28" y1="21" x2="28" y2="17.5" stroke="#FF6A00" strokeWidth="1.4" strokeLinecap="round"/>
-      <line x1="28" y1="21" x2="31" y2="22.5" stroke="#FF6A00" strokeWidth="1.4" strokeLinecap="round"/>
+      <circle cx="28" cy="17" r="6" fill="white"/>
+      {/* Hour hand */}
+      <line x1="28" y1="17" x2="28" y2="12.5" stroke="#FF6A00" strokeWidth="1.6" strokeLinecap="round"/>
+      {/* Minute hand */}
+      <line x1="28" y1="17" x2="32" y2="19" stroke="#FF6A00" strokeWidth="1.6" strokeLinecap="round"/>
     </svg>
   );
 }
@@ -134,12 +136,14 @@ export default function LoginPage() {
               Workforce
             </div>
             <div style={{
-              fontSize: 11, fontWeight: 700, letterSpacing: "0.18em",
-              color: "#FF6A00",
-              marginTop: 4,
-              textTransform: "uppercase",
+              display: "flex", alignItems: "center", gap: 6,
+              color: "#FF6A00", marginTop: 5,
             }}>
-              ── Driven by Proof ──
+              <HardHat size={13} strokeWidth={2} />
+              <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.2em", textTransform: "uppercase" }}>
+                Driven by Proof
+              </span>
+              <HardHat size={13} strokeWidth={2} />
             </div>
           </div>
         </div>
