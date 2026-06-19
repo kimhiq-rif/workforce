@@ -8,7 +8,7 @@ import { DashboardShell } from "@/components/layout/DashboardShell";
 import { useUserRole } from "@/components/layout/UserRoleContext";
 import {
   Search, CirclePlus, Camera, Check, X, ChevronRight,
-  QrCode, Receipt, Truck, AlertTriangle, Wallet, Plus,
+  QrCode, Receipt, Truck, AlertTriangle, Wallet, Plus, Clock,
 } from "lucide-react";
 import { formatCurrency, formatThaiDate, formatTime } from "@/lib/format";
 
@@ -40,6 +40,17 @@ interface DriverCashSummary {
   balance: number;
 }
 
+interface PendingQrReceipt {
+  id: string;
+  amount: number;
+  description: string | null;
+  notes: string | null;
+  qr_value: string | null;
+  created_at: string;
+  site?: { id: string; name_th: string; name_en: string } | null;
+  scanned_by_user?: { name_th: string; name_en: string } | null;
+}
+
 interface SuppliersClientProps {
   suppliers: Supplier[];
   receipts: ReceiptRow[];
@@ -49,6 +60,7 @@ interface SuppliersClientProps {
   userId?: string;
   driverCashData: DriverCashSummary[];
   myBalance: { totalGiven: number; totalSpent: number; balance: number } | null;
+  pendingQrReceipts: PendingQrReceipt[];
 }
 
 const RECEIPT_TABS = [
@@ -59,7 +71,7 @@ const RECEIPT_TABS = [
   { key: "disputed", th: "มีปัญหา", en: "Disputed" },
 ];
 
-export function SuppliersClient({ suppliers: initSuppliers, receipts: initReceipts, sites, ownerId, today, userId, driverCashData, myBalance }: SuppliersClientProps) {
+export function SuppliersClient({ suppliers: initSuppliers, receipts: initReceipts, sites, ownerId, today, userId, driverCashData, myBalance, pendingQrReceipts: initPendingQr }: SuppliersClientProps) {
   const router = useRouter();
   const supabase = createClient();
   const { role, assignedSiteId } = useUserRole();
@@ -73,6 +85,7 @@ export function SuppliersClient({ suppliers: initSuppliers, receipts: initReceip
   const [showAddReceipt, setShowAddReceipt] = useState(false);
   const [selectedReceipt, setSelectedReceipt] = useState<ReceiptRow | null>(null);
   const [giveCashDriver, setGiveCashDriver] = useState<DriverCashSummary | null>(null);
+  const [pendingQr, setPendingQr] = useState(initPendingQr);
 
   function showToast(msg: string) {
     setToast(msg);
@@ -108,6 +121,17 @@ export function SuppliersClient({ suppliers: initSuppliers, receipts: initReceip
     }
   }
 
+  async function handleApproveQr(id: string) {
+    const { error } = await supabase
+      .from("receipts")
+      .update({ status: "paid", paid_at: new Date().toISOString(), paid_by: userId ?? null })
+      .eq("id", id);
+    if (!error) {
+      setPendingQr((prev) => prev.filter((r) => r.id !== id));
+      showToast("✓ ชำระ QR แล้ว · QR Payment confirmed");
+    }
+  }
+
   async function handleDispute(id: string) {
     const { error } = await supabase
       .from("receipts")
@@ -124,6 +148,39 @@ export function SuppliersClient({ suppliers: initSuppliers, receipts: initReceip
   // ── Right panel ─────────────────────────────────────────────────────────────
   const rightPanel = (
     <>
+      {pendingQr.length > 0 && !isDriverManager && (
+        <section className="attention-card" style={{ borderLeft: "3px solid #F97316" }}>
+          <h2 style={{ color: "#C2410C" }}>
+            <Clock size={16} style={{ display: "inline", marginRight: 4 }} />
+            QR รอชำระ <span>Pending QR Payments ({pendingQr.length})</span>
+          </h2>
+          <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 8 }}>
+            {pendingQr.map((r) => (
+              <div key={r.id} style={{ padding: "10px 0", borderTop: "1px solid var(--border)" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 14, fontWeight: 600 }}>{r.description ?? "ไม่ระบุ"}</div>
+                    <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 2 }}>
+                      {r.scanned_by_user?.name_th ?? "คนขับ"} · {r.site?.name_th ?? "-"}
+                    </div>
+                    {r.notes && <div style={{ fontSize: 11, color: "var(--text-muted)" }}>{r.notes}</div>}
+                  </div>
+                  <div style={{ textAlign: "right", flexShrink: 0 }}>
+                    <div style={{ fontSize: 16, fontWeight: 700, color: "#C2410C" }}>฿{formatCurrency(r.amount)}</div>
+                    <button
+                      onClick={() => handleApproveQr(r.id)}
+                      style={{ marginTop: 4, background: "#15803D", color: "white", border: "none", borderRadius: 6, padding: "3px 10px", fontSize: 12, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 3 }}
+                    >
+                      <Check size={11} /> ชำระแล้ว
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
       <section className="attention-card">
         <h2>สรุปใบเสร็จ <span>Receipt summary · 30 days</span></h2>
         <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 4 }}>
@@ -331,6 +388,10 @@ export function SuppliersClient({ suppliers: initSuppliers, receipts: initReceip
               myBalance={myBalance}
             />
           ) : (
+            <>
+              {pendingQr.length > 0 && (
+                <PendingQrMobile pendingQr={pendingQr} onApprove={handleApproveQr} />
+              )}
             <MobileSuppliers
               suppliers={suppliers}
               receipts={filteredReceipts}
@@ -344,6 +405,7 @@ export function SuppliersClient({ suppliers: initSuppliers, receipts: initReceip
               onMarkPaid={handleMarkPaid}
               onDispute={handleDispute}
             />
+            </>
           )}
         </div>
 
@@ -535,6 +597,42 @@ function DriverManagerMobile({ receipts, onAddReceipt, myBalance }: { receipts: 
               </div>
             ))
           )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function PendingQrMobile({ pendingQr, onApprove }: { pendingQr: PendingQrReceipt[]; onApprove: (id: string) => void }) {
+  return (
+    <div style={{ padding: "12px 16px 0" }}>
+      <div style={{ background: "#FFF7ED", border: "1px solid #FED7AA", borderRadius: 12, padding: "12px 14px" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 10 }}>
+          <Clock size={16} color="#C2410C" />
+          <span style={{ fontSize: 14, fontWeight: 700, color: "#C2410C" }}>
+            QR รอชำระ · Pending QR ({pendingQr.length})
+          </span>
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          {pendingQr.map((r) => (
+            <div key={r.id} style={{ background: "white", borderRadius: 8, padding: "10px 12px", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 14, fontWeight: 600 }}>{r.description ?? "ไม่ระบุ"}</div>
+                <div style={{ fontSize: 12, color: "var(--text-muted)" }}>
+                  {r.scanned_by_user?.name_th ?? "คนขับ"} · {r.site?.name_th ?? "-"}
+                </div>
+              </div>
+              <div style={{ textAlign: "right", flexShrink: 0 }}>
+                <div style={{ fontSize: 16, fontWeight: 700, color: "#C2410C" }}>฿{formatCurrency(r.amount)}</div>
+                <button
+                  onClick={() => onApprove(r.id)}
+                  style={{ marginTop: 4, background: "#15803D", color: "white", border: "none", borderRadius: 6, padding: "3px 10px", fontSize: 12, fontWeight: 600, cursor: "pointer" }}
+                >
+                  ชำระแล้ว
+                </button>
+              </div>
+            </div>
+          ))}
         </div>
       </div>
     </div>

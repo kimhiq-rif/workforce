@@ -63,10 +63,15 @@ export default async function DashboardPage() {
     manager: Array.isArray(site.manager) ? site.manager[0] ?? null : site.manager,
   }));
 
+  const normalizedAttendance = (attendanceCounts ?? []).map((a) => ({
+    ...a,
+    worker: Array.isArray(a.worker) ? (a.worker[0] ?? null) : a.worker,
+  }));
+
   return (
     <DashboardClient
       sites={dashboardSites}
-      attendanceCounts={attendanceCounts ?? []}
+      attendanceCounts={normalizedAttendance}
       openReceiptsCount={openReceipts?.length ?? 0}
       pendingQrCount={openReceipts?.filter((r) => r.status === "pending_qr").length ?? 0}
       pendingWageDecisions={pendingWageDecisions ?? []}

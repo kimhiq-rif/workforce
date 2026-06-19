@@ -7,11 +7,11 @@ import { Home, Users, QrCode, MapPin, MoreHorizontal } from "lucide-react";
 import { useUserRole, type AppRole } from "./UserRoleContext";
 
 const BOTTOM_ITEMS = [
-  { href: "/",          icon: Home,          th: "แดชบอร์ด", en: "Dashboard", roles: ["owner", "field_manager", "technical_admin"] as AppRole[] },
-  { href: "/workers",   icon: Users,          th: "พนักงาน",  en: "Workers",   roles: ["owner"] as AppRole[] },
-  { href: "/suppliers", icon: QrCode,         th: "สแกน",     en: "Scan",      roles: ["owner", "technical_admin"] as AppRole[], accent: true },
-  { href: "/sites",     icon: MapPin,         th: "ไซต์",     en: "Sites",     roles: ["owner", "field_manager", "technical_admin"] as AppRole[] },
-  { href: "/more",      icon: MoreHorizontal, th: "เพิ่มเติม",en: "More",      roles: ["owner", "field_manager", "technical_admin"] as AppRole[] },
+  { href: "/",          roleHref: {},                              icon: Home,          th: "แดชบอร์ด", en: "Dashboard", roles: ["owner", "field_manager", "technical_admin"] as AppRole[] },
+  { href: "/workers",   roleHref: {},                              icon: Users,          th: "พนักงาน",  en: "Workers",   roles: ["owner"] as AppRole[] },
+  { href: "/suppliers", roleHref: { technical_admin: "/scan" },    icon: QrCode,         th: "สแกน",     en: "Scan",      roles: ["owner", "technical_admin"] as AppRole[], accent: true },
+  { href: "/sites",     roleHref: {},                              icon: MapPin,         th: "ไซต์",     en: "Sites",     roles: ["owner", "field_manager", "technical_admin"] as AppRole[] },
+  { href: "/more",      roleHref: {},                              icon: MoreHorizontal, th: "เพิ่มเติม",en: "More",      roles: ["owner", "field_manager", "technical_admin"] as AppRole[] },
 ];
 
 export function BottomNav() {
@@ -27,17 +27,20 @@ export function BottomNav() {
 
   return (
     <nav className="bottom-nav mobile-only" aria-label="Mobile navigation">
-      {visibleItems.map(({ href, icon: Icon, th, en, accent }) => (
+      {visibleItems.map(({ href, roleHref, icon: Icon, th, en, accent }) => {
+        const resolvedHref = (roleHref as Partial<Record<typeof role, string>>)[role] ?? href;
+        return (
         <Link
           key={href}
-          href={href}
-          className={`bottom-nav-item ${accent ? (isActive(href) ? "scan-active" : "") : isActive(href) ? "active" : ""}`}
+          href={resolvedHref}
+          className={`bottom-nav-item ${accent ? (isActive(resolvedHref) ? "scan-active" : "") : isActive(resolvedHref) ? "active" : ""}`}
         >
           <Icon size={22} strokeWidth={1.8} />
           <span>{th}</span>
           <small>{en}</small>
         </Link>
-      ))}
+        );
+      })}
     </nav>
   );
 }

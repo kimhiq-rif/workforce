@@ -95,6 +95,20 @@ export default async function SuppliersPage() {
     myBalance = { totalGiven: myGiven, totalSpent: mySpent, balance: myGiven - mySpent };
   }
 
+  // Pending QR payments (owner sees these to approve)
+  const { data: pendingQrRaw } = await supabase
+    .from("receipts")
+    .select("id, amount, description, notes, qr_value, created_at, site:site_id(id, name_th, name_en), scanned_by_user:scanned_by(name_th, name_en)")
+    .eq("owner_id", ownerId)
+    .eq("status", "pending_qr")
+    .order("created_at", { ascending: false });
+
+  const pendingQrReceipts = (pendingQrRaw ?? []).map((r) => ({
+    ...r,
+    site: Array.isArray(r.site) ? r.site[0] ?? null : r.site,
+    scanned_by_user: Array.isArray(r.scanned_by_user) ? r.scanned_by_user[0] ?? null : r.scanned_by_user,
+  }));
+
   return (
     <SuppliersClient
       suppliers={suppliers ?? []}
@@ -105,6 +119,7 @@ export default async function SuppliersPage() {
       userId={profile?.id}
       driverCashData={driverCashData}
       myBalance={myBalance}
+      pendingQrReceipts={pendingQrReceipts}
     />
   );
 }
