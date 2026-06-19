@@ -3,13 +3,14 @@ import { NextRequest, NextResponse } from "next/server";
 import webpush from "web-push";
 import { createServiceClient } from "@/lib/supabase/server";
 
-webpush.setVapidDetails(
-  "mailto:admin@workforce.app",
-  process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!,
-  process.env.VAPID_PRIVATE_KEY!
-);
-
 export async function POST(req: NextRequest) {
+  const vapidPublic = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+  const vapidPrivate = process.env.VAPID_PRIVATE_KEY;
+  if (!vapidPublic || !vapidPrivate) {
+    return NextResponse.json({ error: "Push notifications not configured" }, { status: 503 });
+  }
+  webpush.setVapidDetails("mailto:admin@workforce.app", vapidPublic, vapidPrivate);
+
   const supabase = createServiceClient();
 
   const { owner_id, title, body, url } = await req.json();
