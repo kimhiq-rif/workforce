@@ -960,11 +960,13 @@ function AddReceiptModal({ ownerId, userId, suppliers, sites, defaultSiteId, onC
     const amt = Number(form.amount);
     if (!amt || amt <= 0) { setError("กรอกยอดที่ถูกต้อง · Valid amount required"); return; }
     setSaving(true);
+    const receiptNumber = `REC-${new Date().toISOString().slice(0, 10).replace(/-/g, "")}-${Math.floor(1000 + Math.random() * 9000)}`;
     const { data, error: dbError } = await supabase
       .from("receipts")
       .insert({
         owner_id: ownerId,
         submitted_by: userId,
+        receipt_number: receiptNumber,
         supplier_id: form.supplier_id || null,
         site_id: form.site_id || null,
         amount: amt,
