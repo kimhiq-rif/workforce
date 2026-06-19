@@ -740,14 +740,15 @@ body {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 12px 16px;
-  background: var(--brand-primary);
+  padding: 14px 16px 16px;
+  background: linear-gradient(135deg, #1E3A8A 0%, #4C1D95 60%, #6C5CE7 100%);
   color: white;
   flex-shrink: 0;
+  box-shadow: 0 3px 16px rgba(30,58,138,0.30);
 }
 
-.mobile-topbar h1 { font-size: 19px; font-weight: 700; flex: 1; line-height: 1.2; }
-.mobile-topbar p  { font-size: 12px; opacity: 0.75; line-height: 1.2; }
+.mobile-topbar h1 { font-size: 22px; font-weight: 800; flex: 1; line-height: 1.15; letter-spacing: -0.3px; }
+.mobile-topbar p  { font-size: 12px; opacity: 0.72; line-height: 1.2; margin-top: 1px; }
 
 .mobile-topbar-back {
   background: transparent;

@@ -397,24 +397,27 @@ function MobileWorkers({
         </label>
 
         {/* Tabs */}
-        <div style={{ display: "flex", gap: 6, overflowX: "auto" }}>
+        <div style={{ display: "flex", gap: 6, overflowX: "auto", paddingBottom: 2 }}>
           {TABS.map((t) => (
             <button
               key={t.key}
               onClick={() => setTab(t.key)}
               style={{
                 flexShrink: 0,
-                padding: "6px 12px",
+                padding: "5px 12px 6px",
                 borderRadius: 20,
                 border: "1px solid var(--border)",
                 background: tab === t.key ? "var(--brand-primary)" : "white",
                 color: tab === t.key ? "white" : "var(--text-primary)",
                 cursor: "pointer",
-                fontSize: 12,
-                fontWeight: tab === t.key ? 600 : 400,
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                gap: 1,
               }}
             >
-              {t.th}
+              <span style={{ fontSize: 12, fontWeight: tab === t.key ? 700 : 500, lineHeight: 1.3 }}>{t.th}</span>
+              <span style={{ fontSize: 9, opacity: 0.75, lineHeight: 1 }}>{t.en}</span>
             </button>
           ))}
         </div>
