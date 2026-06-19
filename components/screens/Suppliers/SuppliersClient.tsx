@@ -799,11 +799,14 @@ function MobileSuppliers({ suppliers, receipts, stats, tab, setTab, search, setS
                 background: tab === t.key ? "var(--brand-primary)" : "white",
                 color: tab === t.key ? "white" : "var(--text-primary)",
                 cursor: "pointer",
-                fontSize: 12,
+                fontSize: 11,
                 fontWeight: tab === t.key ? 600 : 400,
+                lineHeight: 1.3,
+                textAlign: "center",
               }}
             >
-              {t.th}
+              <div>{t.th}</div>
+              <div style={{ fontSize: 9, opacity: 0.8 }}>{t.en}</div>
             </button>
           ))}
         </div>
