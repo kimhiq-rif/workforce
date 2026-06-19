@@ -377,8 +377,9 @@ export function SuppliersClient({ suppliers: initSuppliers, receipts: initReceip
           userId={userId}
           onClose={() => setGiveCashDriver(null)}
           onDone={() => {
+            const driverName = giveCashDriver?.driver.name_th ?? "";
             setGiveCashDriver(null);
-            showToast(`✓ มอบเงินให้ ${giveCashDriver.driver.name_th} แล้ว`);
+            showToast(`✓ มอบเงินให้ ${driverName} แล้ว`);
             router.refresh();
           }}
         />
