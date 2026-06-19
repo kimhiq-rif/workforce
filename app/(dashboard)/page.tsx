@@ -9,13 +9,26 @@ export default async function DashboardPage() {
   const { user, profile, ownerId, serviceClient: supabase } = await getAppUserContext();
   if (!user || !profile || !ownerId) redirect("/login");
 
+  // Field Manager: go straight to their assigned site
+  if (profile.role === "field_manager") {
+    const { data: linkedWorker } = await supabase
+      .from("workers")
+      .select("assigned_site_id")
+      .eq("auth_user_id", user.id)
+      .eq("owner_id", ownerId)
+      .maybeSingle();
+    if (linkedWorker?.assigned_site_id) {
+      redirect(`/sites/${linkedWorker.assigned_site_id}`);
+    }
+  }
+
   // Fetch all sites with today's attendance stats
   const today = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Bangkok" });
 
   const { data: sites } = await supabase
     .from("sites")
     .select(`
-      id, name_th, name_en, location_th, location_en, status,
+      id, name_th, name_en, location_th, location_en, status, photo_url, project_type,
       manager:manager_id ( name_th, name_en )
     `)
     .eq("owner_id", ownerId)

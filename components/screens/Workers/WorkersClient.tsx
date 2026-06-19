@@ -1,9 +1,10 @@
-"use client";
+﻿"use client";
 // Copyright © 2026 Workforce. All rights reserved.
 
 import { useState, useMemo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+
 import { createClient } from "@/lib/supabase/client";
 import { DashboardShell } from "@/components/layout/DashboardShell";
 import { Search, CirclePlus, ChevronRight, UserCheck, Clock, Users, X } from "lucide-react";
@@ -41,6 +42,7 @@ interface WorkersClientProps {
   sites: { id: string; name_th: string; name_en: string }[];
   ownerId: string;
   today: string;
+  userRole?: string;
 }
 
 const TABS = [
@@ -51,7 +53,7 @@ const TABS = [
   { key: "temporary", th: "ชั่วคราว", en: "Temporary" },
 ];
 
-export function WorkersClient({ workers: initialWorkers, todayAttendance, sites, ownerId, today }: WorkersClientProps) {
+export function WorkersClient({ workers: initialWorkers, todayAttendance, sites, ownerId, today, userRole }: WorkersClientProps) {
   const router = useRouter();
   const supabase = createClient();
   const [workers, setWorkers] = useState(initialWorkers);
@@ -179,11 +181,13 @@ export function WorkersClient({ workers: initialWorkers, todayAttendance, sites,
               <h1>พนักงาน</h1>
               <p>Workers · {stats.total} คน</p>
             </div>
-            <button className="btn-primary" onClick={() => setShowAddModal(true)}>
-              <CirclePlus size={20} />
-              เพิ่มพนักงาน
-              <small>Add worker</small>
-            </button>
+            {userRole === "owner" && (
+              <button className="btn-primary" onClick={() => setShowAddModal(true)}>
+                <CirclePlus size={20} />
+                เพิ่มพนักงาน
+                <small>Add worker</small>
+              </button>
+            )}
           </div>
 
           {/* Search + tabs */}
@@ -238,10 +242,11 @@ export function WorkersClient({ workers: initialWorkers, todayAttendance, sites,
               filtered.map((worker) => {
                 const att = attendanceMap.get(worker.id);
                 return (
-                  <div
+                  <Link
                     key={worker.id}
+                    href={`/workers/${worker.id}`}
                     className={`table-row ${selectedWorker?.id === worker.id ? "selected" : ""}`}
-                    style={{ gridTemplateColumns: "2.2fr 1.2fr 110px 110px 90px 80px", display: "grid", padding: "12px 20px", gap: 12, alignItems: "center", cursor: "pointer" }}
+                    style={{ gridTemplateColumns: "2.2fr 1.2fr 110px 110px 90px 80px", display: "grid", padding: "12px 20px", gap: 12, alignItems: "center", cursor: "pointer", textDecoration: "none", color: "inherit" }}
                     onClick={() => setSelectedWorker(worker)}
                   >
                     <span style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -277,16 +282,10 @@ export function WorkersClient({ workers: initialWorkers, todayAttendance, sites,
                       {att?.wage_amount != null ? `฿${formatCurrency(att.wage_amount)}` : <span style={{ color: "var(--text-muted)", fontSize: 13 }}>-</span>}
                     </span>
 
-                    <span>
-                      <Link
-                        href={`/workers/${worker.id}`}
-                        onClick={(e) => e.stopPropagation()}
-                        style={{ display: "flex", alignItems: "center", gap: 4, color: "var(--brand-primary)", fontSize: 13, textDecoration: "none", fontWeight: 600 }}
-                      >
-                        ดู <ChevronRight size={16} />
-                      </Link>
+                    <span style={{ display: "flex", alignItems: "center", gap: 4, color: "var(--brand-primary)", fontSize: 13, fontWeight: 600 }}>
+                      ดู <ChevronRight size={16} />
                     </span>
-                  </div>
+                  </Link>
                 );
               })
             )}
@@ -304,6 +303,7 @@ export function WorkersClient({ workers: initialWorkers, todayAttendance, sites,
             search={search}
             setSearch={setSearch}
             onAdd={() => setShowAddModal(true)}
+            isOwner={userRole === "owner"}
           />
         </div>
 
@@ -344,7 +344,7 @@ function WorkerStatusBadge({ att }: { att?: AttendanceRow }) {
 }
 
 function MobileWorkers({
-  workers, attendanceMap, stats, tab, setTab, search, setSearch, onAdd,
+  workers, attendanceMap, stats, tab, setTab, search, setSearch, onAdd, isOwner,
 }: {
   workers: WorkerWithSite[];
   attendanceMap: Map<string, AttendanceRow>;
@@ -354,17 +354,20 @@ function MobileWorkers({
   search: string;
   setSearch: (v: string) => void;
   onAdd: () => void;
+  isOwner: boolean;
 }) {
   return (
     <div>
       <div className="mobile-topbar">
         <div style={{ flex: 1 }}>
           <h1 style={{ color: "white" }}>พนักงาน</h1>
-          <p style={{ color: "rgba(255,255,255,0.75)", fontSize: 12 }}>Workers · {stats.total} คน</p>
+          <p style={{ color: "rgba(255,255,255,0.75)" }}>Workers · {stats.total} คน</p>
         </div>
-        <button onClick={onAdd} style={{ background: "transparent", border: "none", color: "white", cursor: "pointer" }}>
-          <CirclePlus size={24} />
-        </button>
+        {isOwner && (
+          <button onClick={onAdd} style={{ background: "transparent", border: "none", color: "white", cursor: "pointer" }}>
+            <CirclePlus size={24} />
+          </button>
+        )}
       </div>
 
       <div style={{ padding: "12px 16px", display: "flex", flexDirection: "column", gap: 10 }}>
@@ -431,8 +434,8 @@ function MobileWorkers({
                   {worker.name_th[0]}
                 </div>
                 <div style={{ flex: 1 }}>
-                  <strong style={{ display: "block", fontSize: 15 }}>{worker.name_th}</strong>
-                  <small style={{ color: "var(--text-muted)", fontSize: 12 }}>{worker.site?.name_th ?? "ไม่ระบุไซต์"}</small>
+                  <strong className="cell-th" style={{ display: "block" }}>{worker.name_th}</strong>
+                  <small className="cell-en">{worker.name_en} · {worker.site?.name_en ?? "Not assigned"}</small>
                 </div>
                 <div style={{ textAlign: "right" }}>
                   <strong style={{ display: "block", fontSize: 14 }}>
@@ -471,7 +474,7 @@ function AddWorkerModal({
     role_en: "",
     phone: "",
     daily_wage: "500",
-    assigned_site_id: sites[0]?.id ?? "",
+    assigned_site_id: "",
     is_temporary: false,
   });
   const [saving, setSaving] = useState(false);

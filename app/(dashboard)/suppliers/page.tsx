@@ -24,7 +24,7 @@ export default async function SuppliersPage() {
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
   const fromDate = thirtyDaysAgo.toLocaleDateString("en-CA", { timeZone: "Asia/Bangkok" });
 
-  const { data: receipts } = await supabase
+  let receiptsQuery = supabase
     .from("receipts")
     .select(`
       id, amount, status, category, description, photo_url,
@@ -35,6 +35,13 @@ export default async function SuppliersPage() {
     .eq("owner_id", ownerId)
     .gte("created_at", `${fromDate}T00:00:00+07:00`)
     .order("created_at", { ascending: false });
+
+  // Driver Manager sees only their own submissions
+  if (profile.role === "technical_admin") {
+    receiptsQuery = receiptsQuery.eq("submitted_by", profile.id);
+  }
+
+  const { data: receipts } = await receiptsQuery;
 
   // Sites for receipt creation
   const { data: sites } = await supabase

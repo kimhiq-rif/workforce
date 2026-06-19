@@ -1,10 +1,11 @@
-"use client";
+﻿"use client";
 // Copyright © 2026 Workforce. All rights reserved.
 
 import { useState, useMemo, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { DashboardShell } from "@/components/layout/DashboardShell";
+import { useUserRole } from "@/components/layout/UserRoleContext";
 import {
   Search, CirclePlus, Camera, Check, X, ChevronRight,
   QrCode, Receipt, Truck, AlertTriangle,
@@ -52,6 +53,8 @@ const RECEIPT_TABS = [
 export function SuppliersClient({ suppliers: initSuppliers, receipts: initReceipts, sites, ownerId, today, userId }: SuppliersClientProps) {
   const router = useRouter();
   const supabase = createClient();
+  const { role, assignedSiteId } = useUserRole();
+  const isDriverManager = role === "technical_admin";
   const [suppliers, setSuppliers] = useState(initSuppliers);
   const [receipts, setReceipts] = useState(initReceipts);
   const [tab, setTab] = useState("all");
@@ -63,7 +66,7 @@ export function SuppliersClient({ suppliers: initSuppliers, receipts: initReceip
 
   function showToast(msg: string) {
     setToast(msg);
-    setTimeout(() => setToast(""), 3000);
+    setTimeout(() => setToast(""), 5000);
   }
 
   const filteredReceipts = useMemo(() => {
@@ -199,13 +202,13 @@ export function SuppliersClient({ suppliers: initSuppliers, receipts: initReceip
               <p>Suppliers & Receipts · last 30 days</p>
             </div>
             <div style={{ display: "flex", gap: 10 }}>
-              <button className="btn-primary" style={{ background: "white", color: "var(--brand-primary)", border: "1px solid var(--border)" }} onClick={() => setShowAddSupplier(true)}>
-                <Truck size={18} />
+              <button className="btn-primary" style={{ background: "var(--brand-accent, #FF6A00)", color: "white", minWidth: 160 }} onClick={() => setShowAddSupplier(true)}>
+                <Truck size={20} />
                 เพิ่มซัพพลายเออร์
                 <small>Add supplier</small>
               </button>
-              <button className="btn-primary" onClick={() => setShowAddReceipt(true)}>
-                <Receipt size={18} />
+              <button className="btn-primary" style={{ minWidth: 160 }} onClick={() => setShowAddReceipt(true)}>
+                <Receipt size={20} />
                 เพิ่มใบเสร็จ
                 <small>Add receipt</small>
               </button>
@@ -281,19 +284,26 @@ export function SuppliersClient({ suppliers: initSuppliers, receipts: initReceip
 
         {/* Mobile */}
         <div className="mobile-only">
-          <MobileSuppliers
-            suppliers={suppliers}
-            receipts={filteredReceipts}
-            stats={stats}
-            tab={tab}
-            setTab={setTab}
-            search={search}
-            setSearch={setSearch}
-            onAddReceipt={() => setShowAddReceipt(true)}
-            onAddSupplier={() => setShowAddSupplier(true)}
-            onMarkPaid={handleMarkPaid}
-            onDispute={handleDispute}
-          />
+          {isDriverManager ? (
+            <DriverManagerMobile
+              receipts={receipts}
+              onAddReceipt={() => setShowAddReceipt(true)}
+            />
+          ) : (
+            <MobileSuppliers
+              suppliers={suppliers}
+              receipts={filteredReceipts}
+              stats={stats}
+              tab={tab}
+              setTab={setTab}
+              search={search}
+              setSearch={setSearch}
+              onAddReceipt={() => setShowAddReceipt(true)}
+              onAddSupplier={() => setShowAddSupplier(true)}
+              onMarkPaid={handleMarkPaid}
+              onDispute={handleDispute}
+            />
+          )}
         </div>
 
         {toast && <div className="toast">{toast}</div>}
@@ -313,6 +323,7 @@ export function SuppliersClient({ suppliers: initSuppliers, receipts: initReceip
           userId={userId}
           suppliers={suppliers}
           sites={sites}
+          defaultSiteId={assignedSiteId ?? undefined}
           onClose={() => setShowAddReceipt(false)}
           onAdded={(r) => { setReceipts((prev) => [r, ...prev]); setShowAddReceipt(false); showToast(`เพิ่มใบเสร็จ ฿${formatCurrency(r.amount)} แล้ว`); }}
         />
@@ -336,13 +347,86 @@ function ReceiptStatusBadge({ status }: { status: string }) {
   );
 }
 
+function DriverManagerMobile({ receipts, onAddReceipt }: { receipts: ReceiptRow[]; onAddReceipt: () => void }) {
+  const myReceipts = receipts.slice(0, 20);
+  return (
+    <div>
+      <div className="mobile-topbar">
+        <div style={{ flex: 1 }}>
+          <h1 style={{ color: "white" }}>ใบเสร็จ</h1>
+          <p style={{ color: "rgba(255,255,255,0.75)" }}>Receipts · Driver Manager</p>
+        </div>
+      </div>
+
+      <div style={{ padding: "16px 16px 12px" }}>
+        {/* Primary action — big camera button */}
+        <button
+          onClick={onAddReceipt}
+          style={{
+            width: "100%",
+            padding: "20px",
+            borderRadius: 14,
+            border: "none",
+            background: "linear-gradient(135deg, var(--brand-primary), #7c3aed)",
+            color: "white",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 12,
+            cursor: "pointer",
+            marginBottom: 20,
+            boxShadow: "0 4px 16px rgba(124,58,237,0.35)",
+          }}
+        >
+          <Camera size={28} />
+          <div style={{ textAlign: "left" }}>
+            <div style={{ fontSize: 17, fontWeight: 700 }}>ถ่ายรูปใบเสร็จ</div>
+            <div style={{ fontSize: 12, opacity: 0.8 }}>Capture Receipt</div>
+          </div>
+        </button>
+
+        {/* Recent submissions */}
+        <h3 style={{ fontSize: 14, fontWeight: 600, color: "var(--text-muted)", marginBottom: 10 }}>
+          ใบเสร็จล่าสุด · Recent submissions
+        </h3>
+
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          {myReceipts.length === 0 ? (
+            <div style={{ textAlign: "center", padding: "32px", color: "var(--text-muted)", fontSize: 14 }}>
+              ยังไม่มีใบเสร็จ · No receipts yet
+            </div>
+          ) : (
+            myReceipts.map((r) => (
+              <div key={r.id} style={{ background: "white", borderRadius: 10, padding: "14px", border: "1px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                <div style={{ flex: 1 }}>
+                  <strong style={{ fontSize: 15 }}>{r.supplier?.name_th ?? "ไม่ระบุ"}</strong>
+                  <small style={{ display: "block", color: "var(--text-muted)", fontSize: 12, marginTop: 2 }}>
+                    {r.site?.name_th ?? "-"} · {formatThaiDate(r.created_at)}
+                  </small>
+                  {r.description && (
+                    <small style={{ display: "block", color: "var(--text-muted)", fontSize: 11, marginTop: 1 }}>{r.description}</small>
+                  )}
+                </div>
+                <div style={{ textAlign: "right", flexShrink: 0, marginLeft: 12 }}>
+                  <strong style={{ fontSize: 16 }}>฿{formatCurrency(r.amount)}</strong>
+                  <div style={{ marginTop: 4 }}><ReceiptStatusBadge status={r.status} /></div>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function MobileSuppliers({ suppliers, receipts, stats, tab, setTab, search, setSearch, onAddReceipt, onAddSupplier, onMarkPaid, onDispute }: any) {
   return (
     <div>
       <div className="mobile-topbar">
         <div style={{ flex: 1 }}>
           <h1 style={{ color: "white" }}>ซัพพลายเออร์</h1>
-          <p style={{ color: "rgba(255,255,255,0.75)", fontSize: 12 }}>Suppliers & Receipts</p>
+          <p style={{ color: "rgba(255,255,255,0.75)" }}>Suppliers & Receipts</p>
         </div>
         <button onClick={onAddReceipt} style={{ background: "transparent", border: "none", color: "white", cursor: "pointer" }}>
           <CirclePlus size={24} />
@@ -454,11 +538,12 @@ function AddSupplierModal({ ownerId, onClose, onAdded }: { ownerId: string; onCl
   );
 }
 
-function AddReceiptModal({ ownerId, userId, suppliers, sites, onClose, onAdded }: {
+function AddReceiptModal({ ownerId, userId, suppliers, sites, defaultSiteId, onClose, onAdded }: {
   ownerId: string;
   userId?: string;
   suppliers: Supplier[];
   sites: { id: string; name_th: string; name_en: string }[];
+  defaultSiteId?: string;
   onClose: () => void;
   onAdded: (r: ReceiptRow) => void;
 }) {
@@ -467,7 +552,7 @@ function AddReceiptModal({ ownerId, userId, suppliers, sites, onClose, onAdded }
   const streamRef = useRef<MediaStream | null>(null);
   const [form, setForm] = useState({
     supplier_id: suppliers[0]?.id ?? "",
-    site_id: sites[0]?.id ?? "",
+    site_id: defaultSiteId ?? sites[0]?.id ?? "",
     amount: "",
     category: "",
     description: "",

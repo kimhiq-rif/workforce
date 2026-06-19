@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 // Copyright © 2026 Workforce. All rights reserved.
 
 import { useMemo, useState } from "react";
@@ -24,7 +24,7 @@ export function ReportsClient({ sites, attendance, receipts, dayStatuses, today,
 
   function showToast(msg: string) {
     setToast(msg);
-    setTimeout(() => setToast(""), 3000);
+    setTimeout(() => setToast(""), 5000);
   }
 
   const siteReports = useMemo(() => {
@@ -244,7 +244,7 @@ function MobileReports({ siteReports, blocked, ready, today, onSend, sendingId }
       <div className="mobile-topbar">
         <div style={{ flex: 1 }}>
           <h1 style={{ color: "white" }}>รายงาน</h1>
-          <p style={{ color: "rgba(255,255,255,0.75)", fontSize: 12 }}>Daily reports · {formatThaiDate(today)}</p>
+          <p style={{ color: "rgba(255,255,255,0.75)" }}>Daily reports · {formatThaiDate(today)}</p>
         </div>
       </div>
 

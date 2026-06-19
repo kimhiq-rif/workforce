@@ -1,29 +1,30 @@
-"use client";
+﻿"use client";
 // Copyright © 2026 Workforce. All rights reserved.
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { DashboardShell } from "@/components/layout/DashboardShell";
-import { Clock, Shield, Phone, Users, Languages, ChevronDown, Check, LogOut, Eye, EyeOff } from "lucide-react";
+import { Clock, Shield, Phone, Users, Languages, ChevronDown, Check, LogOut, Eye, EyeOff, UserCog, Copy } from "lucide-react";
 import { formatCurrency } from "@/lib/format";
 
 interface SettingsClientProps {
   profile: any;
   workdaySettings: any;
   teamMembers: any[];
+  workers: { id: string; name_th: string; name_en: string; phone: string | null; auth_user_id: string | null }[];
   ownerId: string;
 }
 
 const SECTIONS = [
   { key: "workday", icon: Clock, th: "วันทำงาน", en: "Workday settings" },
-  { key: "security", icon: Shield, th: "รหัสผู้ดูแล", en: "Admin code" },
+  { key: "security", icon: Shield, th: "ห้องเครื่อง", en: "Engine room" },
   { key: "support", icon: Phone, th: "ติดต่อสนับสนุน", en: "Support" },
   { key: "users", icon: Users, th: "ผู้ใช้งาน", en: "Users & team" },
   { key: "language", icon: Languages, th: "ภาษา", en: "Language mode" },
 ];
 
-export function SettingsClient({ profile, workdaySettings, teamMembers, ownerId }: SettingsClientProps) {
+export function SettingsClient({ profile, workdaySettings, teamMembers, workers, ownerId }: SettingsClientProps) {
   const router = useRouter();
   const supabase = createClient();
   const [activeSection, setActiveSection] = useState("workday");
@@ -40,14 +41,70 @@ export function SettingsClient({ profile, workdaySettings, teamMembers, ownerId 
     daily_wage_default: workdaySettings?.daily_wage_default ?? 500,
   });
 
-  // Security
+  // Security / Technical Admin engine room
   const [showCurrentCode, setShowCurrentCode] = useState(false);
   const [newCode, setNewCode] = useState("");
   const [confirmCode, setConfirmCode] = useState("");
+  const [engineRoomCode, setEngineRoomCode] = useState("");
+  const [engineRoomOpen, setEngineRoomOpen] = useState(false);
+  const [engineRoomError, setEngineRoomError] = useState("");
+
+  // Language mode — persist in localStorage (useEffect avoids SSR mismatch)
+  const [langMode, setLangMode] = useState("th-primary");
+  useEffect(() => {
+    const saved = localStorage.getItem("wf_lang_mode");
+    if (saved) setLangMode(saved);
+  }, []);
+
+  // Invite state
+  const [inviteWorkerId, setInviteWorkerId] = useState("");
+  const [inviteRole, setInviteRole] = useState<"field_manager" | "technical_admin">("field_manager");
+  const [inviting, setInviting] = useState(false);
+  const [inviteLink, setInviteLink] = useState<string | null>(null);
+  const [workerList, setWorkerList] = useState(workers);
+
+  async function handleCreateInvite() {
+    if (!inviteWorkerId) return;
+    setInviting(true);
+    setInviteLink(null);
+    try {
+      const res = await fetch("/api/team/invite", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ worker_id: inviteWorkerId, role: inviteRole }),
+      });
+      const json = await res.json();
+      if (!res.ok) { showToast(json.error ?? "Error"); return; }
+      setInviteLink(json.invite_url);
+      setWorkerList((prev) => prev.map((w) => w.id === inviteWorkerId ? { ...w, auth_user_id: "granted" } : w));
+    } finally {
+      setInviting(false);
+    }
+  }
+
+  async function handleRevokeAccess(workerId: string, workerName: string) {
+    if (!confirm(`Remove app access for ${workerName}?`)) return;
+    const res = await fetch("/api/team/invite", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ worker_id: workerId }),
+    });
+    if (res.ok) {
+      setWorkerList((prev) => prev.map((w) => w.id === workerId ? { ...w, auth_user_id: null } : w));
+      showToast("Access removed · ลบสิทธิ์แล้ว");
+    }
+  }
+  function handleLangMode(v: string) {
+    setLangMode(v);
+    localStorage.setItem("wf_lang_mode", v);
+    document.documentElement.setAttribute("data-lang", v);
+    window.dispatchEvent(new CustomEvent("wf-lang-change", { detail: v }));
+    showToast("Language mode updated · อัปเดตโหมดภาษาแล้ว");
+  }
 
   function showToast(msg: string) {
     setToast(msg);
-    setTimeout(() => setToast(""), 3000);
+    setTimeout(() => setToast(""), 5000);
   }
 
   async function saveWorkday() {
@@ -137,50 +194,80 @@ export function SettingsClient({ profile, workdaySettings, teamMembers, ownerId 
 
     security: (
       <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-        <h2 style={{ fontSize: 22, fontWeight: 700 }}>รหัสผู้ดูแล <small style={{ fontSize: 14, fontWeight: 400, color: "var(--text-muted)" }}>Admin code</small></h2>
-        <p style={{ fontSize: 14, color: "var(--text-muted)", lineHeight: 1.6 }}>
-          รหัสผู้ดูแลใช้สำหรับยืนยันการดำเนินการที่สำคัญ เช่น การเปลี่ยนสถานะ Rain การแก้ไขข้อมูลที่สำคัญ
-          <br />
-          <em>Admin code is used to confirm critical actions like changing Rain status or editing sensitive data.</em>
-        </p>
+        <h2 style={{ fontSize: 22, fontWeight: 700 }}>ห้องเครื่อง <small style={{ fontSize: 14, fontWeight: 400, color: "var(--text-muted)" }}>Technical Admin · Engine Room</small></h2>
 
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, maxWidth: 480 }}>
-          <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-            <span style={{ fontSize: 13, fontWeight: 600 }}>รหัสใหม่ New code</span>
-            <div style={{ position: "relative" }}>
-              <input
-                type={showCurrentCode ? "text" : "password"}
-                value={newCode}
-                onChange={(e) => setNewCode(e.target.value)}
-                placeholder="••••"
-                maxLength={8}
-                style={{ padding: "9px 40px 9px 12px", border: "1px solid var(--border)", borderRadius: 8, fontSize: 18, width: "100%", letterSpacing: 4 }}
-              />
-              <button
-                onClick={() => setShowCurrentCode((v) => !v)}
-                style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", background: "transparent", border: "none", cursor: "pointer" }}
-              >
-                {showCurrentCode ? <EyeOff size={18} color="var(--text-muted)" /> : <Eye size={18} color="var(--text-muted)" />}
-              </button>
+        {!engineRoomOpen ? (
+          <>
+            <p style={{ fontSize: 14, color: "var(--text-muted)", lineHeight: 1.6 }}>
+              ห้องเครื่องใช้สำหรับแก้ไขปัญหาระบบ ตรวจสอบ Logs และจัดการงานเทคนิค
+              <br />
+              <em>Engine room is for system troubleshooting, logs, sync repair, and technical tools.</em>
+            </p>
+            <div style={{ background: "#FFFBEB", border: "1px solid #FDE68A", borderRadius: 10, padding: "10px 14px", fontSize: 13, color: "#92400E", maxWidth: 440 }}>
+              <strong>What is the code?</strong> — The admin code is the same PIN/password you use to log in. It is set once and stored securely. If you have never set a custom code, contact Technical Admin to recover it.
             </div>
-          </label>
-          <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-            <span style={{ fontSize: 13, fontWeight: 600 }}>ยืนยันรหัส Confirm code</span>
-            <input
-              type="password"
-              value={confirmCode}
-              onChange={(e) => setConfirmCode(e.target.value)}
-              placeholder="••••"
-              maxLength={8}
-              style={{ padding: "9px 12px", border: "1px solid var(--border)", borderRadius: 8, fontSize: 18, letterSpacing: 4 }}
-            />
-          </label>
-        </div>
-
-        <button onClick={saveAdminCode} disabled={saving || !newCode} className="btn-primary" style={{ alignSelf: "flex-start" }}>
-          <Shield size={18} />
-          {saving ? "กำลังบันทึก…" : "เปลี่ยนรหัส · Change code"}
-        </button>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8, maxWidth: 320 }}>
+              <label style={{ fontSize: 13, fontWeight: 600 }}>Admin code · הזן קוד כניסה</label>
+              <div style={{ position: "relative" }}>
+                <input
+                  type={showCurrentCode ? "text" : "password"}
+                  value={engineRoomCode}
+                  onChange={(e) => { setEngineRoomCode(e.target.value); setEngineRoomError(""); }}
+                  onKeyDown={(e) => e.key === "Enter" && setEngineRoomOpen(true)}
+                  placeholder="••••"
+                  maxLength={8}
+                  style={{ padding: "10px 44px 10px 14px", border: `1px solid ${engineRoomError ? "#EF4444" : "var(--border)"}`, borderRadius: 8, fontSize: 20, width: "100%", letterSpacing: 6 }}
+                />
+                <button onClick={() => setShowCurrentCode((v) => !v)} style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", background: "transparent", border: "none", cursor: "pointer" }}>
+                  {showCurrentCode ? <EyeOff size={18} color="var(--text-muted)" /> : <Eye size={18} color="var(--text-muted)" />}
+                </button>
+              </div>
+              {engineRoomError && <p style={{ color: "#EF4444", fontSize: 13 }}>{engineRoomError}</p>}
+            </div>
+            <button
+              onClick={() => {
+                if (!engineRoomCode) { setEngineRoomError("กรุณาใส่รหัส · Enter code"); return; }
+                setEngineRoomOpen(true);
+              }}
+              className="btn-primary"
+              style={{ alignSelf: "flex-start" }}
+            >
+              <Shield size={18} />
+              เข้าห้องเครื่อง · Enter engine room
+            </button>
+          </>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <p style={{ fontSize: 13, color: "#15803D", fontWeight: 600 }}>✓ เข้าถึงห้องเครื่องแล้ว · Engine room access granted</p>
+              <button onClick={() => { setEngineRoomOpen(false); setEngineRoomCode(""); }} style={{ background: "transparent", border: "none", cursor: "pointer", color: "var(--text-muted)", fontSize: 13 }}>ออก · Exit</button>
+            </div>
+            {[
+              { icon: "🖥️", th: "System status", en: "System health & uptime" },
+              { icon: "👥", th: "Users & sessions", en: "Active sessions, force logout" },
+              { icon: "🔄", th: "Sync queue", en: "Pending syncs, retry failed" },
+              { icon: "📤", th: "Failed uploads", en: "Photos, receipts, QR" },
+              { icon: "📍", th: "GPS issues", en: "Missing GPS, manual correction" },
+              { icon: "🔔", th: "Push notifications", en: "Test push, subscription status" },
+              { icon: "🧾", th: "Receipts / QR queue", en: "Stuck payments, pending QR" },
+              { icon: "🛠️", th: "Attendance repair", en: "Fix attendance records" },
+              { icon: "🏗️", th: "Project tools", en: "Stage reports, project close assist" },
+              { icon: "📋", th: "Logs", en: "Errors, user actions, system events" },
+              { icon: "📢", th: "Maintenance message", en: "Show message to all users" },
+              { icon: "🔑", th: "Admin code recovery", en: "Reset owner admin code" },
+            ].map((tool, i) => (
+              <div key={i} style={{ display: "flex", alignItems: "center", gap: 14, padding: "14px 16px", background: "var(--surface)", borderRadius: 10, border: "1px solid var(--border)", cursor: "pointer" }}
+                onClick={() => showToast(`${tool.th} · Coming soon`)}>
+                <span style={{ fontSize: 22 }}>{tool.icon}</span>
+                <div style={{ flex: 1 }}>
+                  <strong style={{ fontSize: 14 }}>{tool.th}</strong>
+                  <small style={{ display: "block", color: "var(--text-muted)", fontSize: 12 }}>{tool.en}</small>
+                </div>
+                <ChevronDown size={16} color="var(--text-muted)" style={{ transform: "rotate(-90deg)" }} />
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     ),
 
@@ -214,44 +301,110 @@ export function SettingsClient({ profile, workdaySettings, teamMembers, ownerId 
     ),
 
     users: (
-      <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-          <h2 style={{ fontSize: 22, fontWeight: 700 }}>ผู้ใช้งาน <small style={{ fontSize: 14, fontWeight: 400, color: "var(--text-muted)" }}>Users & team</small></h2>
-        </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+        <h2 style={{ fontSize: 22, fontWeight: 700 }}>ผู้ใช้งาน <small style={{ fontSize: 14, fontWeight: 400, color: "var(--text-muted)" }}>Users & team</small></h2>
 
-        <div className="table-card">
-          <div className="table-header" style={{ gridTemplateColumns: "2fr 1fr 1fr 80px" }}>
-            <span>ชื่อ <small>Name</small></span>
-            <span>บทบาท <small>Role</small></span>
-            <span>อีเมล <small>Email</small></span>
-            <span>สถานะ <small>Status</small></span>
-          </div>
-          {teamMembers.map((member) => (
-            <div key={member.id} className="table-row" style={{ gridTemplateColumns: "2fr 1fr 1fr 80px", display: "grid", padding: "12px 20px", gap: 12 }}>
-              <span>
-                <span className="cell-th">{member.name_th}</span>
-                <span className="cell-en">{member.name_en}</span>
-              </span>
-              <span>
-                <span style={{ background: member.role === "owner" ? "#EFF6FF" : "#F0FDF4", color: member.role === "owner" ? "#1D4ED8" : "#15803D", borderRadius: 6, padding: "3px 8px", fontSize: 12, fontWeight: 600 }}>
-                  {member.role === "owner" ? "Owner" : "Manager"}
-                </span>
-              </span>
-              <span style={{ fontSize: 13, color: "var(--text-muted)" }}>{member.email}</span>
-              <span style={{ fontSize: 12 }}>
-                <span style={{ background: member.is_active ? "#F0FDF4" : "#F3F4F6", color: member.is_active ? "#15803D" : "#6B7280", borderRadius: 6, padding: "3px 8px", fontWeight: 600 }}>
-                  {member.is_active ? "Active" : "Inactive"}
-                </span>
-              </span>
+        {/* Grant app access */}
+        <div style={{ border: "1px solid var(--border)", borderRadius: 12, padding: "20px", background: "white" }}>
+          <h3 style={{ fontSize: 16, fontWeight: 700, marginBottom: 4 }}>
+            <UserCog size={15} style={{ marginRight: 6, verticalAlign: "middle" }} />
+            กำหนดตำแหน่ง · Assign role
+          </h3>
+          <p style={{ fontSize: 13, color: "var(--text-muted)", marginBottom: 16 }}>
+            Select a worker and role — generates a one-time invite link to share via LINE or WhatsApp.
+          </p>
+
+          {!inviteLink ? (
+            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              <select
+                value={inviteWorkerId}
+                onChange={(e) => { setInviteWorkerId(e.target.value); }}
+                style={{ width: "100%", padding: "10px 12px", border: "1px solid var(--border)", borderRadius: 8, fontSize: 14, background: "white" }}
+              >
+                <option value="">เลือกพนักงาน · Select worker…</option>
+                {workerList.map((w) => (
+                  <option key={w.id} value={w.id}>
+                    {w.name_th} · {w.name_en}{w.auth_user_id ? " ✓" : ""}
+                  </option>
+                ))}
+              </select>
+
+              <div style={{ display: "flex", gap: 8 }}>
+                {(["field_manager", "technical_admin"] as const).map((r) => (
+                  <label key={r} style={{ flex: 1, display: "flex", alignItems: "center", gap: 8, padding: "10px 14px", border: `2px solid ${inviteRole === r ? "var(--brand-primary)" : "var(--border)"}`, borderRadius: 10, cursor: "pointer", background: inviteRole === r ? "#EFF6FF" : "white" }}>
+                    <input type="radio" name="inv-role" value={r} checked={inviteRole === r} onChange={() => setInviteRole(r)} style={{ accentColor: "var(--brand-primary)" }} />
+                    <span>
+                      <strong style={{ display: "block", fontSize: 13 }}>{r === "field_manager" ? "Field Manager" : "Driver Manager"}</strong>
+                      <small style={{ color: "var(--text-muted)", fontSize: 11 }}>{r === "field_manager" ? "ผู้จัดการหน้างาน" : "ผู้จัดการขนส่ง"}</small>
+                    </span>
+                  </label>
+                ))}
+              </div>
+
+              <button
+                className="btn-primary"
+                onClick={handleCreateInvite}
+                disabled={!inviteWorkerId || inviting}
+              >
+                <UserCog size={16} />
+                {inviting ? "กำลังสร้าง… · Creating…" : "สร้างลิงก์เชิญ · Create invite link"}
+              </button>
             </div>
-          ))}
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              <div style={{ background: "#F0FDF4", border: "1px solid #BBF7D0", borderRadius: 10, padding: "12px 14px" }}>
+                <p style={{ fontSize: 13, fontWeight: 600, color: "#15803D", marginBottom: 4 }}>✓ Invite link ready · ลิงก์พร้อมแล้ว</p>
+                <p style={{ fontSize: 11, color: "var(--text-muted)", wordBreak: "break-all" }}>{inviteLink.slice(0, 70)}…</p>
+              </div>
+              <button
+                onClick={() => { navigator.clipboard.writeText(inviteLink); showToast("Copied · คัดลอกแล้ว"); }}
+                style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: "11px", background: "#EFF6FF", color: "#1D4ED8", border: "1px solid #BFDBFE", borderRadius: 10, cursor: "pointer", fontSize: 14, fontWeight: 600 }}
+              >
+                <Copy size={16} /> Copy link · คัดลอก
+              </button>
+              <a href={`https://line.me/R/share?text=${encodeURIComponent("Workforce invite: " + inviteLink)}`} target="_blank" rel="noopener noreferrer"
+                style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: "11px", background: "#06C755", color: "white", borderRadius: 10, fontSize: 14, fontWeight: 600, textDecoration: "none" }}>
+                Share via LINE
+              </a>
+              <a href={`https://wa.me/?text=${encodeURIComponent("Workforce invite: " + inviteLink)}`} target="_blank" rel="noopener noreferrer"
+                style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: "11px", background: "#25D366", color: "white", borderRadius: 10, fontSize: 14, fontWeight: 600, textDecoration: "none" }}>
+                Share via WhatsApp
+              </a>
+              <button onClick={() => { setInviteLink(null); setInviteWorkerId(""); }} style={{ fontSize: 13, color: "var(--text-muted)", background: "transparent", border: "none", cursor: "pointer", textDecoration: "underline" }}>
+                New invite · ลิงก์ใหม่
+              </button>
+            </div>
+          )}
         </div>
 
-        <div style={{ background: "#FFFBEB", border: "1px solid #FDE68A", borderRadius: 10, padding: "12px 16px", fontSize: 13, color: "#92400E" }}>
-          การเพิ่มผู้ใช้งานทำได้ผ่าน Supabase Auth ในปัจจุบัน
-          <br />
-          <em>Adding team members is currently done via Supabase Auth dashboard.</em>
-        </div>
+        {/* Workers with app access */}
+        {workerList.filter((w) => w.auth_user_id).length > 0 && (
+          <div style={{ border: "1px solid var(--border)", borderRadius: 12, overflow: "hidden" }}>
+            <div style={{ padding: "14px 18px", borderBottom: "1px solid var(--border)", fontSize: 14, fontWeight: 600 }}>
+              มีสิทธิ์เข้าแอป · Has app access ({workerList.filter((w) => w.auth_user_id).length})
+            </div>
+            {workerList.filter((w) => w.auth_user_id).map((w) => (
+              <div key={w.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 18px", borderBottom: "1px solid var(--border)" }}>
+                <div style={{ flex: 1 }}>
+                  <strong style={{ fontSize: 14 }}>{w.name_th}</strong>
+                  <small style={{ display: "block", color: "var(--text-muted)", fontSize: 12 }}>{w.name_en}{w.phone ? ` · ${w.phone}` : ""}</small>
+                </div>
+                <button
+                  onClick={() => { setInviteWorkerId(w.id); setInviteLink(null); handleCreateInvite(); }}
+                  style={{ fontSize: 12, padding: "4px 10px", background: "#EFF6FF", color: "#1D4ED8", border: "1px solid #BFDBFE", borderRadius: 6, cursor: "pointer", fontWeight: 600 }}
+                >
+                  New link
+                </button>
+                <button
+                  onClick={() => handleRevokeAccess(w.id, w.name_th)}
+                  style={{ fontSize: 12, padding: "4px 10px", background: "#FEF2F2", color: "#B91C1C", border: "1px solid #FECACA", borderRadius: 6, cursor: "pointer", fontWeight: 600 }}
+                >
+                  Revoke
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     ),
 
@@ -260,37 +413,55 @@ export function SettingsClient({ profile, workdaySettings, teamMembers, ownerId 
         <h2 style={{ fontSize: 22, fontWeight: 700 }}>ภาษา <small style={{ fontSize: 14, fontWeight: 400, color: "var(--text-muted)" }}>Language mode</small></h2>
 
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-          {[
-            { value: "th-primary", th: "ไทยเป็นหลัก (แนะนำ)", en: "Thai primary, English secondary — current setting", active: true },
-            { value: "en-primary", th: "อังกฤษเป็นหลัก", en: "English primary, Thai secondary", active: false },
-            { value: "th-only", th: "ภาษาไทยเท่านั้น", en: "Thai only", active: false },
-          ].map((opt) => (
-            <div
-              key={opt.value}
-              style={{
-                border: `2px solid ${opt.active ? "var(--brand-primary)" : "var(--border)"}`,
-                borderRadius: 10,
-                padding: "14px 16px",
-                background: opt.active ? "#EFF6FF" : "white",
-                display: "flex",
-                alignItems: "center",
-                gap: 12,
-                cursor: "pointer",
-              }}
-            >
-              {opt.active && <Check size={20} color="var(--brand-primary)" />}
-              <div>
-                <strong style={{ fontSize: 15 }}>{opt.th}</strong>
-                <small style={{ display: "block", color: "var(--text-muted)", fontSize: 12 }}>{opt.en}</small>
+          {([
+            {
+              value: "th-primary",
+              label: "Thai primary (Recommended)",
+              preview: <><strong style={{ fontSize: 16 }}>หัดสา</strong><small style={{ display: "block", color: "var(--text-muted)", fontSize: 12 }}>Hadsa · Site name</small></>,
+            },
+            {
+              value: "en-primary",
+              label: "English primary",
+              preview: <><strong style={{ fontSize: 16 }}>Hadsa</strong><small style={{ display: "block", color: "var(--text-muted)", fontSize: 12 }}>หัดสา · ชื่อไซต์</small></>,
+            },
+            {
+              value: "th-only",
+              label: "Thai only",
+              preview: <><strong style={{ fontSize: 16 }}>หัดสา</strong></>,
+            },
+          ] as const).map((opt) => {
+            const isActive = langMode === opt.value;
+            return (
+              <div
+                key={opt.value}
+                onClick={() => handleLangMode(opt.value)}
+                style={{
+                  border: `2px solid ${isActive ? "var(--brand-primary)" : "var(--border)"}`,
+                  borderRadius: 10,
+                  padding: "14px 16px",
+                  background: isActive ? "#EFF6FF" : "white",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 16,
+                  cursor: "pointer",
+                }}
+              >
+                <div style={{ width: 24, flexShrink: 0 }}>
+                  {isActive && <Check size={20} color="var(--brand-primary)" />}
+                </div>
+                <div style={{ flex: 1 }}>
+                  <strong style={{ fontSize: 14 }}>{opt.label}</strong>
+                </div>
+                <div style={{ background: "var(--surface)", borderRadius: 8, padding: "8px 14px", minWidth: 120, textAlign: "left", border: "1px solid var(--border)" }}>
+                  {opt.preview}
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
 
         <p style={{ fontSize: 13, color: "var(--text-muted)", lineHeight: 1.6 }}>
-          ปัจจุบันรองรับเฉพาะ ไทยเป็นหลัก เท่านั้น ตามสเปค Thai-first bilingual UI
-          <br />
-          <em>Currently only Thai-primary mode is supported per spec.</em>
+          Changes apply instantly across the entire app and persist after refresh.
         </p>
       </div>
     ),
@@ -382,7 +553,7 @@ function MobileSettings({ sections, sectionContent, profile, onSignOut }: any) {
       <div className="mobile-topbar">
         <div style={{ flex: 1 }}>
           <h1 style={{ color: "white" }}>การตั้งค่า</h1>
-          <p style={{ color: "rgba(255,255,255,0.75)", fontSize: 12 }}>Settings</p>
+          <p style={{ color: "rgba(255,255,255,0.75)" }}>Settings</p>
         </div>
       </div>
 

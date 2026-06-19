@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 // Copyright © 2026 Workforce. All rights reserved.
 
 import { useState, useMemo } from "react";
@@ -8,8 +8,8 @@ import { createClient } from "@/lib/supabase/client";
 import { DashboardShell } from "@/components/layout/DashboardShell";
 import { SiteStatusBadge, siteStatusColor } from "@/components/ui/SiteStatusBadge";
 import {
-  Search, Filter, ChevronRight, CirclePlus, Trash2,
-  FileText, ChevronDown,
+  Search, ChevronRight, CirclePlus, Trash2,
+  FileText, ChevronDown, X, Wrench, Building2,
 } from "lucide-react";
 import type { Site, SiteStatus } from "@/types/database";
 
@@ -28,6 +28,14 @@ interface SitesClientProps {
   ownerId: string;
 }
 
+interface AddSiteForm {
+  name_th: string;
+  name_en: string;
+  location_th: string;
+  location_en: string;
+  project_type: "short" | "long";
+}
+
 export function SitesClient({ sites: initialSites, ownerId }: SitesClientProps) {
   const router = useRouter();
   const supabase = createClient();
@@ -37,6 +45,11 @@ export function SitesClient({ sites: initialSites, ownerId }: SitesClientProps) 
   const [selectedId, setSelectedId] = useState<string | null>(sites[0]?.id ?? null);
   const [toast, setToast] = useState("");
   const [deleting, setDeleting] = useState<string | null>(null);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [addForm, setAddForm] = useState<AddSiteForm>({
+    name_th: "", name_en: "", location_th: "", location_en: "", project_type: "short",
+  });
+  const [adding, setAdding] = useState(false);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -84,26 +97,31 @@ export function SitesClient({ sites: initialSites, ownerId }: SitesClientProps) 
     showToast("ลบไซต์แล้ว · Site deleted");
   }
 
-  async function handleAddSite() {
-    const name = prompt("ชื่อไซต์ (ภาษาไทย) · Site name (Thai):");
-    if (!name) return;
-    const nameEn = prompt("ชื่อไซต์ (ภาษาอังกฤษ) · Site name (English):");
-    if (!nameEn) return;
+  function handleAddSite() {
+    setAddForm({ name_th: "", name_en: "", location_th: "", location_en: "", project_type: "short" });
+    setShowAddModal(true);
+  }
 
+  async function submitAddSite() {
+    if (!addForm.name_th.trim() || !addForm.name_en.trim()) {
+      showToast("กรุณากรอกชื่อไซต์ทั้งสองภาษา · Both names required");
+      return;
+    }
+    setAdding(true);
     const response = await fetch("/api/sites", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name_th: name, name_en: nameEn }),
+      body: JSON.stringify(addForm),
     });
     const result = await response.json();
-
+    setAdding(false);
     if (!response.ok) {
       showToast(`เกิดข้อผิดพลาด · ${result.error ?? "Error adding site"}`);
       return;
     }
-
     setSites((prev) => [...prev, result.data]);
     setSelectedId(result.data.id);
+    setShowAddModal(false);
     showToast("เพิ่มไซต์ใหม่แล้ว · Site added");
     router.refresh();
   }
@@ -299,6 +317,145 @@ export function SitesClient({ sites: initialSites, ownerId }: SitesClientProps) 
       </div>
 
       {toast && <div className="toast">{toast}</div>}
+
+      {/* Add Site Modal */}
+      {showAddModal && (
+        <div style={{
+          position: "fixed", inset: 0, zIndex: 1000,
+          background: "rgba(0,0,0,0.45)", display: "flex", alignItems: "center", justifyContent: "center",
+        }} onClick={(e) => { if (e.target === e.currentTarget) setShowAddModal(false); }}>
+          <div style={{
+            background: "white", borderRadius: 16, padding: 28, width: "100%", maxWidth: 480,
+            boxShadow: "0 20px 60px rgba(80,50,160,0.18)",
+          }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
+              <div>
+                <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700 }}>เพิ่มไซต์ใหม่</h2>
+                <p style={{ margin: 0, fontSize: 12, color: "var(--text-muted)" }}>Add new site / project</p>
+              </div>
+              <button onClick={() => setShowAddModal(false)} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-muted)" }}>
+                <X size={22} />
+              </button>
+            </div>
+
+            {/* Project type selector */}
+            <div style={{ marginBottom: 20 }}>
+              <p style={{ fontSize: 13, fontWeight: 600, marginBottom: 10, color: "var(--text-primary)" }}>
+                ประเภทโปรเจกต์ <span style={{ fontWeight: 400, color: "var(--text-muted)" }}>Project type</span>
+              </p>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                <button
+                  onClick={() => setAddForm(f => ({ ...f, project_type: "short" }))}
+                  style={{
+                    border: `2px solid ${addForm.project_type === "short" ? "#7C3AED" : "var(--border)"}`,
+                    borderRadius: 12, padding: "14px 12px", cursor: "pointer", textAlign: "left",
+                    background: addForm.project_type === "short" ? "#F5F3FF" : "white",
+                    transition: "all 0.15s",
+                  }}
+                >
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+                    <Wrench size={18} color={addForm.project_type === "short" ? "#7C3AED" : "var(--text-muted)"} />
+                    <strong style={{ fontSize: 14, color: addForm.project_type === "short" ? "#7C3AED" : "var(--text-primary)" }}>Short</strong>
+                  </div>
+                  <p style={{ margin: 0, fontSize: 11, color: "var(--text-muted)", lineHeight: 1.5 }}>
+                    ซ่อมแซม / ปรับปรุง<br />Repair · Renovation<br />Up to 2 months
+                  </p>
+                </button>
+                <button
+                  onClick={() => setAddForm(f => ({ ...f, project_type: "long" }))}
+                  style={{
+                    border: `2px solid ${addForm.project_type === "long" ? "#FF6A00" : "var(--border)"}`,
+                    borderRadius: 12, padding: "14px 12px", cursor: "pointer", textAlign: "left",
+                    background: addForm.project_type === "long" ? "#FFF7F0" : "white",
+                    transition: "all 0.15s",
+                  }}
+                >
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+                    <Building2 size={18} color={addForm.project_type === "long" ? "#FF6A00" : "var(--text-muted)"} />
+                    <strong style={{ fontSize: 14, color: addForm.project_type === "long" ? "#FF6A00" : "var(--text-primary)" }}>Long</strong>
+                  </div>
+                  <p style={{ margin: 0, fontSize: 11, color: "var(--text-muted)", lineHeight: 1.5 }}>
+                    ก่อสร้าง<br />Construction<br />8 months – 1.5 years
+                  </p>
+                </button>
+              </div>
+            </div>
+
+            {/* Name fields */}
+            <div style={{ display: "flex", flexDirection: "column", gap: 12, marginBottom: 20 }}>
+              <div>
+                <label style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)", display: "block", marginBottom: 4 }}>
+                  ชื่อไซต์ (ภาษาไทย) *
+                </label>
+                <input
+                  value={addForm.name_th}
+                  onChange={(e) => setAddForm(f => ({ ...f, name_th: e.target.value }))}
+                  placeholder="เช่น บ้านเชลอกลาม"
+                  style={{ width: "100%", border: "1px solid var(--border)", borderRadius: 8, padding: "10px 12px", fontSize: 14, boxSizing: "border-box" }}
+                />
+              </div>
+              <div>
+                <label style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)", display: "block", marginBottom: 4 }}>
+                  Site name (English) *
+                </label>
+                <input
+                  value={addForm.name_en}
+                  onChange={(e) => setAddForm(f => ({ ...f, name_en: e.target.value }))}
+                  placeholder="e.g. CHELOCKLAM"
+                  style={{ width: "100%", border: "1px solid var(--border)", borderRadius: 8, padding: "10px 12px", fontSize: 14, boxSizing: "border-box" }}
+                />
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                <div>
+                  <label style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)", display: "block", marginBottom: 4 }}>
+                    ที่ตั้ง (ไทย)
+                  </label>
+                  <input
+                    value={addForm.location_th}
+                    onChange={(e) => setAddForm(f => ({ ...f, location_th: e.target.value }))}
+                    placeholder="เช่น เกาะพะงัน"
+                    style={{ width: "100%", border: "1px solid var(--border)", borderRadius: 8, padding: "10px 12px", fontSize: 13, boxSizing: "border-box" }}
+                  />
+                </div>
+                <div>
+                  <label style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)", display: "block", marginBottom: 4 }}>
+                    Location (EN)
+                  </label>
+                  <input
+                    value={addForm.location_en}
+                    onChange={(e) => setAddForm(f => ({ ...f, location_en: e.target.value }))}
+                    placeholder="Koh Phangan"
+                    style={{ width: "100%", border: "1px solid var(--border)", borderRadius: 8, padding: "10px 12px", fontSize: 13, boxSizing: "border-box" }}
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div style={{ display: "flex", gap: 10 }}>
+              <button
+                onClick={() => setShowAddModal(false)}
+                style={{ flex: 1, padding: "11px", border: "1px solid var(--border)", borderRadius: 10, background: "white", cursor: "pointer", fontSize: 14, fontWeight: 600 }}
+              >
+                ยกเลิก · Cancel
+              </button>
+              <button
+                onClick={submitAddSite}
+                disabled={adding}
+                style={{
+                  flex: 2, padding: "11px", border: "none", borderRadius: 10, cursor: adding ? "default" : "pointer",
+                  fontSize: 14, fontWeight: 700, color: "white",
+                  background: addForm.project_type === "long"
+                    ? "linear-gradient(135deg, #FF6A00, #FF8C00)"
+                    : "linear-gradient(135deg, #7C3AED, #6D28D9)",
+                  opacity: adding ? 0.7 : 1,
+                }}
+              >
+                {adding ? "กำลังบันทึก..." : `เพิ่ม${addForm.project_type === "long" ? " Long Project" : " Short Project"}`}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </DashboardShell>
   );
 }
@@ -330,7 +487,7 @@ function MobileSites({
       <div className="mobile-topbar">
         <div style={{ flex: 1 }}>
           <h1 style={{ color: "white" }}>ไซต์</h1>
-          <p style={{ color: "rgba(255,255,255,0.75)", fontSize: 12 }}>Sites management</p>
+          <p style={{ color: "rgba(255,255,255,0.75)" }}>Sites management</p>
         </div>
         <button
           onClick={onAddSite}
@@ -398,8 +555,8 @@ function MobileSites({
                   style={{ background: siteStatusColor(site.status), width: 10, height: 10, flexShrink: 0 }}
                 />
                 <span style={{ flex: 1 }}>
-                  <strong style={{ display: "block", fontSize: 16 }}>{site.name_th}</strong>
-                  <small style={{ color: "var(--text-muted)", fontSize: 12 }}>{site.name_en} · {site.location_en}</small>
+                  <strong className="cell-th" style={{ display: "block" }}>{site.name_th}</strong>
+                  <small className="cell-en">{site.name_en} · {site.location_en}</small>
                 </span>
                 <SiteStatusBadge status={site.status} small />
                 <ChevronRight size={18} color="var(--text-muted)" />

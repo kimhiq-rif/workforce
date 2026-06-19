@@ -1,4 +1,4 @@
-import { DashboardShell } from "@/components/layout/DashboardShell";
+﻿import { DashboardShell } from "@/components/layout/DashboardShell";
 import { Grid3X3, Settings, CalendarDays, FileText } from "lucide-react";
 import Link from "next/link";
 
@@ -52,7 +52,7 @@ export default function MorePage() {
         <div className="mobile-topbar">
           <div style={{ flex: 1 }}>
             <h1 style={{ color: "white" }}>เพิ่มเติม</h1>
-            <p style={{ color: "rgba(255,255,255,0.75)", fontSize: 12 }}>More tools</p>
+            <p style={{ color: "rgba(255,255,255,0.75)" }}>More tools</p>
           </div>
           <Grid3X3 size={22} color="white" />
         </div>

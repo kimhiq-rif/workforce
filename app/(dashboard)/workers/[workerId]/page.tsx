@@ -1,5 +1,5 @@
 // Copyright © 2026 Workforce. All rights reserved.
-import { createClient } from "@/lib/supabase/server";
+import { getAppUserContext } from "@/lib/auth-context";
 import { WorkerProfileClient } from "@/components/screens/Workers/WorkerProfileClient";
 import { notFound, redirect } from "next/navigation";
 import { todayBangkok } from "@/lib/format";
@@ -9,17 +9,8 @@ export const dynamic = "force-dynamic";
 interface Props { params: { workerId: string } }
 
 export default async function WorkerProfilePage({ params }: Props) {
-  const supabase = createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
-
-  const { data: profile } = await supabase
-    .from("users")
-    .select("id, role, owner_id")
-    .eq("auth_id", user.id)
-    .single();
-
-  const ownerId = profile?.role === "owner" ? profile.id : profile?.owner_id;
+  const { user, profile, ownerId, serviceClient: supabase } = await getAppUserContext();
+  if (!user || !ownerId) redirect("/login");
   const today = todayBangkok();
 
   const { data: worker } = await supabase
@@ -81,6 +72,7 @@ export default async function WorkerProfilePage({ params }: Props) {
       sites={sites ?? []}
       ownerId={ownerId}
       today={today}
+      userRole={profile?.role ?? "field_manager"}
     />
   );
 }

@@ -2,14 +2,14 @@
 // Copyright © 2026 Workforce. All rights reserved.
 
 import Link from "next/link";
-import { ChevronRight, FileText, QrCode, AlertCircle, Users } from "lucide-react";
+import { ChevronRight, FileText, QrCode, AlertCircle, Users, Wrench, Building2 } from "lucide-react";
 import { DashboardShell } from "@/components/layout/DashboardShell";
 import { SiteStatusBadge, siteStatusColor } from "@/components/ui/SiteStatusBadge";
-import type { Site } from "@/types/database";
+import type { Site, ProjectType } from "@/types/database";
 
 type DashboardSite = Pick<
   Site,
-  "id" | "name_th" | "name_en" | "location_th" | "location_en" | "status"
+  "id" | "name_th" | "name_en" | "location_th" | "location_en" | "status" | "photo_url" | "project_type"
 > & {
   manager?: { name_th: string; name_en: string } | null;
 };
@@ -43,7 +43,6 @@ export function DashboardClient({
     ? userProfile.name_th.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase()
     : "SK";
 
-  // Build per-site attendance stats
   const siteStats = sites.map((site) => {
     const counts = attendanceCounts.filter((a) => a.site_id === site.id);
     const reported = counts.filter((a) => a.status !== "missing").length;
@@ -57,7 +56,6 @@ export function DashboardClient({
   const totalExpected = siteStats.reduce((sum, s) => sum + s.total, 0);
   const pendingItems = pendingWageDecisions.length + openReceiptsCount;
 
-  // ── Right Panel ────────────────────────────────────────────────────────────
   const urgentSites = siteStats.filter(
     (s) => s.status === "review" || s.hasPendingWage || s.status === "rain"
   ).slice(0, 5);
@@ -121,10 +119,8 @@ export function DashboardClient({
     </>
   );
 
-  // ── Main content (both desktop + mobile) ──────────────────────────────────
   const mainContent = (
     <>
-      {/* Content header */}
       <div className="content-header">
         <div>
           <h1>
@@ -157,23 +153,12 @@ export function DashboardClient({
         </div>
       </div>
 
-      {/* Sites grid */}
       {sites.length === 0 ? (
-        <div
-          style={{
-            textAlign: "center",
-            padding: "60px 20px",
-            color: "var(--text-muted)",
-          }}
-        >
+        <div style={{ textAlign: "center", padding: "60px 20px", color: "var(--text-muted)" }}>
           <Users size={48} strokeWidth={1.2} style={{ marginBottom: 16, opacity: 0.4 }} />
           <p style={{ fontSize: 18, fontWeight: 600, marginBottom: 4 }}>ยังไม่มีไซต์</p>
           <p style={{ fontSize: 14 }}>No sites yet — add your first site in Sites</p>
-          <Link
-            href="/sites"
-            className="btn-primary"
-            style={{ display: "inline-flex", marginTop: 16 }}
-          >
+          <Link href="/sites" className="btn-primary" style={{ display: "inline-flex", marginTop: 16 }}>
             ไปที่ไซต์ · Go to Sites
           </Link>
         </div>
@@ -193,10 +178,7 @@ export function DashboardClient({
       userInitials={initials}
       userName={userProfile?.name_th ?? "เจ้าของ"}
     >
-      {/* Desktop: render inside DashboardShell's main scroll */}
       <div className="desktop-only">{mainContent}</div>
-
-      {/* Mobile: full-width vertical layout */}
       <div className="mobile-only">
         <MobileDashboard
           sites={siteStats}
@@ -211,59 +193,245 @@ export function DashboardClient({
   );
 }
 
-// ── Site card (desktop) ──────────────────────────────────────────────────────
-function SiteCard({ site }: { site: DashboardSite & { reported: number; total: number; hasPendingWage: boolean } }) {
+// ── Status accent colors ──────────────────────────────────────────────────────
+const ACCENT: Record<string, { bg: string; text: string; gradient: string }> = {
+  live:     { bg: "#ECFEFF", text: "#0E7490", gradient: "linear-gradient(135deg, #cffafe 0%, #a5f3fc 100%)" },
+  finished: { bg: "#F0FDF4", text: "#15803D", gradient: "linear-gradient(135deg, #bbf7d0 0%, #86efac 100%)" },
+  rain:     { bg: "#EFF6FF", text: "#1D4ED8", gradient: "linear-gradient(135deg, #bfdbfe 0%, #93c5fd 100%)" },
+  day_off:  { bg: "#EFF6FF", text: "#1D4ED8", gradient: "linear-gradient(135deg, #bfdbfe 0%, #93c5fd 100%)" },
+  review:   { bg: "#FFFBEB", text: "#B45309", gradient: "linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)" },
+  waiting:  { bg: "#FFF7ED", text: "#C2410C", gradient: "linear-gradient(135deg, #fed7aa 0%, #fdba74 100%)" },
+  critical: { bg: "#FEF2F2", text: "#B91C1C", gradient: "linear-gradient(135deg, #fecaca 0%, #fca5a5 100%)" },
+  half_day: { bg: "#FFFBEB", text: "#B45309", gradient: "linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)" },
+};
+
+// ── Donut progress circle ─────────────────────────────────────────────────────
+function DonutProgress({
+  value,
+  reported,
+  total,
+  color,
+}: {
+  value: number;
+  reported: number;
+  total: number;
+  color: string;
+}) {
+  const size = 46;
+  const stroke = 4;
+  const r = (size - stroke) / 2;
+  const circ = 2 * Math.PI * r;
+  const filled = (value / 100) * circ;
+
   return (
-    <Link
-      href={`/sites/${site.id}`}
-      className={`site-card ${site.status}`}
-      style={{ display: "block", textDecoration: "none" }}
-    >
-      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8 }}>
-        <div>
-          <div className="site-card-name">{site.name_th}</div>
-          <div className="site-card-sub">{site.name_en} · {site.location_en ?? ""}</div>
-        </div>
-        <SiteStatusBadge status={site.status} />
+    <div style={{ position: "relative", width: size, height: size, flexShrink: 0 }}>
+      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ transform: "rotate(-90deg)" }}>
+        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="#E5E7EB" strokeWidth={stroke} />
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={r}
+          fill="none"
+          stroke={color}
+          strokeWidth={stroke}
+          strokeDasharray={`${filled} ${circ}`}
+          strokeLinecap="round"
+        />
+      </svg>
+      <div
+        style={{
+          position: "absolute",
+          inset: 0,
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          lineHeight: 1,
+        }}
+      >
+        <span style={{ fontSize: 11, fontWeight: 700, color: "var(--text-primary)" }}>{reported}</span>
+        <span style={{ fontSize: 8.5, color: "var(--text-muted)" }}>/{total}</span>
       </div>
+    </div>
+  );
+}
 
-      {site.manager && (
-        <div style={{ fontSize: 13, color: "var(--text-muted)", marginTop: 10 }}>
-          ผู้จัดการ: {site.manager.name_th}
-        </div>
-      )}
+// ── Worker avatar stack ───────────────────────────────────────────────────────
+const AVATAR_COLORS = ["#3B82F6","#8B5CF6","#06B6D4","#F59E0B","#10B981","#EF4444"];
 
-      <div className="site-card-metrics">
-        <div className="site-metric-item">
-          <strong>{site.reported}/{site.total}</strong>
-          <small>รายงาน</small>
-        </div>
-        <div className="site-metric-item">
-          <strong>{site.hasPendingWage ? "⚠" : "✓"}</strong>
-          <small>ค่าแรง</small>
-        </div>
-      </div>
-
-      {site.hasPendingWage && (
+function AvatarStack({ count }: { count: number }) {
+  const visible = Math.min(count, 3);
+  return (
+    <div style={{ display: "flex", alignItems: "center" }}>
+      {Array.from({ length: visible }).map((_, i) => (
         <div
+          key={i}
           style={{
-            marginTop: 10,
-            padding: "6px 10px",
-            background: "#FEF2F2",
-            borderRadius: 6,
-            fontSize: 12,
-            color: "#B91C1C",
-            fontWeight: 500,
+            width: 24,
+            height: 24,
+            borderRadius: "50%",
+            background: AVATAR_COLORS[i % AVATAR_COLORS.length],
+            border: "2px solid white",
+            marginLeft: i > 0 ? -7 : 0,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            fontSize: 9,
+            fontWeight: 700,
+            color: "white",
+            flexShrink: 0,
           }}
         >
-          รอตัดสินค่าแรง · Wage decision pending
+          {i + 1}
+        </div>
+      ))}
+      {count > 3 && (
+        <div
+          style={{
+            width: 24,
+            height: 24,
+            borderRadius: "50%",
+            background: "#E5E7EB",
+            border: "2px solid white",
+            marginLeft: -7,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            fontSize: 9,
+            fontWeight: 700,
+            color: "#6B7280",
+            flexShrink: 0,
+          }}
+        >
+          +{count - 3}
         </div>
       )}
+    </div>
+  );
+}
+
+// ── Site card (desktop) ───────────────────────────────────────────────────────
+function SiteCard({
+  site,
+}: {
+  site: DashboardSite & { reported: number; total: number; hasPendingWage: boolean };
+}) {
+  const accent = ACCENT[site.status] ?? ACCENT.waiting;
+  const progressPct = site.total > 0 ? (site.reported / site.total) * 100 : 0;
+  const isLong = site.project_type === "long";
+
+  return (
+    <Link href={`/sites/${site.id}`} className={`site-card-photo${site.status === "live" ? " live" : ""}`} style={{ display: "block" }}>
+      {/* Photo header / gradient header */}
+      <div className="site-card-photo-header">
+        {site.photo_url ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={site.photo_url}
+            alt={site.name_en ?? ""}
+            style={{ width: "100%", height: "100%", objectFit: "cover" }}
+          />
+        ) : (
+          <div
+            className="site-card-photo-bg"
+            style={{ background: accent.gradient }}
+          />
+        )}
+        {/* Status badge overlay */}
+        <div className="site-card-photo-status">
+          <SiteStatusBadge status={site.status} />
+        </div>
+        {/* Project type badge */}
+        <div style={{
+          position: "absolute", top: 8, left: 8,
+          background: isLong ? "rgba(255,106,0,0.85)" : "rgba(124,58,237,0.8)",
+          backdropFilter: "blur(4px)",
+          borderRadius: 5, padding: "2px 7px",
+          fontSize: 10, fontWeight: 700, color: "white",
+          display: "flex", alignItems: "center", gap: 4,
+        }}>
+          {isLong ? <Building2 size={10} /> : <Wrench size={10} />}
+          {isLong ? "Long" : "Short"}
+        </div>
+      </div>
+
+      {/* Card body */}
+      <div className="site-card-photo-body">
+        <div className="site-card-name">{site.name_th}</div>
+        <div className="site-card-sub">
+          {site.name_en}
+          {site.location_en ? ` · ${site.location_en}` : ""}
+        </div>
+
+        {site.hasPendingWage && (
+          <div
+            style={{
+              marginTop: 8,
+              padding: "4px 8px",
+              background: "#FEF2F2",
+              borderRadius: 5,
+              fontSize: 11,
+              color: "#B91C1C",
+              fontWeight: 500,
+              display: "inline-block",
+            }}
+          >
+            รอตัดสินค่าแรง · Wage pending
+          </div>
+        )}
+
+        {/* Bottom row */}
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            marginTop: 12,
+            paddingTop: 12,
+            borderTop: "1px solid var(--border)",
+          }}
+        >
+          {/* Short: worker count only — no donut */}
+          {!isLong ? (
+            <>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <AvatarStack count={site.total} />
+                {site.total > 0 && (
+                  <span style={{ fontSize: 11, color: "var(--text-muted)" }}>
+                    {site.total} คน
+                  </span>
+                )}
+              </div>
+              <span style={{ fontSize: 11, color: "var(--text-muted)", fontStyle: "italic" }}>
+                {site.reported}/{site.total} รายงาน
+              </span>
+            </>
+          ) : (
+            /* Long: avatars + donut showing reported/total workers */
+            <>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <AvatarStack count={site.total} />
+                {site.total > 0 && (
+                  <span style={{ fontSize: 11, color: "var(--text-muted)" }}>
+                    {site.total} คน
+                  </span>
+                )}
+              </div>
+              <DonutProgress
+                value={progressPct}
+                reported={site.reported}
+                total={site.total}
+                color={accent.text}
+              />
+            </>
+          )}
+        </div>
+      </div>
     </Link>
   );
 }
 
-// ── Mobile dashboard ─────────────────────────────────────────────────────────
+// ── Mobile dashboard ──────────────────────────────────────────────────────────
 function MobileDashboard({
   sites,
   openReceiptsCount,
@@ -280,24 +448,18 @@ function MobileDashboard({
   totalExpected: number;
 }) {
   return (
-    <div style={{ padding: 16, display: "flex", flexDirection: "column", gap: 12 }}>
-      {/* Mobile header */}
-      <div
-        style={{
-          background: "var(--brand-primary)",
-          borderRadius: 12,
-          padding: "16px",
-          color: "white",
-        }}
-      >
-        <div style={{ fontSize: 22, fontWeight: 700 }}>แดชบอร์ด</div>
-        <div style={{ fontSize: 13, opacity: 0.75 }}>
-          <span className="live-dot" style={{ marginRight: 4 }} />
-          {liveSites} live sites · All sites overview
+    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+      <div className="mobile-topbar">
+        <div style={{ flex: 1 }}>
+          <h1>แดชบอร์ด</h1>
+          <p>
+            <span className="live-dot" style={{ marginRight: 4 }} />
+            Dashboard · {liveSites} live
+          </p>
         </div>
       </div>
+      <div style={{ padding: "0 16px", display: "flex", flexDirection: "column", gap: 12 }}>
 
-      {/* Stats row */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>
         <div className="mini-stat">
           <strong>{sites.length}</strong>
@@ -316,8 +478,7 @@ function MobileDashboard({
         </div>
       </div>
 
-      {/* Attention row */}
-      {(pendingWageDecisions > 0) && (
+      {pendingWageDecisions > 0 && (
         <Link
           href="/reports"
           style={{
@@ -342,9 +503,11 @@ function MobileDashboard({
         </Link>
       )}
 
-      {/* Sites list */}
       <div>
-        <div style={{ fontSize: 16, fontWeight: 600, marginBottom: 8 }}>ไซต์ทั้งหมด <small style={{ color: "var(--text-muted)", fontSize: 12 }}>All sites</small></div>
+        <div style={{ fontSize: 16, fontWeight: 600, marginBottom: 8 }}>
+          ไซต์ทั้งหมด{" "}
+          <small style={{ color: "var(--text-muted)", fontSize: 12 }}>All sites</small>
+        </div>
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
           {sites.map((site) => (
             <Link
@@ -358,8 +521,10 @@ function MobileDashboard({
                 style={{ background: siteStatusColor(site.status), flexShrink: 0, width: 10, height: 10 }}
               />
               <span style={{ flex: 1 }}>
-                <strong style={{ display: "block", fontSize: 16 }}>{site.name_th}</strong>
-                <small style={{ color: "var(--text-muted)", fontSize: 12 }}>{site.name_en} · {site.location_en}</small>
+                <strong className="cell-th" style={{ display: "block" }}>{site.name_th}</strong>
+                <small className="cell-en">
+                  {site.name_en} · {site.location_en}
+                </small>
               </span>
               <div style={{ textAlign: "right" }}>
                 <SiteStatusBadge status={site.status} small />
@@ -371,6 +536,7 @@ function MobileDashboard({
             </Link>
           ))}
         </div>
+      </div>
       </div>
     </div>
   );

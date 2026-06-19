@@ -7,7 +7,7 @@ import { todayBangkok } from "@/lib/format";
 export const dynamic = "force-dynamic";
 
 export default async function WorkersPage() {
-  const { user, ownerId, serviceClient: supabase } = await getAppUserContext();
+  const { user, ownerId, serviceClient: supabase, profile } = await getAppUserContext();
   if (!user || !ownerId) redirect("/login");
   const today = todayBangkok();
 
@@ -53,6 +53,7 @@ export default async function WorkersPage() {
       sites={sites ?? []}
       ownerId={ownerId}
       today={today}
+      userRole={profile?.role ?? "field_manager"}
     />
   );
 }

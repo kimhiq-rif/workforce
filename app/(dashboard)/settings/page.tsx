@@ -23,6 +23,14 @@ export default async function SettingsPage() {
     .or(`id.eq.${ownerId},owner_id.eq.${ownerId}`)
     .order("role");
 
+  // Fetch workers eligible for role assignment (active, any status)
+  const { data: workers } = await supabase
+    .from("workers")
+    .select("id, name_th, name_en, phone, auth_user_id")
+    .eq("owner_id", ownerId)
+    .eq("is_active", true)
+    .order("name_th");
+
   const normalizedProfile = { ...profile, email: user.email ?? null, is_active: true };
   const normalizedTeamMembers = (teamMembers ?? []).map((member) => ({
       ...member,
@@ -35,6 +43,7 @@ export default async function SettingsPage() {
       profile={normalizedProfile}
       workdaySettings={workdaySettings}
       teamMembers={normalizedTeamMembers}
+      workers={workers ?? []}
       ownerId={ownerId}
     />
   );

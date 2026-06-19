@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 // Copyright © 2026 Workforce. All rights reserved.
 
 import { useMemo, useState } from "react";
@@ -24,7 +24,7 @@ export function FinanceClient({ todayAttendance, pendingReceipts: initReceipts, 
 
   function showToast(msg: string) {
     setToast(msg);
-    setTimeout(() => setToast(""), 3000);
+    setTimeout(() => setToast(""), 5000);
   }
 
   const todayWageTotal = useMemo(() =>
@@ -251,7 +251,7 @@ function MobileFinance({ todayWageTotal, pendingReceiptTotal, pendingAdvanceTota
       <div className="mobile-topbar">
         <div style={{ flex: 1 }}>
           <h1 style={{ color: "white" }}>การเงิน</h1>
-          <p style={{ color: "rgba(255,255,255,0.75)", fontSize: 12 }}>Finance · {formatThaiDate(today)}</p>
+          <p style={{ color: "rgba(255,255,255,0.75)" }}>Finance · {formatThaiDate(today)}</p>
         </div>
       </div>
 

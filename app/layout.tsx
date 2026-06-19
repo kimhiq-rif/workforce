@@ -1,6 +1,7 @@
 // Copyright © 2026 Workforce. All rights reserved.
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
+import { LangModeApplier } from "@/components/layout/LangModeApplier";
 
 export const metadata: Metadata = {
   title: "Workforce · Driven by Proof",
@@ -32,7 +33,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
       </head>
-      <body>{children}</body>
+      <body>
+        <LangModeApplier />
+        {children}
+      </body>
     </html>
   );
 }

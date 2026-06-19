@@ -41,10 +41,29 @@ export default async function CalendarPage() {
     .gte("event_date", monthStart)
     .lte("event_date", monthEnd);
 
+  // Calendar events (tasks + meetings) for this month
+  const { data: calendarEvents } = await supabase
+    .from("calendar_events")
+    .select("*")
+    .eq("owner_id", ownerId)
+    .gte("event_date", monthStart)
+    .lte("event_date", monthEnd)
+    .order("event_date");
+
+  // Sites for event creation
+  const { data: sites } = await supabase
+    .from("sites")
+    .select("id, name_th, name_en")
+    .eq("owner_id", ownerId)
+    .eq("is_active", true)
+    .order("name_th");
+
   return (
     <CalendarClient
       dayStatuses={dayStatuses ?? []}
       wageByDay={wageByDay ?? []}
+      calendarEvents={calendarEvents ?? []}
+      sites={sites ?? []}
       today={today}
       ownerId={ownerId}
     />

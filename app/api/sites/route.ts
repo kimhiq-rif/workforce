@@ -7,10 +7,11 @@ export async function POST(req: NextRequest) {
   const { user, ownerId, serviceClient } = await getAppUserContext();
   if (!user || !ownerId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { name_th, name_en, location_th, location_en } = await req.json();
+  const { name_th, name_en, location_th, location_en, project_type } = await req.json();
   if (!name_th || !name_en) {
     return NextResponse.json({ error: "Thai and English site names are required" }, { status: 400 });
   }
+  const validType = project_type === "long" ? "long" : "short";
 
   const { data, error } = await serviceClient
     .from("sites")
@@ -20,10 +21,11 @@ export async function POST(req: NextRequest) {
       name_en,
       location_th: location_th ?? null,
       location_en: location_en ?? null,
+      project_type: validType,
       status: "waiting",
       is_active: true,
     })
-    .select("id, name_th, name_en, location_th, location_en, status")
+    .select("id, name_th, name_en, location_th, location_en, status, project_type")
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });

@@ -1,5 +1,5 @@
 // Copyright © 2026 Workforce. All rights reserved.
-import { createClient } from "@/lib/supabase/server";
+import { getAppUserContext } from "@/lib/auth-context";
 import { SiteDetailClient } from "@/components/screens/Sites/SiteDetailClient";
 import { notFound, redirect } from "next/navigation";
 import { todayBangkok } from "@/lib/format";
@@ -9,17 +9,8 @@ export const dynamic = "force-dynamic";
 interface Props { params: { siteId: string } }
 
 export default async function SiteDetailPage({ params }: Props) {
-  const supabase = createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
-
-  const { data: profile } = await supabase
-    .from("users")
-    .select("id, role, owner_id")
-    .eq("auth_id", user.id)
-    .single();
-
-  const ownerId = profile?.role === "owner" ? profile.id : profile?.owner_id;
+  const { user, profile, ownerId, serviceClient: supabase } = await getAppUserContext();
+  if (!user || !ownerId) redirect("/login");
 
   // Fetch site
   const { data: site } = await supabase
@@ -57,6 +48,14 @@ export default async function SiteDetailPage({ params }: Props) {
     .eq("owner_id", ownerId)
     .eq("is_active", true);
 
+  // All active workers (for the assign-worker picker modal)
+  const { data: allWorkers } = await supabase
+    .from("workers")
+    .select("id, name_th, name_en, role_th, role_en, daily_wage, is_temporary, photo_url")
+    .eq("owner_id", ownerId)
+    .eq("is_active", true)
+    .order("name_th");
+
   // Fetch other sites for the "other sites" panel
   const { data: otherSites } = await supabase
     .from("sites")
@@ -65,6 +64,24 @@ export default async function SiteDetailPage({ params }: Props) {
     .eq("is_active", true)
     .neq("id", params.siteId)
     .order("name_en");
+
+  // Today's attendance across ALL sites (to detect cross-site duplicates in report flow)
+  const { data: allTodayAttendance } = await supabase
+    .from("attendance_events")
+    .select("worker_id, site_id")
+    .eq("owner_id", ownerId)
+    .eq("event_date", today);
+
+  // Yesterday's workers at this site (to show at top of report list)
+  const bangkokYesterday = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Bangkok" }));
+  bangkokYesterday.setDate(bangkokYesterday.getDate() - 1);
+  const yesterday = bangkokYesterday.toLocaleDateString("en-CA");
+
+  const { data: yesterdayWorkerIds } = await supabase
+    .from("attendance_events")
+    .select("worker_id")
+    .eq("site_id", params.siteId)
+    .eq("event_date", yesterday);
 
   // Fetch today's receipts for this site
   const { data: todayReceipts } = await supabase
@@ -75,17 +92,22 @@ export default async function SiteDetailPage({ params }: Props) {
     .gte("created_at", `${today}T00:00:00+07:00`)
     .order("created_at", { ascending: false });
 
+  const yesterdayWorkerIdSet = new Set((yesterdayWorkerIds ?? []).map((r) => r.worker_id));
+
   return (
     <SiteDetailClient
       site={site}
       attendanceEvents={attendanceEvents ?? []}
       dayStatus={dayStatus}
       workers={workers ?? []}
+      allWorkers={allWorkers ?? []}
       otherSites={otherSites ?? []}
       todayReceipts={todayReceipts ?? []}
+      allTodayAttendance={allTodayAttendance ?? []}
+      yesterdayWorkerIds={Array.from(yesterdayWorkerIdSet)}
       today={today}
-      userId={profile?.id}
-      userRole={profile?.role}
+      userId={profile?.id ?? undefined}
+      userRole={profile?.role ?? undefined}
     />
   );
 }

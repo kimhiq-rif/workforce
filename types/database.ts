@@ -3,6 +3,8 @@
 
 export type UserRole = "owner" | "field_manager" | "technical_admin";
 export type SiteStatus = "live" | "finished" | "rain" | "day_off" | "half_day" | "waiting" | "review";
+export type ProjectType = "short" | "long";
+export type StageName = "Started" | "Foundation" | "Structure" | "Systems" | "Finishing" | "Completed";
 export type WageReason =
   | "full_day"
   | "half_day_morning_departure"
@@ -39,6 +41,7 @@ export interface Site {
   location_th: string | null;
   location_en: string | null;
   status: SiteStatus;
+  project_type: ProjectType;
   manager_id: string | null;
   lat: number | null;
   lng: number | null;
@@ -48,6 +51,20 @@ export interface Site {
   updated_at: string;
   // Joined
   manager?: User;
+}
+
+export interface SiteStage {
+  id: string;
+  owner_id: string;
+  site_id: string;
+  name_en: string;
+  name_th: string;
+  color: string;
+  position: number;
+  started_at: string | null;
+  completed_at: string | null;
+  is_current: boolean;
+  created_at: string;
 }
 
 export interface Worker {
@@ -63,6 +80,7 @@ export interface Worker {
   photo_url: string | null;
   phone: string | null;
   is_active: boolean;
+  auth_user_id: string | null;
   created_at: string;
   updated_at: string;
   // Joined

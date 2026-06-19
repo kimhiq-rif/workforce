@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 // Copyright © 2026 Workforce. All rights reserved.
 
 import { useState } from "react";
@@ -6,7 +6,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { DashboardShell } from "@/components/layout/DashboardShell";
-import { ChevronLeft, ChevronRight, Phone, MapPin, X, Banknote } from "lucide-react";
+import { ChevronLeft, ChevronRight, Phone, MapPin, X, Banknote, Pencil, Check } from "lucide-react";
 import { formatCurrency, formatThaiDate, formatEnDate, formatTime } from "@/lib/format";
 import { wageReasonLabel } from "@/lib/wage-logic";
 import type { Worker } from "@/types/database";
@@ -36,21 +36,23 @@ interface WorkerProfileClientProps {
   sites: { id: string; name_th: string; name_en: string }[];
   ownerId: string;
   today: string;
+  userRole?: string;
 }
 
-export function WorkerProfileClient({ worker: initialWorker, attendanceHistory, advances: initialAdvances, sites, ownerId, today }: WorkerProfileClientProps) {
+export function WorkerProfileClient({ worker: initialWorker, attendanceHistory, advances: initialAdvances, sites, ownerId, today, userRole }: WorkerProfileClientProps) {
   const router = useRouter();
   const supabase = createClient();
   const [worker, setWorker] = useState(initialWorker);
   const [advances, setAdvances] = useState(initialAdvances);
   const [toast, setToast] = useState("");
   const [showAdvanceModal, setShowAdvanceModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
   const [editingWage, setEditingWage] = useState(false);
   const [newWage, setNewWage] = useState(String(initialWorker.daily_wage));
 
   function showToast(msg: string) {
     setToast(msg);
-    setTimeout(() => setToast(""), 3000);
+    setTimeout(() => setToast(""), 5000);
   }
 
   // ── Stats ────────────────────────────────────────────────────────────────────
@@ -168,7 +170,6 @@ export function WorkerProfileClient({ worker: initialWorker, attendanceHistory, 
 
             {/* Daily wage editor */}
             <div style={{ textAlign: "right" }}>
-              <div style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 2 }}>ค่าแรง/วัน · Daily wage</div>
               {editingWage ? (
                 <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
                   <input
@@ -196,6 +197,17 @@ export function WorkerProfileClient({ worker: initialWorker, attendanceHistory, 
 
           {/* Action buttons */}
           <div style={{ display: "flex", gap: 10, marginBottom: 28 }}>
+            {userRole === "owner" && (
+              <button
+                className="btn-primary"
+                onClick={() => setShowEditModal(true)}
+                style={{ background: "var(--brand-primary)" }}
+              >
+                <Pencil size={18} />
+                แก้ไข
+                <small>Edit worker</small>
+              </button>
+            )}
             <button
               className="btn-primary"
               onClick={() => setShowAdvanceModal(true)}
@@ -301,6 +313,7 @@ export function WorkerProfileClient({ worker: initialWorker, attendanceHistory, 
             advances={advances}
             stats={{ daysWorked, totalEarned, lateDays, pendingAdvances }}
             onAddAdvance={() => setShowAdvanceModal(true)}
+            onEdit={userRole === "owner" ? () => setShowEditModal(true) : undefined}
           />
         </div>
 
@@ -319,6 +332,20 @@ export function WorkerProfileClient({ worker: initialWorker, attendanceHistory, 
           }}
         />
       )}
+
+      {showEditModal && (
+        <EditWorkerModal
+          worker={worker}
+          onClose={() => setShowEditModal(false)}
+          onSaved={(updated) => {
+            setWorker((w) => ({ ...w, ...updated }));
+            setNewWage(String(updated.daily_wage ?? worker.daily_wage));
+            setShowEditModal(false);
+            showToast("อัปเดตข้อมูลพนักงานแล้ว · Worker updated");
+          }}
+        />
+      )}
+
     </>
   );
 }
@@ -333,21 +360,27 @@ function AttHistoryBadge({ status, isLate, wageReason }: { status: string; isLat
   return <span style={{ background: "#F3F4F6", color: "#6B7280", padding: "3px 8px", borderRadius: 6, fontSize: 11 }}>{status}</span>;
 }
 
-function MobileWorkerProfile({ worker, attendanceHistory, advances, stats, onAddAdvance }: {
+function MobileWorkerProfile({ worker, attendanceHistory, advances, stats, onAddAdvance, onEdit }: {
   worker: any;
   attendanceHistory: AttendanceRow[];
   advances: AdvanceRow[];
   stats: { daysWorked: number; totalEarned: number; lateDays: number; pendingAdvances: number };
   onAddAdvance: () => void;
+  onEdit?: () => void;
 }) {
   return (
     <div>
       <div className="mobile-topbar">
         <Link href="/workers" className="mobile-topbar-back"><ChevronLeft size={24} /></Link>
         <div style={{ flex: 1 }}>
-          <h1 style={{ color: "white", fontSize: 19 }}>{worker.name_th}</h1>
-          <p style={{ color: "rgba(255,255,255,0.75)", fontSize: 12 }}>{worker.name_en}</p>
+          <h1 style={{ color: "white" }}>{worker.name_th}</h1>
+          <p style={{ color: "rgba(255,255,255,0.75)" }}>{worker.name_en}</p>
         </div>
+        {onEdit && (
+          <button onClick={onEdit} style={{ background: "rgba(255,255,255,0.15)", border: "none", borderRadius: 8, padding: "6px 12px", cursor: "pointer", color: "white", display: "flex", alignItems: "center", gap: 4, fontSize: 13 }}>
+            <Pencil size={15} /> แก้ไข · Edit
+          </button>
+        )}
       </div>
 
       <div style={{ padding: "16px", display: "flex", flexDirection: "column", gap: 16 }}>
@@ -402,6 +435,116 @@ function MobileWorkerProfile({ worker, attendanceHistory, advances, stats, onAdd
               </div>
             ))}
           </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function EditWorkerModal({ worker, onClose, onSaved }: {
+  worker: Worker;
+  onClose: () => void;
+  onSaved: (updated: Partial<Worker>) => void;
+}) {
+  const supabase = createClient();
+  const [nameTh, setNameTh] = useState(worker.name_th ?? "");
+  const [nameEn, setNameEn] = useState(worker.name_en ?? "");
+  const [roleTh, setRoleTh] = useState(worker.role_th ?? "");
+  const [roleEn, setRoleEn] = useState(worker.role_en ?? "");
+  const [phone, setPhone] = useState(worker.phone ?? "");
+  const [wage, setWage] = useState(String(worker.daily_wage ?? ""));
+  const [isTemp, setIsTemp] = useState(worker.is_temporary ?? false);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+
+  async function handleSave() {
+    if (!nameTh.trim()) { setError("ต้องกรอกชื่อภาษาไทย · Thai name required"); return; }
+    const wageNum = Number(wage);
+    if (!wageNum || wageNum <= 0) { setError("ค่าแรงต้องมากกว่า 0"); return; }
+    setSaving(true);
+
+    const patch: Partial<Worker> = {
+      name_th: nameTh.trim(),
+      name_en: nameEn.trim() || undefined,
+      role_th: roleTh.trim() || undefined,
+      role_en: roleEn.trim() || undefined,
+      phone: phone.trim() || undefined,
+      daily_wage: wageNum,
+      is_temporary: isTemp,
+    };
+
+    const dbPatch = {
+      name_th: patch.name_th,
+      name_en: patch.name_en ?? null,
+      role_th: patch.role_th ?? null,
+      role_en: patch.role_en ?? null,
+      phone: patch.phone ?? null,
+      daily_wage: patch.daily_wage,
+      is_temporary: patch.is_temporary,
+    };
+
+    const { error: dbError } = await supabase
+      .from("workers")
+      .update(dbPatch)
+      .eq("id", worker.id);
+
+    setSaving(false);
+    if (dbError) { setError("เกิดข้อผิดพลาด · " + dbError.message); return; }
+    onSaved(patch);
+  }
+
+  const field = (label: string, value: string, onChange: (v: string) => void, opts?: { type?: string; placeholder?: string }) => (
+    <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+      <span style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)" }}>{label}</span>
+      <input
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        type={opts?.type ?? "text"}
+        placeholder={opts?.placeholder ?? ""}
+        style={{ padding: "9px 12px", border: "1px solid var(--border)", borderRadius: 8, fontSize: 14 }}
+      />
+    </label>
+  );
+
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 998, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
+      <div style={{ background: "white", borderRadius: 16, padding: "28px 24px", width: "100%", maxWidth: 440, maxHeight: "90vh", overflowY: "auto" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 20 }}>
+          <h2 style={{ fontSize: 20, fontWeight: 700 }}>
+            แก้ไขข้อมูล <small style={{ fontSize: 13, fontWeight: 400, color: "var(--text-muted)" }}>Edit worker</small>
+          </h2>
+          <button onClick={onClose} style={{ background: "transparent", border: "none", cursor: "pointer" }}><X size={24} /></button>
+        </div>
+
+        {error && <div style={{ background: "#FEF2F2", color: "#B91C1C", borderRadius: 8, padding: "10px 14px", marginBottom: 16, fontSize: 13 }}>{error}</div>}
+
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          {field("ชื่อภาษาไทย · Thai name *", nameTh, setNameTh, { placeholder: "ชื่อ นามสกุล" })}
+          {field("ชื่อภาษาอังกฤษ · English name", nameEn, setNameEn, { placeholder: "First Last" })}
+          {field("ตำแหน่งภาษาไทย · Thai job title", roleTh, setRoleTh, { placeholder: "ช่างปูน" })}
+          {field("ตำแหน่งภาษาอังกฤษ · English job title", roleEn, setRoleEn, { placeholder: "Mason" })}
+          {field("เบอร์โทร · Phone", phone, setPhone, { type: "tel", placeholder: "+66 8X XXX XXXX" })}
+          {field("ค่าแรง/วัน · Daily wage (฿) *", wage, setWage, { type: "number", placeholder: "400" })}
+
+          <label style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer", padding: "10px 12px", border: "1px solid var(--border)", borderRadius: 8 }}>
+            <input
+              type="checkbox"
+              checked={isTemp}
+              onChange={(e) => setIsTemp(e.target.checked)}
+              style={{ width: 16, height: 16, cursor: "pointer" }}
+            />
+            <span style={{ fontSize: 14 }}>ชั่วคราว · Temporary</span>
+          </label>
+        </div>
+
+        <div style={{ display: "flex", gap: 12, marginTop: 22 }}>
+          <button onClick={onClose} style={{ flex: 1, padding: "11px", border: "1px solid var(--border)", borderRadius: 10, background: "white", cursor: "pointer", fontSize: 14 }}>
+            ยกเลิก · Cancel
+          </button>
+          <button onClick={handleSave} disabled={saving} className="btn-primary" style={{ flex: 2, justifyContent: "center" }}>
+            <Check size={16} />
+            {saving ? "Saving…" : "บันทึก · Save"}
+          </button>
         </div>
       </div>
     </div>
