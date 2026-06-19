@@ -105,14 +105,14 @@ function WeatherPanel() {
             </span>
           </div>
           <div style={{ fontSize: 9.5, color: rainColor, fontWeight: 600 }}>
-            גשם צפוי · {wx.rainPeak}% peak
+            ฝนตก · {wx.rainPeak}% peak
           </div>
         </div>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
             <span style={{ fontSize: 14 }}>☀️</span>
-            <span style={{ fontSize: 12, fontWeight: 600, color: "#15803D" }}>לא צפוי גשם</span>
+            <span style={{ fontSize: 12, fontWeight: 600, color: "#15803D" }}>ไม่มีฝน</span>
           </div>
           <div style={{ fontSize: 9.5, color: "var(--text-muted)" }}>No rain today</div>
         </div>
