@@ -918,7 +918,7 @@ function AddReceiptModal({ ownerId, userId, suppliers, sites, defaultSiteId, onC
     setNewSupplierName(null);
 
     // Resize image to max 1600px before sending — phone photos are 4-5MB which exceeds Vercel's 4.5MB body limit
-    function resizeImage(dataUrl: string, maxPx = 1600, quality = 0.82): Promise<string> {
+    function resizeImage(dataUrl: string, maxPx = 1024, quality = 0.78): Promise<string> {
       return new Promise((resolve) => {
         const img = new Image();
         img.onload = () => {
@@ -949,6 +949,7 @@ function AddReceiptModal({ ownerId, userId, suppliers, sites, defaultSiteId, onC
         });
         const ocr = await ocrRes.json();
 
+        if (ocr._error) console.warn("[OCR client] server error:", ocr._error);
         if (ocr.confidence >= 60 && ocr.amount > 0) {
           setForm((f) => ({
             ...f,

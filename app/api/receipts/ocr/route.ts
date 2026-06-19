@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
-export const maxDuration = 30; // seconds — Claude Vision needs time for large receipts
+// Hobby plan: 10s limit. Pro plan: up to 60s. Keep this here for when user upgrades.
+export const maxDuration = 30;
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -29,7 +30,7 @@ function buildPrompt(examples: any[]) {
   return `You are extracting data from a Thai construction site receipt.${examplesText}
 
 Rules:
-- Thai Buddhist Era year (BE): subtract 543 to get CE. Short year "69" = year 2569 BE = 2026 CE.  "6/6/69" → 2026-06-06.
+- Thai Buddhist Era year (BE): subtract 543 to get CE. Short year "69" = year 2569 BE = 2026 CE. "6/6/69" → 2026-06-06.
 - Amount: "3000-" or "3,000" or "฿3000" all mean 3000. Strip commas, ignore "-" suffix.
 - Merchant: look for store/company name (not customer name). If it is a generic cash sale form (บิลเงินสด) with no merchant name printed, return null.
 - Description: summarize what was purchased in English (max 80 chars).
@@ -47,16 +48,20 @@ export async function POST(req: NextRequest) {
     }
 
     const apiKey = process.env.ANTHROPIC_API_KEY;
-    if (!apiKey) return NextResponse.json({ error: "ANTHROPIC_API_KEY not set" }, { status: 500 });
+    if (!apiKey) {
+      console.error("[OCR] ANTHROPIC_API_KEY is not set");
+      return NextResponse.json({ error: "ANTHROPIC_API_KEY not set" }, { status: 500 });
+    }
 
     const examples = ownerId ? await fetchExamples(ownerId) : [];
 
-    // Build image source for Claude
     let imageSource: any;
     if (imageBase64) {
+      const sizeKB = Math.round(imageBase64.length * 0.75 / 1024);
+      console.log(`[OCR] imageBase64 received, ~${sizeKB}KB`);
       imageSource = { type: "base64", media_type: "image/jpeg", data: imageBase64 };
     } else {
-      // Fetch the image and convert to base64 (more reliable than URL type)
+      console.log(`[OCR] fetching imageUrl: ${imageUrl}`);
       const imgFetch = await fetch(imageUrl);
       const imgBuf = await imgFetch.arrayBuffer();
       const b64 = Buffer.from(imgBuf).toString("base64");
@@ -64,6 +69,7 @@ export async function POST(req: NextRequest) {
       imageSource = { type: "base64", media_type: ct, data: b64 };
     }
 
+    console.log("[OCR] calling Claude claude-haiku-4-5...");
     const claudeRes = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: {
@@ -87,13 +93,24 @@ export async function POST(req: NextRequest) {
     });
 
     const claudeData = await claudeRes.json();
-    const rawText = claudeData.content?.[0]?.text ?? "{}";
+    console.log("[OCR] Claude status:", claudeRes.status, "| type:", claudeData.type, "| error:", claudeData.error?.message ?? "none");
 
-    // Parse JSON from Claude's response
+    if (!claudeRes.ok || claudeData.type === "error") {
+      console.error("[OCR] Claude error:", JSON.stringify(claudeData.error ?? claudeData));
+      return NextResponse.json({ merchant: null, description: "", amount: 0, date: null, confidence: 0, _error: claudeData.error?.message ?? "Claude API error" });
+    }
+
+    const rawText = claudeData.content?.[0]?.text ?? "{}";
+    console.log("[OCR] Claude raw response:", rawText.slice(0, 200));
+
     const jsonMatch = rawText.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) return NextResponse.json({ merchant: null, description: "", amount: 0, date: null, confidence: 0 });
+    if (!jsonMatch) {
+      return NextResponse.json({ merchant: null, description: "", amount: 0, date: null, confidence: 0, _error: "no JSON in response" });
+    }
 
     const parsed = JSON.parse(jsonMatch[0]);
+    console.log("[OCR] parsed:", JSON.stringify(parsed));
+
     return NextResponse.json({
       merchant: parsed.merchant ?? null,
       description: parsed.description ?? "",
@@ -102,6 +119,7 @@ export async function POST(req: NextRequest) {
       confidence: Number(parsed.confidence) || 0,
     });
   } catch (err: any) {
+    console.error("[OCR] exception:", err.message);
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
