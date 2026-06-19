@@ -917,12 +917,29 @@ function AddReceiptModal({ ownerId, userId, suppliers, sites, defaultSiteId, onC
     setOcrStatus("idle");
     setNewSupplierName(null);
 
+    // Resize image to max 1600px before sending — phone photos are 4-5MB which exceeds Vercel's 4.5MB body limit
+    function resizeImage(dataUrl: string, maxPx = 1600, quality = 0.82): Promise<string> {
+      return new Promise((resolve) => {
+        const img = new Image();
+        img.onload = () => {
+          const scale = Math.min(1, maxPx / Math.max(img.width, img.height));
+          const canvas = document.createElement("canvas");
+          canvas.width = Math.round(img.width * scale);
+          canvas.height = Math.round(img.height * scale);
+          canvas.getContext("2d")!.drawImage(img, 0, 0, canvas.width, canvas.height);
+          resolve(canvas.toDataURL("image/jpeg", quality));
+        };
+        img.src = dataUrl;
+      });
+    }
+
     // Read as dataURL for preview + base64 for OCR
     const reader = new FileReader();
     reader.onload = async (ev) => {
-      const dataUrl = ev.target?.result as string;
-      setPhotoUrl(dataUrl);
-      const base64 = dataUrl.split(",")[1];
+      const rawDataUrl = ev.target?.result as string;
+      setPhotoUrl(rawDataUrl); // full-res preview is fine locally
+      const resizedDataUrl = await resizeImage(rawDataUrl);
+      const base64 = resizedDataUrl.split(",")[1];
       setOcrLoading(true);
       try {
         const ocrRes = await fetch("/api/receipts/ocr", {
