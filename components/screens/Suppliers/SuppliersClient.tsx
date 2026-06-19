@@ -8,7 +8,7 @@ import { DashboardShell } from "@/components/layout/DashboardShell";
 import { useUserRole } from "@/components/layout/UserRoleContext";
 import {
   Search, CirclePlus, Camera, Check, X, ChevronRight,
-  QrCode, Receipt, Truck, AlertTriangle,
+  QrCode, Receipt, Truck, AlertTriangle, Wallet, Plus,
 } from "lucide-react";
 import { formatCurrency, formatThaiDate, formatTime } from "@/lib/format";
 
@@ -33,6 +33,13 @@ type ReceiptRow = {
   supplier?: { id: string; name_th: string; name_en: string } | null;
 };
 
+interface DriverCashSummary {
+  driver: { id: string; name_th: string; name_en: string };
+  totalGiven: number;
+  totalSpent: number;
+  balance: number;
+}
+
 interface SuppliersClientProps {
   suppliers: Supplier[];
   receipts: ReceiptRow[];
@@ -40,6 +47,8 @@ interface SuppliersClientProps {
   ownerId: string;
   today: string;
   userId?: string;
+  driverCashData: DriverCashSummary[];
+  myBalance: { totalGiven: number; totalSpent: number; balance: number } | null;
 }
 
 const RECEIPT_TABS = [
@@ -50,7 +59,7 @@ const RECEIPT_TABS = [
   { key: "disputed", th: "มีปัญหา", en: "Disputed" },
 ];
 
-export function SuppliersClient({ suppliers: initSuppliers, receipts: initReceipts, sites, ownerId, today, userId }: SuppliersClientProps) {
+export function SuppliersClient({ suppliers: initSuppliers, receipts: initReceipts, sites, ownerId, today, userId, driverCashData, myBalance }: SuppliersClientProps) {
   const router = useRouter();
   const supabase = createClient();
   const { role, assignedSiteId } = useUserRole();
@@ -63,6 +72,7 @@ export function SuppliersClient({ suppliers: initSuppliers, receipts: initReceip
   const [showAddSupplier, setShowAddSupplier] = useState(false);
   const [showAddReceipt, setShowAddReceipt] = useState(false);
   const [selectedReceipt, setSelectedReceipt] = useState<ReceiptRow | null>(null);
+  const [giveCashDriver, setGiveCashDriver] = useState<DriverCashSummary | null>(null);
 
   function showToast(msg: string) {
     setToast(msg);
@@ -150,6 +160,36 @@ export function SuppliersClient({ suppliers: initSuppliers, receipts: initReceip
           <CirclePlus size={18} /> เพิ่มซัพพลายเออร์ · Add supplier
         </button>
       </section>
+
+      {driverCashData.length > 0 && (
+        <section className="attention-card">
+          <h2>มอบเงินคนขับ <span>Driver cash float</span></h2>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 6 }}>
+            {driverCashData.map((d) => (
+              <div key={d.driver.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 0", borderTop: "1px solid var(--border)" }}>
+                <Wallet size={16} color="var(--text-muted)" />
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 14, fontWeight: 600 }}>{d.driver.name_th}</div>
+                  <div style={{ fontSize: 11, color: "var(--text-muted)" }}>
+                    ได้รับ ฿{formatCurrency(d.totalGiven)} · ใช้ ฿{formatCurrency(d.totalSpent)}
+                  </div>
+                </div>
+                <div style={{ textAlign: "right" }}>
+                  <div style={{ fontSize: 15, fontWeight: 700, color: d.balance >= 0 ? "#15803D" : "#B91C1C" }}>
+                    ฿{formatCurrency(d.balance)}
+                  </div>
+                  <button
+                    onClick={() => setGiveCashDriver(d)}
+                    style={{ marginTop: 2, background: "var(--brand-primary)", color: "white", border: "none", borderRadius: 5, padding: "2px 8px", fontSize: 11, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 3 }}
+                  >
+                    <Plus size={10} /> มอบเงิน
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       {selectedReceipt && (
         <section className="attention-card">
@@ -288,6 +328,7 @@ export function SuppliersClient({ suppliers: initSuppliers, receipts: initReceip
             <DriverManagerMobile
               receipts={receipts}
               onAddReceipt={() => setShowAddReceipt(true)}
+              myBalance={myBalance}
             />
           ) : (
             <MobileSuppliers
@@ -328,6 +369,20 @@ export function SuppliersClient({ suppliers: initSuppliers, receipts: initReceip
           onAdded={(r) => { setReceipts((prev) => [r, ...prev]); setShowAddReceipt(false); showToast(`เพิ่มใบเสร็จ ฿${formatCurrency(r.amount)} แล้ว`); }}
         />
       )}
+
+      {giveCashDriver && (
+        <GiveCashModal
+          driver={giveCashDriver.driver}
+          ownerId={ownerId}
+          userId={userId}
+          onClose={() => setGiveCashDriver(null)}
+          onDone={() => {
+            setGiveCashDriver(null);
+            showToast(`✓ มอบเงินให้ ${giveCashDriver.driver.name_th} แล้ว`);
+            router.refresh();
+          }}
+        />
+      )}
     </>
   );
 }
@@ -347,7 +402,49 @@ function ReceiptStatusBadge({ status }: { status: string }) {
   );
 }
 
-function DriverManagerMobile({ receipts, onAddReceipt }: { receipts: ReceiptRow[]; onAddReceipt: () => void }) {
+function GiveCashModal({ driver, ownerId, userId, onClose, onDone }: {
+  driver: { id: string; name_th: string; name_en: string };
+  ownerId: string;
+  userId?: string;
+  onClose: () => void;
+  onDone: () => void;
+}) {
+  const supabase = createClient();
+  const [amount, setAmount] = useState("");
+  const [notes, setNotes] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+
+  async function handleSave() {
+    const amt = Number(amount);
+    if (!amt || amt <= 0) { setError("กรอกยอดที่ถูกต้อง · Valid amount required"); return; }
+    setSaving(true);
+    const { error: dbError } = await supabase
+      .from("driver_cash_entries")
+      .insert({ owner_id: ownerId, driver_user_id: driver.id, amount: amt, notes: notes || null, given_by: userId ?? null });
+    setSaving(false);
+    if (dbError) { setError(dbError.message); return; }
+    onDone();
+  }
+
+  return (
+    <ModalWrapper title="มอบเงินคนขับ" subtitle="Give cash to driver" onClose={onClose}>
+      {error && <ErrorBox msg={error} />}
+      <div style={{ background: "#EFF6FF", borderRadius: 10, padding: "12px 16px", display: "flex", alignItems: "center", gap: 10 }}>
+        <Wallet size={20} color="var(--brand-primary)" />
+        <div>
+          <div style={{ fontSize: 15, fontWeight: 700 }}>{driver.name_th}</div>
+          <div style={{ fontSize: 12, color: "var(--text-muted)" }}>{driver.name_en} · Driver Manager</div>
+        </div>
+      </div>
+      <FormField label="ยอดเงิน Amount ฿ *" value={amount} onChange={setAmount} type="number" placeholder="0" />
+      <FormField label="หมายเหตุ Notes" value={notes} onChange={setNotes} placeholder="ค่าวัสดุสำหรับไซต์..." />
+      <ModalActions onCancel={onClose} onSave={handleSave} saving={saving} saveLabel="มอบเงิน · Give cash" />
+    </ModalWrapper>
+  );
+}
+
+function DriverManagerMobile({ receipts, onAddReceipt, myBalance }: { receipts: ReceiptRow[]; onAddReceipt: () => void; myBalance: { totalGiven: number; totalSpent: number; balance: number } | null }) {
   const myReceipts = receipts.slice(0, 20);
   return (
     <div>
@@ -359,6 +456,29 @@ function DriverManagerMobile({ receipts, onAddReceipt }: { receipts: ReceiptRow[
       </div>
 
       <div style={{ padding: "16px 16px 12px" }}>
+        {/* Cash balance card */}
+        {myBalance !== null && (
+          <div style={{
+            background: myBalance.balance > 0 ? "linear-gradient(135deg, #1E3A8A, #3B82F6)" : "linear-gradient(135deg, #7f1d1d, #ef4444)",
+            borderRadius: 14,
+            padding: "16px 18px",
+            color: "white",
+            marginBottom: 16,
+          }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+              <Wallet size={18} />
+              <span style={{ fontSize: 13, opacity: 0.85 }}>มีเงินในมือ · Cash on hand</span>
+            </div>
+            <div style={{ fontSize: 34, fontWeight: 800, lineHeight: 1 }}>
+              ฿{formatCurrency(myBalance.balance)}
+            </div>
+            <div style={{ display: "flex", gap: 20, marginTop: 10, paddingTop: 10, borderTop: "1px solid rgba(255,255,255,0.2)", fontSize: 12, opacity: 0.85 }}>
+              <span>ได้รับ ฿{formatCurrency(myBalance.totalGiven)}</span>
+              <span>ใช้แล้ว ฿{formatCurrency(myBalance.totalSpent)}</span>
+            </div>
+          </div>
+        )}
+
         {/* Primary action — big camera button */}
         <button
           onClick={onAddReceipt}

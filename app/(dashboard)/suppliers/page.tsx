@@ -57,6 +57,44 @@ export default async function SuppliersPage() {
     supplier: Array.isArray(receipt.supplier) ? receipt.supplier[0] ?? null : receipt.supplier,
   }));
 
+  // Driver cash float data
+  const { data: driverManagers } = await supabase
+    .from("users")
+    .select("id, name_th, name_en")
+    .eq("owner_id", ownerId)
+    .eq("role", "technical_admin");
+
+  const { data: cashEntries } = await supabase
+    .from("driver_cash_entries")
+    .select("driver_user_id, amount")
+    .eq("owner_id", ownerId);
+
+  const { data: allReceiptTotals } = await supabase
+    .from("receipts")
+    .select("submitted_by, amount")
+    .eq("owner_id", ownerId)
+    .not("submitted_by", "is", null);
+
+  const driverCashData = (driverManagers ?? []).map((dm) => {
+    const totalGiven = (cashEntries ?? [])
+      .filter((e) => e.driver_user_id === dm.id)
+      .reduce((sum, e) => sum + Number(e.amount), 0);
+    const totalSpent = (allReceiptTotals ?? [])
+      .filter((r) => r.submitted_by === dm.id)
+      .reduce((sum, r) => sum + Number(r.amount ?? 0), 0);
+    return { driver: dm, totalGiven, totalSpent, balance: totalGiven - totalSpent };
+  });
+
+  let myBalance: { totalGiven: number; totalSpent: number; balance: number } | null = null;
+  if (profile.role === "technical_admin") {
+    const myGiven = (cashEntries ?? [])
+      .filter((e) => e.driver_user_id === profile.id)
+      .reduce((sum, e) => sum + Number(e.amount), 0);
+    const mySpent = normalizedReceipts
+      .reduce((sum, r) => sum + Number(r.amount ?? 0), 0);
+    myBalance = { totalGiven: myGiven, totalSpent: mySpent, balance: myGiven - mySpent };
+  }
+
   return (
     <SuppliersClient
       suppliers={suppliers ?? []}
@@ -65,6 +103,8 @@ export default async function SuppliersPage() {
       ownerId={ownerId}
       today={today}
       userId={profile?.id}
+      driverCashData={driverCashData}
+      myBalance={myBalance}
     />
   );
 }
