@@ -1,16 +1,17 @@
 ﻿"use client";
 // Copyright © 2026 Workforce. All rights reserved.
 
-import { useState, useMemo, useRef } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { DashboardShell } from "@/components/layout/DashboardShell";
 import { useUserRole } from "@/components/layout/UserRoleContext";
 import {
   Search, CirclePlus, Camera, Check, X, ChevronRight,
-  QrCode, Receipt, Truck, AlertTriangle, Wallet, Plus, Clock,
+  QrCode, Receipt, Truck, AlertTriangle, Wallet, Plus, Clock, Download, ExternalLink,
 } from "lucide-react";
 import { formatCurrency, formatThaiDate, formatTime } from "@/lib/format";
+import { parseThaiQR } from "@/lib/qr-parser";
 
 type Supplier = {
   id: string;
@@ -86,6 +87,7 @@ export function SuppliersClient({ suppliers: initSuppliers, receipts: initReceip
   const [selectedReceipt, setSelectedReceipt] = useState<ReceiptRow | null>(null);
   const [giveCashDriver, setGiveCashDriver] = useState<DriverCashSummary | null>(null);
   const [pendingQr, setPendingQr] = useState(initPendingQr);
+  const [openQrReceipt, setOpenQrReceipt] = useState<PendingQrReceipt | null>(null);
 
   function showToast(msg: string) {
     setToast(msg);
@@ -156,23 +158,21 @@ export function SuppliersClient({ suppliers: initSuppliers, receipts: initReceip
           </h2>
           <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 8 }}>
             {pendingQr.map((r) => (
-              <div key={r.id} style={{ padding: "10px 0", borderTop: "1px solid var(--border)" }}>
+              <div
+                key={r.id}
+                onClick={() => setOpenQrReceipt(r)}
+                style={{ padding: "10px 0", borderTop: "1px solid var(--border)", cursor: "pointer" }}
+              >
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
                   <div style={{ flex: 1 }}>
                     <div style={{ fontSize: 14, fontWeight: 600 }}>{r.description ?? "ไม่ระบุ"}</div>
                     <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 2 }}>
                       {r.scanned_by_user?.name_th ?? "คนขับ"} · {r.site?.name_th ?? "-"}
                     </div>
-                    {r.notes && <div style={{ fontSize: 11, color: "var(--text-muted)" }}>{r.notes}</div>}
                   </div>
                   <div style={{ textAlign: "right", flexShrink: 0 }}>
                     <div style={{ fontSize: 16, fontWeight: 700, color: "#C2410C" }}>฿{formatCurrency(r.amount)}</div>
-                    <button
-                      onClick={() => handleApproveQr(r.id)}
-                      style={{ marginTop: 4, background: "#15803D", color: "white", border: "none", borderRadius: 6, padding: "3px 10px", fontSize: 12, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 3 }}
-                    >
-                      <Check size={11} /> ชำระแล้ว
-                    </button>
+                    <div style={{ fontSize: 11, color: "#F97316", marginTop: 2 }}>לחץ לתשלום ▸</div>
                   </div>
                 </div>
               </div>
@@ -390,7 +390,7 @@ export function SuppliersClient({ suppliers: initSuppliers, receipts: initReceip
           ) : (
             <>
               {pendingQr.length > 0 && (
-                <PendingQrMobile pendingQr={pendingQr} onApprove={handleApproveQr} />
+                <PendingQrMobile pendingQr={pendingQr} onOpen={setOpenQrReceipt} />
               )}
             <MobileSuppliers
               suppliers={suppliers}
@@ -429,6 +429,18 @@ export function SuppliersClient({ suppliers: initSuppliers, receipts: initReceip
           defaultSiteId={assignedSiteId ?? undefined}
           onClose={() => setShowAddReceipt(false)}
           onAdded={(r) => { setReceipts((prev) => [r, ...prev]); setShowAddReceipt(false); showToast(`เพิ่มใบเสร็จ ฿${formatCurrency(r.amount)} แล้ว`); }}
+        />
+      )}
+
+      {openQrReceipt && (
+        <QrPaymentModal
+          receipt={openQrReceipt}
+          userId={userId}
+          onClose={() => setOpenQrReceipt(null)}
+          onPaid={() => {
+            handleApproveQr(openQrReceipt.id);
+            setOpenQrReceipt(null);
+          }}
         />
       )}
 
@@ -603,7 +615,7 @@ function DriverManagerMobile({ receipts, onAddReceipt, myBalance }: { receipts: 
   );
 }
 
-function PendingQrMobile({ pendingQr, onApprove }: { pendingQr: PendingQrReceipt[]; onApprove: (id: string) => void }) {
+function PendingQrMobile({ pendingQr, onOpen }: { pendingQr: PendingQrReceipt[]; onOpen: (r: PendingQrReceipt) => void }) {
   return (
     <div style={{ padding: "12px 16px 0" }}>
       <div style={{ background: "#FFF7ED", border: "1px solid #FED7AA", borderRadius: 12, padding: "12px 14px" }}>
@@ -615,7 +627,11 @@ function PendingQrMobile({ pendingQr, onApprove }: { pendingQr: PendingQrReceipt
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
           {pendingQr.map((r) => (
-            <div key={r.id} style={{ background: "white", borderRadius: 8, padding: "10px 12px", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}>
+            <div
+              key={r.id}
+              onClick={() => onOpen(r)}
+              style={{ background: "white", borderRadius: 8, padding: "10px 12px", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, cursor: "pointer", boxShadow: "0 1px 3px rgba(0,0,0,0.08)" }}
+            >
               <div style={{ flex: 1 }}>
                 <div style={{ fontSize: 14, fontWeight: 600 }}>{r.description ?? "ไม่ระบุ"}</div>
                 <div style={{ fontSize: 12, color: "var(--text-muted)" }}>
@@ -624,15 +640,121 @@ function PendingQrMobile({ pendingQr, onApprove }: { pendingQr: PendingQrReceipt
               </div>
               <div style={{ textAlign: "right", flexShrink: 0 }}>
                 <div style={{ fontSize: 16, fontWeight: 700, color: "#C2410C" }}>฿{formatCurrency(r.amount)}</div>
-                <button
-                  onClick={() => onApprove(r.id)}
-                  style={{ marginTop: 4, background: "#15803D", color: "white", border: "none", borderRadius: 6, padding: "3px 10px", fontSize: 12, fontWeight: 600, cursor: "pointer" }}
-                >
-                  ชำระแล้ว
-                </button>
+                <div style={{ fontSize: 11, color: "#F97316", marginTop: 2 }}>แตะเพื่อชำระ ▸</div>
               </div>
             </div>
           ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function QrPaymentModal({ receipt, userId, onClose, onPaid }: {
+  receipt: PendingQrReceipt;
+  userId?: string;
+  onClose: () => void;
+  onPaid: () => void;
+}) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [qrReady, setQrReady] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const parsed = receipt.qr_value ? parseThaiQR(receipt.qr_value) : null;
+  const merchantName = receipt.description ?? parsed?.merchantName ?? "ไม่ระบุ";
+  const amount = receipt.amount ?? parsed?.amount ?? 0;
+  const accountId = parsed?.accountId ?? null;
+
+  useEffect(() => {
+    if (!receipt.qr_value || !canvasRef.current) return;
+    import("qrcode").then(({ default: QRCode }) => {
+      QRCode.toCanvas(canvasRef.current!, receipt.qr_value!, {
+        width: 260,
+        margin: 2,
+        color: { dark: "#1E3A8A", light: "#FFFFFF" },
+      }, (err) => { if (!err) setQrReady(true); });
+    });
+  }, [receipt.qr_value]);
+
+  async function handleSaveQr() {
+    if (!canvasRef.current) return;
+    const blob: Blob = await new Promise((res) => canvasRef.current!.toBlob(res as any, "image/png"));
+    const file = new File([blob], `qr-payment-${Date.now()}.png`, { type: "image/png" });
+    if (navigator.canShare?.({ files: [file] })) {
+      await navigator.share({ files: [file], title: merchantName });
+    } else {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url; a.download = file.name; a.click();
+      URL.revokeObjectURL(url);
+    }
+  }
+
+  async function handleMarkPaid() {
+    setSaving(true);
+    onPaid();
+  }
+
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 999, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
+      <div style={{ background: "white", borderRadius: 20, width: "100%", maxWidth: 360, overflow: "hidden", boxShadow: "0 20px 60px rgba(0,0,0,0.3)" }}>
+
+        {/* Header */}
+        <div style={{ background: "linear-gradient(135deg, #1E3A8A, #7C3AED)", padding: "20px 20px 16px", color: "white" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+            <div>
+              <div style={{ fontSize: 11, opacity: 0.75, letterSpacing: "0.05em", textTransform: "uppercase" }}>
+                QR รอชำระ · Payment Request
+              </div>
+              <div style={{ fontSize: 22, fontWeight: 800, marginTop: 2 }}>{merchantName}</div>
+              {accountId && (
+                <div style={{ fontSize: 12, opacity: 0.8, marginTop: 2 }}>{accountId}</div>
+              )}
+              <div style={{ fontSize: 13, opacity: 0.75, marginTop: 4 }}>
+                {receipt.scanned_by_user?.name_th ?? "คนขับ"} · {receipt.site?.name_th ?? "-"}
+              </div>
+            </div>
+            <button onClick={onClose} style={{ background: "rgba(255,255,255,0.2)", border: "none", borderRadius: "50%", width: 32, height: 32, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "white" }}>
+              <X size={18} />
+            </button>
+          </div>
+          <div style={{ fontSize: 36, fontWeight: 900, marginTop: 12 }}>฿{formatCurrency(amount)}</div>
+        </div>
+
+        {/* QR Code */}
+        <div style={{ padding: "20px", display: "flex", flexDirection: "column", alignItems: "center", gap: 16 }}>
+          <div style={{ background: "#F0F4FF", borderRadius: 16, padding: 16, display: "flex", alignItems: "center", justifyContent: "center", border: "2px solid #C7D7FF" }}>
+            <canvas ref={canvasRef} style={{ display: qrReady ? "block" : "none", borderRadius: 8 }} />
+            {!qrReady && (
+              <div style={{ width: 260, height: 260, display: "flex", alignItems: "center", justifyContent: "center", color: "#9CA3AF", fontSize: 13 }}>
+                {receipt.qr_value ? "กำลังโหลด QR…" : "ไม่มีข้อมูล QR"}
+              </div>
+            )}
+          </div>
+
+          {receipt.notes && (
+            <div style={{ background: "#FFF7ED", borderRadius: 8, padding: "8px 12px", fontSize: 13, color: "#92400E", width: "100%", boxSizing: "border-box" }}>
+              {receipt.notes}
+            </div>
+          )}
+
+          {/* Actions */}
+          <div style={{ display: "flex", flexDirection: "column", gap: 10, width: "100%" }}>
+            {receipt.qr_value && (
+              <button
+                onClick={handleSaveQr}
+                style={{ padding: "13px", borderRadius: 12, border: "2px solid #1E3A8A", background: "white", color: "#1E3A8A", fontSize: 14, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}
+              >
+                <Download size={18} /> שמור QR לתמונות · Save QR
+              </button>
+            )}
+            <button
+              onClick={handleMarkPaid}
+              disabled={saving}
+              style={{ padding: "14px", borderRadius: 12, border: "none", background: saving ? "#9CA3AF" : "linear-gradient(135deg, #15803D, #16A34A)", color: "white", fontSize: 15, fontWeight: 700, cursor: saving ? "not-allowed" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}
+            >
+              <Check size={20} /> {saving ? "שומר…" : "שולם · Mark Paid"}
+            </button>
+          </div>
         </div>
       </div>
     </div>

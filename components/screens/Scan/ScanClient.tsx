@@ -6,40 +6,7 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { ArrowLeft, QrCode, Check } from "lucide-react";
 import { formatCurrency } from "@/lib/format";
-
-// Parse EMV QR (Thai PromptPay standard)
-function parseThaiQR(raw: string): { merchantName: string | null; amount: number | null; accountId: string | null } {
-  try {
-    const fields: Record<string, string> = {};
-    let pos = 0;
-    while (pos + 4 <= raw.length) {
-      const tag = raw.slice(pos, pos + 2);
-      const len = parseInt(raw.slice(pos + 2, pos + 4), 10);
-      if (isNaN(len) || len < 0 || pos + 4 + len > raw.length) break;
-      fields[tag] = raw.slice(pos + 4, pos + 4 + len);
-      pos += 4 + len;
-    }
-    const merchantName = fields["59"] ?? null;
-    const amount = fields["54"] ? parseFloat(fields["54"]) : null;
-    let accountId: string | null = null;
-    for (const tag of ["29", "30", "26", "27", "28"]) {
-      const sub = fields[tag];
-      if (!sub) continue;
-      let sp = 0;
-      while (sp + 4 <= sub.length) {
-        const stag = sub.slice(sp, sp + 2);
-        const slen = parseInt(sub.slice(sp + 2, sp + 4), 10);
-        if (isNaN(slen) || slen < 0 || sp + 4 + slen > sub.length) break;
-        if (stag === "02") { accountId = sub.slice(sp + 4, sp + 4 + slen); break; }
-        sp += 4 + slen;
-      }
-      if (accountId) break;
-    }
-    return { merchantName, amount, accountId };
-  } catch {
-    return { merchantName: null, amount: null, accountId: null };
-  }
-}
+import { parseThaiQR } from "@/lib/qr-parser";
 
 type Phase = "scanning" | "confirm" | "submitting" | "done";
 
@@ -163,7 +130,7 @@ export function ScanClient({ ownerId, userId, sites, defaultSiteId }: ScanClient
     setError("");
     setPhase("submitting");
 
-    const { error: dbErr } = await supabase.from("receipts").insert({
+    const { data: inserted, error: dbErr } = await supabase.from("receipts").insert({
       owner_id: ownerId,
       submitted_by: userId,
       scanned_by: userId,
@@ -175,7 +142,7 @@ export function ScanClient({ ownerId, userId, sites, defaultSiteId }: ScanClient
       qr_value: scanned?.raw ?? null,
       status: "pending_qr",
       receipt_number: `QR-${Date.now()}`,
-    });
+    }).select("id").single();
 
     if (dbErr) {
       setError(dbErr.message);
@@ -195,6 +162,17 @@ export function ScanClient({ ownerId, userId, sites, defaultSiteId }: ScanClient
         }),
       });
     } catch {}
+
+    // Schedule 1.5-hour follow-up push if still unpaid
+    if (inserted?.id) {
+      setTimeout(() => {
+        fetch("/api/cron/qr-followup", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ receipt_id: inserted.id, owner_id: ownerId }),
+        }).catch(() => {});
+      }, 90 * 60 * 1000);
+    }
 
     setPhase("done");
   }
