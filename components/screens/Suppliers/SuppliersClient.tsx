@@ -940,12 +940,12 @@ function AddReceiptModal({ ownerId, userId, suppliers, sites, defaultSiteId, onC
           const ocrRes = await fetch("/api/receipts/ocr", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ imageUrl: publicUrl }),
+            body: JSON.stringify({ imageUrl: publicUrl, ownerId }),
           });
           const ocr = await ocrRes.json();
-          if (ocr.confidence >= 70) {
+          if (ocr.confidence >= 60) {
             if (ocr.amount > 0) setForm((f) => ({ ...f, amount: String(Math.round(ocr.amount)) }));
-            if (ocr.merchantName) setForm((f) => ({ ...f, description: ocr.merchantName }));
+            if (ocr.description) setForm((f) => ({ ...f, description: ocr.description }));
           }
         } catch {}
         setOcrLoading(false);
@@ -979,6 +979,23 @@ function AddReceiptModal({ ownerId, userId, suppliers, sites, defaultSiteId, onC
       .single();
     setSaving(false);
     if (dbError) { setError(dbError.message); return; }
+
+    // Save as OCR learning example (fire and forget)
+    if (photoUrl) {
+      fetch("/api/receipts/ocr/confirm", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ownerId,
+          imageUrl: photoUrl,
+          description: form.description || null,
+          amount: amt,
+          merchant: null,
+          date: new Date().toISOString().slice(0, 10),
+        }),
+      }).catch(() => {});
+    }
+
     onAdded(data as ReceiptRow);
   }
 
