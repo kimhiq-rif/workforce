@@ -1,7 +1,8 @@
 // Copyright © 2026 Workforce. All rights reserved.
 import { NextRequest, NextResponse } from "next/server";
-import webpush from "web-push";
 import { createServiceClient } from "@/lib/supabase/server";
+
+export const dynamic = "force-dynamic";
 
 export async function POST(req: NextRequest) {
   const vapidPublic = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
@@ -9,6 +10,7 @@ export async function POST(req: NextRequest) {
   if (!vapidPublic || !vapidPrivate) {
     return NextResponse.json({ error: "Push notifications not configured" }, { status: 503 });
   }
+  const webpush = (await import("web-push")).default;
   webpush.setVapidDetails("mailto:admin@workforce.app", vapidPublic, vapidPrivate);
 
   const supabase = createServiceClient();
