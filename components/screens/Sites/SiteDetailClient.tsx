@@ -1017,7 +1017,7 @@ function MobileSiteDetail({
         {(userRole === "owner" || userRole === "field_manager") && (
           <button
             onClick={onUpdateSitePhoto}
-            style={{ background: "rgba(255,255,255,0.15)", border: "none", borderRadius: 8, padding: "6px 10px", color: "white", cursor: "pointer", display: "flex", alignItems: "center", gap: 4, fontSize: 13 }}
+            className="mobile-topbar-action" style={{ padding: "6px 10px" }}
           >
             <ImagePlus size={16} />
           </button>
@@ -1025,7 +1025,7 @@ function MobileSiteDetail({
         {rainStatus !== "blocked" && (
           <button
             onClick={onRain}
-            style={{ background: "rgba(255,255,255,0.15)", border: "none", borderRadius: 8, padding: "6px 10px", color: "white", cursor: "pointer", display: "flex", alignItems: "center", gap: 4, fontSize: 13 }}
+            className="mobile-topbar-action" style={{ padding: "6px 10px" }}
           >
             <CloudRain size={16} /> ฝน
           </button>
@@ -1353,15 +1353,16 @@ function AttendanceReportFlow({
   return (
     <div style={{ position: "fixed", inset: 0, background: "white", zIndex: 999, display: "flex", flexDirection: "column", overflow: "hidden" }}>
       {/* Header */}
-      <div style={{ background: "var(--brand-primary)", padding: "16px 16px 14px", display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
+      <div className="mobile-topbar" style={{ gap: 10 }}>
         <button
           onClick={onClose}
-          style={{ background: "rgba(255,255,255,0.15)", border: "none", borderRadius: 8, padding: "7px 8px", cursor: "pointer", color: "white", display: "flex", alignItems: "center" }}
+          className="mobile-topbar-action"
+          style={{ padding: "7px 8px" }}
         >
           <XIcon size={20} />
         </button>
-        <div style={{ flex: 1, color: "white" }}>
-          <div style={{ fontSize: 18, fontWeight: 700 }}>รายงานการเข้างาน</div>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: 18, fontWeight: 700, color: "#1E3A8A" }}>รายงานการเข้างาน</div>
           <div style={{ fontSize: 12, opacity: 0.8 }}>Attendance Report · {site.name_th}</div>
         </div>
         <div style={{ color: "white", textAlign: "right", minWidth: 40 }}>

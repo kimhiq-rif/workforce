@@ -377,7 +377,7 @@ function MobileWorkerProfile({ worker, attendanceHistory, advances, stats, onAdd
           <p style={{ color: "rgba(255,255,255,0.75)" }}>{worker.name_en}</p>
         </div>
         {onEdit && (
-          <button onClick={onEdit} style={{ background: "rgba(255,255,255,0.15)", border: "none", borderRadius: 8, padding: "6px 12px", cursor: "pointer", color: "white", display: "flex", alignItems: "center", gap: 4, fontSize: 13 }}>
+          <button onClick={onEdit} className="mobile-topbar-action">
             <Pencil size={15} /> แก้ไข · Edit
           </button>
         )}

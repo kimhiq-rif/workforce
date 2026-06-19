@@ -212,7 +212,7 @@ function MobileTeam({ ownerName, members, onAdd, onDelete }: {
         </div>
         <button
           onClick={onAdd}
-          style={{ background: "rgba(255,255,255,0.15)", border: "none", borderRadius: 8, padding: "7px 14px", cursor: "pointer", color: "white", display: "flex", alignItems: "center", gap: 6, fontSize: 13 }}
+          className="mobile-topbar-action" style={{ gap: 6 }}
         >
           <UserPlus size={16} /> Add
         </button>

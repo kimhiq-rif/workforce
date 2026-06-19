@@ -741,23 +741,63 @@ body {
   align-items: center;
   gap: 12px;
   padding: 14px 16px 16px;
-  background: linear-gradient(135deg, #1E3A8A 0%, #4C1D95 60%, #6C5CE7 100%);
-  color: white;
+  background: linear-gradient(160deg, #ffffff 0%, #f0ecff 65%, #fff5ef 100%);
+  position: relative;
   flex-shrink: 0;
-  box-shadow: 0 3px 16px rgba(30,58,138,0.30);
+  box-shadow: 0 2px 12px rgba(108,92,231,0.10);
 }
 
-.mobile-topbar h1 { font-size: 22px; font-weight: 800; flex: 1; line-height: 1.15; letter-spacing: -0.3px; }
-.mobile-topbar p  { font-size: 12px; opacity: 0.72; line-height: 1.2; margin-top: 1px; }
+.mobile-topbar::after {
+  content: '';
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  height: 2.5px;
+  background: linear-gradient(90deg, #6C5CE7 0%, #FF6A00 100%);
+}
+
+.mobile-topbar h1 {
+  font-size: 22px;
+  font-weight: 800;
+  color: #1E3A8A !important;
+  line-height: 1.15;
+  letter-spacing: -0.3px;
+  flex: 1;
+}
+
+.mobile-topbar p {
+  font-size: 12px;
+  color: var(--text-muted) !important;
+  opacity: 1 !important;
+  line-height: 1.2;
+  margin-top: 1px;
+}
+
+.mobile-topbar button,
+.mobile-topbar-back {
+  color: #1E3A8A !important;
+}
 
 .mobile-topbar-back {
   background: transparent;
   border: none;
-  color: white;
   cursor: pointer;
   padding: 4px;
   display: flex;
   align-items: center;
+}
+
+/* topbar action buttons (edit, add-member etc.) */
+.mobile-topbar-action {
+  background: rgba(108,92,231,0.10) !important;
+  border: 1px solid rgba(108,92,231,0.18) !important;
+  border-radius: 8px;
+  padding: 6px 12px;
+  cursor: pointer;
+  color: #1E3A8A !important;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
 }
 
 .mobile-content {
@@ -925,14 +965,14 @@ body {
 
 /* en-primary: mobile topbar */
 [data-lang="en-primary"] .mobile-topbar h1 {
-  font-size: 13px;
-  font-weight: 400;
-  opacity: 0.75;
+  font-size: 13px !important;
+  font-weight: 400 !important;
+  color: var(--text-muted) !important;
 }
 [data-lang="en-primary"] .mobile-topbar p {
-  font-size: 19px;
-  font-weight: 700;
-  opacity: 1;
+  font-size: 19px !important;
+  font-weight: 700 !important;
+  color: #1E3A8A !important;
   margin-top: 0;
 }
 
