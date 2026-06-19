@@ -1,11 +1,13 @@
 ﻿import { DashboardShell } from "@/components/layout/DashboardShell";
-import { Grid3X3, Settings, CalendarDays, FileText } from "lucide-react";
+import { Grid3X3, Settings, CalendarDays, FileText, Truck, BarChart2 } from "lucide-react";
 import Link from "next/link";
 
 const MORE_LINKS = [
-  { href: "/settings", title: "Settings", subtitle: "Account, users, workday", icon: Settings },
-  { href: "/calendar", title: "Calendar", subtitle: "Tasks and day planning", icon: CalendarDays },
-  { href: "/reports", title: "Reports", subtitle: "Daily reports and review", icon: FileText },
+  { href: "/suppliers", title: "ซัพพลายเออร์", subtitle: "Suppliers & Receipts", icon: Truck },
+  { href: "/finance",   title: "การเงิน",       subtitle: "Finance overview",       icon: BarChart2 },
+  { href: "/settings",  title: "Settings",      subtitle: "Account, users, workday", icon: Settings },
+  { href: "/calendar",  title: "Calendar",      subtitle: "Tasks and day planning",  icon: CalendarDays },
+  { href: "/reports",   title: "Reports",       subtitle: "Daily reports and review",icon: FileText },
 ];
 
 export default function MorePage() {
