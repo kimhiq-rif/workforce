@@ -892,8 +892,7 @@ function AddReceiptModal({ ownerId, userId, suppliers, sites, defaultSiteId, onC
   onAdded: (r: ReceiptRow) => void;
 }) {
   const supabase = createClient();
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const streamRef = useRef<MediaStream | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [localSuppliers, setLocalSuppliers] = useState<Supplier[]>(suppliers);
   const [form, setForm] = useState({
     supplier_id: "",
@@ -902,91 +901,69 @@ function AddReceiptModal({ ownerId, userId, suppliers, sites, defaultSiteId, onC
     category: "",
     description: "",
   });
-  const [photoUrl, setPhotoUrl] = useState<string | null>(null);
-  const [capturing, setCapturing] = useState(false);
+  const [photoUrl, setPhotoUrl] = useState<string | null>(null);  // dataURL preview
+  const [photoBlob, setPhotoBlob] = useState<Blob | null>(null);  // for Supabase upload on save
   const [ocrLoading, setOcrLoading] = useState(false);
   const [ocrStatus, setOcrStatus] = useState<"idle" | "low_confidence" | "no_result">("idle");
   const [newSupplierName, setNewSupplierName] = useState<string | null>(null);
   const [addingSupplier, setAddingSupplier] = useState(false);
-  const [showCamera, setShowCamera] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
-  async function startCamera() {
-    setShowCamera(true);
-    const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" }, audio: false });
-    streamRef.current = stream;
-    if (videoRef.current) videoRef.current.srcObject = stream;
-  }
+  async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setPhotoBlob(file);
+    setOcrStatus("idle");
+    setNewSupplierName(null);
 
-  function stopCamera() {
-    streamRef.current?.getTracks().forEach((t) => t.stop());
-    streamRef.current = null;
-    setShowCamera(false);
-  }
+    // Read as dataURL for preview + base64 for OCR
+    const reader = new FileReader();
+    reader.onload = async (ev) => {
+      const dataUrl = ev.target?.result as string;
+      setPhotoUrl(dataUrl);
+      const base64 = dataUrl.split(",")[1];
+      setOcrLoading(true);
+      try {
+        const ocrRes = await fetch("/api/receipts/ocr", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ imageBase64: base64, ownerId }),
+        });
+        const ocr = await ocrRes.json();
 
-  async function captureReceipt() {
-    if (!videoRef.current) return;
-    setCapturing(true);
-    const canvas = document.createElement("canvas");
-    canvas.width = videoRef.current.videoWidth;
-    canvas.height = videoRef.current.videoHeight;
-    canvas.getContext("2d")!.drawImage(videoRef.current, 0, 0);
-    const blob = await new Promise<Blob>((resolve) => canvas.toBlob(resolve as any, "image/jpeg", 0.85));
-    const fileName = `receipts/${ownerId}/${Date.now()}.jpg`;
-    const { data, error: uploadError } = await supabase.storage.from("receipt-photos").upload(fileName, blob, { contentType: "image/jpeg" });
-    if (!uploadError && data) {
-      const { data: urlData } = supabase.storage.from("receipt-photos").getPublicUrl(fileName);
-      const publicUrl = urlData?.publicUrl ?? null;
-      setPhotoUrl(publicUrl);
-      if (publicUrl) {
-        setCapturing(false);
-        stopCamera();
-        setOcrLoading(true);
-        try {
-          const ocrRes = await fetch("/api/receipts/ocr", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ imageUrl: publicUrl, ownerId }),
-          });
-          const ocr = await ocrRes.json();
-
-          if (ocr.confidence >= 60 && ocr.amount > 0) {
-            setForm((f) => ({
-              ...f,
-              amount: String(Math.round(ocr.amount)),
-              description: ocr.description || f.description,
-            }));
-
-            // Check if detected merchant matches existing supplier
-            if (ocr.merchant) {
-              const term = ocr.merchant.toLowerCase();
-              const matched = localSuppliers.find(
-                (s) =>
-                  s.name_th.toLowerCase().includes(term) ||
-                  s.name_en.toLowerCase().includes(term) ||
-                  term.includes(s.name_th.toLowerCase())
-              );
-              if (matched) {
-                setForm((f) => ({ ...f, supplier_id: matched.id }));
-              } else {
-                // New supplier found — prompt to add
-                setNewSupplierName(ocr.merchant);
-              }
+        if (ocr.confidence >= 60 && ocr.amount > 0) {
+          setForm((f) => ({
+            ...f,
+            amount: String(Math.round(ocr.amount)),
+            description: ocr.description || f.description,
+          }));
+          if (ocr.merchant) {
+            const term = ocr.merchant.toLowerCase();
+            const matched = localSuppliers.find(
+              (s) =>
+                s.name_th.toLowerCase().includes(term) ||
+                s.name_en.toLowerCase().includes(term) ||
+                term.includes(s.name_th.toLowerCase())
+            );
+            if (matched) {
+              setForm((f) => ({ ...f, supplier_id: matched.id }));
+            } else {
+              setNewSupplierName(ocr.merchant);
             }
-            setOcrStatus("idle");
-          } else if (ocr.confidence > 0 && ocr.confidence < 60) {
-            setOcrStatus("low_confidence");
-          } else {
-            setOcrStatus("no_result");
           }
-        } catch {}
-        setOcrLoading(false);
-        return;
+          setOcrStatus("idle");
+        } else if (ocr.confidence > 0 && ocr.confidence < 60) {
+          setOcrStatus("low_confidence");
+        } else {
+          setOcrStatus("no_result");
+        }
+      } catch {
+        setOcrStatus("no_result");
       }
-    }
-    setCapturing(false);
-    stopCamera();
+      setOcrLoading(false);
+    };
+    reader.readAsDataURL(file);
   }
 
   async function handleAddDetectedSupplier() {
@@ -1010,6 +987,20 @@ function AddReceiptModal({ ownerId, userId, suppliers, sites, defaultSiteId, onC
     const amt = Number(form.amount);
     if (!amt || amt <= 0) { setError("กรอกยอดที่ถูกต้อง · Valid amount required"); return; }
     setSaving(true);
+
+    // Upload photo blob to Supabase Storage (best-effort)
+    let storedPhotoUrl: string | null = null;
+    if (photoBlob) {
+      const fileName = `receipts/${ownerId}/${Date.now()}.jpg`;
+      const { data: uploadData } = await supabase.storage
+        .from("receipt-photos")
+        .upload(fileName, photoBlob, { contentType: "image/jpeg" });
+      if (uploadData) {
+        const { data: urlData } = supabase.storage.from("receipt-photos").getPublicUrl(fileName);
+        storedPhotoUrl = urlData?.publicUrl ?? null;
+      }
+    }
+
     const receiptNumber = `REC-${new Date().toISOString().slice(0, 10).replace(/-/g, "")}-${Math.floor(1000 + Math.random() * 9000)}`;
     const { data, error: dbError } = await supabase
       .from("receipts")
@@ -1022,7 +1013,7 @@ function AddReceiptModal({ ownerId, userId, suppliers, sites, defaultSiteId, onC
         amount: amt,
         category: form.category || null,
         description: form.description || null,
-        photo_url: photoUrl,
+        photo_url: storedPhotoUrl,
         status: "pending",
       })
       .select("*, site:site_id(id, name_th, name_en), supplier:supplier_id(id, name_th, name_en)")
@@ -1031,13 +1022,13 @@ function AddReceiptModal({ ownerId, userId, suppliers, sites, defaultSiteId, onC
     if (dbError) { setError(dbError.message); return; }
 
     // Save as OCR learning example (fire and forget)
-    if (photoUrl) {
+    if (storedPhotoUrl) {
       fetch("/api/receipts/ocr/confirm", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ownerId,
-          imageUrl: photoUrl,
+          imageUrl: storedPhotoUrl,
           description: form.description || null,
           amount: amt,
           merchant: null,
@@ -1047,25 +1038,6 @@ function AddReceiptModal({ ownerId, userId, suppliers, sites, defaultSiteId, onC
     }
 
     onAdded(data as ReceiptRow);
-  }
-
-  if (showCamera) {
-    return (
-      <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.95)", zIndex: 9999, display: "flex", flexDirection: "column" }}>
-        <div style={{ color: "white", padding: "20px 16px", textAlign: "center" }}>
-          <div style={{ fontSize: 18, fontWeight: 600 }}>ถ่ายรูปใบเสร็จ · Capture receipt</div>
-        </div>
-        <video ref={videoRef} autoPlay playsInline style={{ flex: 1, objectFit: "cover" }} />
-        <div style={{ padding: "20px 16px", display: "flex", gap: 16 }}>
-          <button onClick={stopCamera} className="btn-primary" style={{ flex: 1, justifyContent: "center", background: "rgba(255,255,255,0.15)" }}>
-            ยกเลิก
-          </button>
-          <button onClick={captureReceipt} disabled={capturing} className="btn-primary" style={{ flex: 2, justifyContent: "center" }}>
-            <Camera size={20} /> {capturing ? "กำลังบันทึก…" : "ถ่ายรูป"}
-          </button>
-        </div>
-      </div>
-    );
   }
 
   return (
@@ -1136,35 +1108,48 @@ function AddReceiptModal({ ownerId, userId, suppliers, sites, defaultSiteId, onC
         </label>
       </div>
 
-      {/* Photo */}
+      {/* Photo + OCR */}
       <div style={{ marginTop: 4 }}>
+        {/* Hidden file input — iOS native camera */}
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          capture="environment"
+          style={{ display: "none" }}
+          onChange={handleFileChange}
+        />
+
         {photoUrl ? (
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             <div style={{ position: "relative", display: "inline-block" }}>
               <img src={photoUrl} alt="receipt" style={{ width: "100%", maxWidth: 240, height: 160, objectFit: "cover", borderRadius: 8 }} />
-              <button onClick={() => { setPhotoUrl(null); }} style={{ position: "absolute", top: 6, right: 6, background: "#EF4444", border: "none", borderRadius: "50%", width: 24, height: 24, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
+              <button
+                onClick={() => { setPhotoUrl(null); setPhotoBlob(null); setOcrStatus("idle"); setNewSupplierName(null); }}
+                style={{ position: "absolute", top: 6, right: 6, background: "#EF4444", border: "none", borderRadius: "50%", width: 24, height: 24, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}
+              >
                 <X size={14} color="white" />
               </button>
             </div>
             {ocrLoading && (
               <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: "#6C5CE7", background: "#F0ECFF", padding: "10px 14px", borderRadius: 8 }}>
                 <span style={{ animation: "spin 1s linear infinite", display: "inline-block" }}>⏳</span>
-                กำลังอ่านใบเสร็จ… · מנתח קבלה…
+                מנתח קבלה… · Scanning receipt…
               </div>
             )}
             {!ocrLoading && ocrStatus === "idle" && form.amount && (
-              <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, color: "#065F46", background: "#ECFDF5", padding: "8px 12px", borderRadius: 8 }}>
-                ✅ זוהה בהצלחה · Receipt read successfully
+              <div style={{ fontSize: 13, color: "#065F46", background: "#ECFDF5", padding: "8px 12px", borderRadius: 8 }}>
+                ✅ זוהה בהצלחה · Receipt read — amount: ฿{form.amount}
               </div>
             )}
           </div>
         ) : (
           <button
-            onClick={startCamera}
-            style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 16px", border: "2px dashed var(--border)", borderRadius: 8, background: "transparent", cursor: "pointer", fontSize: 14, color: "var(--text-muted)" }}
+            onClick={() => fileInputRef.current?.click()}
+            style={{ display: "flex", alignItems: "center", gap: 8, padding: "12px 16px", border: "2px dashed var(--border)", borderRadius: 10, background: "transparent", cursor: "pointer", fontSize: 14, color: "var(--text-muted)", width: "100%" }}
           >
             <Camera size={20} />
-            ถ่ายรูปใบเสร็จ · Take photo (optional)
+            <span>צלם קבלה · Take photo <small style={{ display: "block", fontSize: 11 }}>יפתח מצלמה · Opens camera</small></span>
           </button>
         )}
       </div>
