@@ -891,8 +891,9 @@ function AddReceiptModal({ ownerId, userId, suppliers, sites, defaultSiteId, onC
   const supabase = createClient();
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const [localSuppliers, setLocalSuppliers] = useState<Supplier[]>(suppliers);
   const [form, setForm] = useState({
-    supplier_id: suppliers[0]?.id ?? "",
+    supplier_id: "",
     site_id: defaultSiteId ?? sites[0]?.id ?? "",
     amount: "",
     category: "",
@@ -901,6 +902,9 @@ function AddReceiptModal({ ownerId, userId, suppliers, sites, defaultSiteId, onC
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
   const [capturing, setCapturing] = useState(false);
   const [ocrLoading, setOcrLoading] = useState(false);
+  const [ocrStatus, setOcrStatus] = useState<"idle" | "low_confidence" | "no_result">("idle");
+  const [newSupplierName, setNewSupplierName] = useState<string | null>(null);
+  const [addingSupplier, setAddingSupplier] = useState(false);
   const [showCamera, setShowCamera] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -943,9 +947,35 @@ function AddReceiptModal({ ownerId, userId, suppliers, sites, defaultSiteId, onC
             body: JSON.stringify({ imageUrl: publicUrl, ownerId }),
           });
           const ocr = await ocrRes.json();
-          if (ocr.confidence >= 60) {
-            if (ocr.amount > 0) setForm((f) => ({ ...f, amount: String(Math.round(ocr.amount)) }));
-            if (ocr.description) setForm((f) => ({ ...f, description: ocr.description }));
+
+          if (ocr.confidence >= 60 && ocr.amount > 0) {
+            setForm((f) => ({
+              ...f,
+              amount: String(Math.round(ocr.amount)),
+              description: ocr.description || f.description,
+            }));
+
+            // Check if detected merchant matches existing supplier
+            if (ocr.merchant) {
+              const term = ocr.merchant.toLowerCase();
+              const matched = localSuppliers.find(
+                (s) =>
+                  s.name_th.toLowerCase().includes(term) ||
+                  s.name_en.toLowerCase().includes(term) ||
+                  term.includes(s.name_th.toLowerCase())
+              );
+              if (matched) {
+                setForm((f) => ({ ...f, supplier_id: matched.id }));
+              } else {
+                // New supplier found — prompt to add
+                setNewSupplierName(ocr.merchant);
+              }
+            }
+            setOcrStatus("idle");
+          } else if (ocr.confidence > 0 && ocr.confidence < 60) {
+            setOcrStatus("low_confidence");
+          } else {
+            setOcrStatus("no_result");
           }
         } catch {}
         setOcrLoading(false);
@@ -954,6 +984,23 @@ function AddReceiptModal({ ownerId, userId, suppliers, sites, defaultSiteId, onC
     }
     setCapturing(false);
     stopCamera();
+  }
+
+  async function handleAddDetectedSupplier() {
+    if (!newSupplierName) return;
+    setAddingSupplier(true);
+    const res = await fetch("/api/suppliers", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name_th: newSupplierName, name_en: newSupplierName, contact_phone: null, category: null }),
+    });
+    const result = await res.json();
+    setAddingSupplier(false);
+    if (res.ok && result.data) {
+      setLocalSuppliers((prev) => [...prev, result.data as Supplier]);
+      setForm((f) => ({ ...f, supplier_id: result.data.id }));
+    }
+    setNewSupplierName(null);
   }
 
   async function handleSave() {
@@ -1022,12 +1069,51 @@ function AddReceiptModal({ ownerId, userId, suppliers, sites, defaultSiteId, onC
     <ModalWrapper title="เพิ่มใบเสร็จ" subtitle="Add receipt" onClose={onClose}>
       {error && <ErrorBox msg={error} />}
 
+      {/* ── OCR: New supplier detected ── */}
+      {newSupplierName && (
+        <div style={{ background: "#EFF6FF", border: "1.5px solid #BFDBFE", borderRadius: 12, padding: "14px 16px", display: "flex", flexDirection: "column", gap: 10 }}>
+          <div style={{ fontSize: 13, fontWeight: 600, color: "#1E40AF" }}>
+            🔍 זיהיתי ספק חדש · New supplier detected
+          </div>
+          <div style={{ fontSize: 14, color: "#1E3A8A" }}>
+            <strong>"{newSupplierName}"</strong> לא נמצא ברשימה · Not in your list
+          </div>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button
+              onClick={handleAddDetectedSupplier}
+              disabled={addingSupplier}
+              style={{ flex: 1, padding: "9px 12px", background: "#6C5CE7", color: "white", border: "none", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer" }}
+            >
+              {addingSupplier ? "..." : "✅ הוסף ספק · Add supplier"}
+            </button>
+            <button
+              onClick={() => setNewSupplierName(null)}
+              style={{ padding: "9px 14px", background: "transparent", border: "1px solid #BFDBFE", borderRadius: 8, fontSize: 13, color: "#6B7280", cursor: "pointer" }}
+            >
+              דלג · Skip
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── OCR: Low confidence / no result ── */}
+      {ocrStatus === "low_confidence" && (
+        <div style={{ background: "#FFFBEB", border: "1.5px solid #FCD34D", borderRadius: 10, padding: "12px 14px", fontSize: 13, color: "#92400E" }}>
+          ⚠️ קראתי את הקבלה אבל לא בטוח בתוצאה · Read with low confidence. אנא בדוק ידנית · Please verify manually.
+        </div>
+      )}
+      {ocrStatus === "no_result" && (
+        <div style={{ background: "#FEF2F2", border: "1.5px solid #FECACA", borderRadius: 10, padding: "12px 14px", fontSize: 13, color: "#991B1B" }}>
+          ❌ לא הצלחתי לקרוא את הקבלה · Could not read receipt. מלא ידנית · Fill in manually.
+        </div>
+      )}
+
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
         <label style={{ display: "flex", flexDirection: "column", gap: 4, gridColumn: "1/-1" }}>
           <span style={{ fontSize: 13, fontWeight: 600 }}>ซัพพลายเออร์ Supplier</span>
           <select value={form.supplier_id} onChange={(e) => setForm((f) => ({ ...f, supplier_id: e.target.value }))} style={{ padding: "9px 12px", border: "1px solid var(--border)", borderRadius: 8, fontSize: 14 }}>
             <option value="">ไม่ระบุ · None</option>
-            {suppliers.map((s) => <option key={s.id} value={s.id}>{s.name_th}</option>)}
+            {localSuppliers.map((s) => <option key={s.id} value={s.id}>{s.name_th}</option>)}
           </select>
         </label>
 
@@ -1058,9 +1144,14 @@ function AddReceiptModal({ ownerId, userId, suppliers, sites, defaultSiteId, onC
               </button>
             </div>
             {ocrLoading && (
-              <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: "var(--brand-primary)", background: "#EFF6FF", padding: "8px 12px", borderRadius: 8 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: "#6C5CE7", background: "#F0ECFF", padding: "10px 14px", borderRadius: 8 }}>
                 <span style={{ animation: "spin 1s linear infinite", display: "inline-block" }}>⏳</span>
-                กำลังอ่านใบเสร็จ… Reading receipt…
+                กำลังอ่านใบเสร็จ… · מנתח קבלה…
+              </div>
+            )}
+            {!ocrLoading && ocrStatus === "idle" && form.amount && (
+              <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, color: "#065F46", background: "#ECFDF5", padding: "8px 12px", borderRadius: 8 }}>
+                ✅ זוהה בהצלחה · Receipt read successfully
               </div>
             )}
           </div>
