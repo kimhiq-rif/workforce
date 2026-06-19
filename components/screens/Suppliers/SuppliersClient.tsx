@@ -913,80 +913,75 @@ function AddReceiptModal({ ownerId, userId, suppliers, sites, defaultSiteId, onC
   async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
+
     setPhotoBlob(file);
     setOcrStatus("idle");
     setNewSupplierName(null);
+    setError("");
+    setPhotoUrl(URL.createObjectURL(file)); // lightweight preview
+    setOcrLoading(true);
 
-    // Resize image to max 1600px before sending — phone photos are 4-5MB which exceeds Vercel's 4.5MB body limit
-    function resizeImage(dataUrl: string, maxPx = 1024, quality = 0.78): Promise<string> {
-      return new Promise((resolve) => {
+    try {
+      // Resize using object URL — avoids loading a 10MB+ dataURL string into memory (hangs on iOS)
+      const base64 = await new Promise<string>((resolve, reject) => {
+        const blobUrl = URL.createObjectURL(file);
         const img = new Image();
+        img.onerror = () => { URL.revokeObjectURL(blobUrl); reject(new Error("Image load failed")); };
         img.onload = () => {
+          URL.revokeObjectURL(blobUrl);
+          const maxPx = 1024;
           const scale = Math.min(1, maxPx / Math.max(img.width, img.height));
           const canvas = document.createElement("canvas");
           canvas.width = Math.round(img.width * scale);
           canvas.height = Math.round(img.height * scale);
           canvas.getContext("2d")!.drawImage(img, 0, 0, canvas.width, canvas.height);
-          resolve(canvas.toDataURL("image/jpeg", quality));
+          resolve(canvas.toDataURL("image/jpeg", 0.78).split(",")[1]);
         };
-        img.src = dataUrl;
+        img.src = blobUrl;
       });
-    }
 
-    // Read as dataURL for preview + base64 for OCR
-    const reader = new FileReader();
-    reader.onload = async (ev) => {
-      const rawDataUrl = ev.target?.result as string;
-      setPhotoUrl(rawDataUrl); // full-res preview is fine locally
-      const resizedDataUrl = await resizeImage(rawDataUrl);
-      const base64 = resizedDataUrl.split(",")[1];
-      setOcrLoading(true);
-      try {
-        const ocrRes = await fetch("/api/receipts/ocr", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ imageBase64: base64, ownerId }),
-        });
-        const ocr = await ocrRes.json();
+      const ocrRes = await fetch("/api/receipts/ocr", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ imageBase64: base64, ownerId }),
+      });
+      const ocr = await ocrRes.json();
 
-        if (ocr._err) {
-          setOcrStatus("no_result");
-          setError(`OCR: ${ocr._err}`);
-          setOcrLoading(false);
-          return;
-        }
-        if (ocr.confidence >= 60 && ocr.amount > 0) {
-          setForm((f) => ({
-            ...f,
-            amount: String(Math.round(ocr.amount)),
-            description: ocr.description || f.description,
-          }));
-          if (ocr.merchant) {
-            const term = ocr.merchant.toLowerCase();
-            const matched = localSuppliers.find(
-              (s) =>
-                s.name_th.toLowerCase().includes(term) ||
-                s.name_en.toLowerCase().includes(term) ||
-                term.includes(s.name_th.toLowerCase())
-            );
-            if (matched) {
-              setForm((f) => ({ ...f, supplier_id: matched.id }));
-            } else {
-              setNewSupplierName(ocr.merchant);
-            }
+      if (ocr._err) {
+        setError(`OCR: ${ocr._err}`);
+        setOcrStatus("no_result");
+      } else if (ocr.confidence >= 60 && ocr.amount > 0) {
+        setForm((f) => ({
+          ...f,
+          amount: String(Math.round(ocr.amount)),
+          description: ocr.description || f.description,
+        }));
+        if (ocr.merchant) {
+          const term = ocr.merchant.toLowerCase();
+          const matched = localSuppliers.find(
+            (s) =>
+              s.name_th.toLowerCase().includes(term) ||
+              s.name_en.toLowerCase().includes(term) ||
+              term.includes(s.name_th.toLowerCase())
+          );
+          if (matched) {
+            setForm((f) => ({ ...f, supplier_id: matched.id }));
+          } else {
+            setNewSupplierName(ocr.merchant);
           }
-          setOcrStatus("idle");
-        } else if (ocr.confidence > 0 && ocr.confidence < 60) {
-          setOcrStatus("low_confidence");
-        } else {
-          setOcrStatus("no_result");
         }
-      } catch {
+        setOcrStatus("idle");
+      } else if (ocr.confidence > 0) {
+        setOcrStatus("low_confidence");
+      } else {
         setOcrStatus("no_result");
       }
+    } catch (err: any) {
+      setError(`שגיאה · Error: ${err.message}`);
+      setOcrStatus("no_result");
+    } finally {
       setOcrLoading(false);
-    };
-    reader.readAsDataURL(file);
+    }
   }
 
   async function handleAddDetectedSupplier() {
