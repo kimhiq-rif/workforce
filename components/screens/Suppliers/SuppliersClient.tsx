@@ -949,7 +949,12 @@ function AddReceiptModal({ ownerId, userId, suppliers, sites, defaultSiteId, onC
         });
         const ocr = await ocrRes.json();
 
-        if (ocr._error) console.warn("[OCR client] server error:", ocr._error);
+        if (ocr._err) {
+          setOcrStatus("no_result");
+          setError(`OCR: ${ocr._err}`);
+          setOcrLoading(false);
+          return;
+        }
         if (ocr.confidence >= 60 && ocr.amount > 0) {
           setForm((f) => ({
             ...f,
