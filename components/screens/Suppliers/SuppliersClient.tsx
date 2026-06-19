@@ -900,6 +900,7 @@ function AddReceiptModal({ ownerId, userId, suppliers, sites, defaultSiteId, onC
   });
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
   const [capturing, setCapturing] = useState(false);
+  const [ocrLoading, setOcrLoading] = useState(false);
   const [showCamera, setShowCamera] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -929,7 +930,27 @@ function AddReceiptModal({ ownerId, userId, suppliers, sites, defaultSiteId, onC
     const { data, error: uploadError } = await supabase.storage.from("receipt-photos").upload(fileName, blob, { contentType: "image/jpeg" });
     if (!uploadError && data) {
       const { data: urlData } = supabase.storage.from("receipt-photos").getPublicUrl(fileName);
-      setPhotoUrl(urlData?.publicUrl ?? null);
+      const publicUrl = urlData?.publicUrl ?? null;
+      setPhotoUrl(publicUrl);
+      if (publicUrl) {
+        setCapturing(false);
+        stopCamera();
+        setOcrLoading(true);
+        try {
+          const ocrRes = await fetch("/api/receipts/ocr", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ imageUrl: publicUrl }),
+          });
+          const ocr = await ocrRes.json();
+          if (ocr.confidence >= 70) {
+            if (ocr.amount > 0) setForm((f) => ({ ...f, amount: String(Math.round(ocr.amount)) }));
+            if (ocr.merchantName) setForm((f) => ({ ...f, description: ocr.merchantName }));
+          }
+        } catch {}
+        setOcrLoading(false);
+        return;
+      }
     }
     setCapturing(false);
     stopCamera();
@@ -1010,11 +1031,19 @@ function AddReceiptModal({ ownerId, userId, suppliers, sites, defaultSiteId, onC
       {/* Photo */}
       <div style={{ marginTop: 4 }}>
         {photoUrl ? (
-          <div style={{ position: "relative", display: "inline-block" }}>
-            <img src={photoUrl} alt="receipt" style={{ width: "100%", maxWidth: 240, height: 160, objectFit: "cover", borderRadius: 8 }} />
-            <button onClick={() => setPhotoUrl(null)} style={{ position: "absolute", top: 6, right: 6, background: "#EF4444", border: "none", borderRadius: "50%", width: 24, height: 24, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
-              <X size={14} color="white" />
-            </button>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            <div style={{ position: "relative", display: "inline-block" }}>
+              <img src={photoUrl} alt="receipt" style={{ width: "100%", maxWidth: 240, height: 160, objectFit: "cover", borderRadius: 8 }} />
+              <button onClick={() => { setPhotoUrl(null); }} style={{ position: "absolute", top: 6, right: 6, background: "#EF4444", border: "none", borderRadius: "50%", width: 24, height: 24, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
+                <X size={14} color="white" />
+              </button>
+            </div>
+            {ocrLoading && (
+              <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: "var(--brand-primary)", background: "#EFF6FF", padding: "8px 12px", borderRadius: 8 }}>
+                <span style={{ animation: "spin 1s linear infinite", display: "inline-block" }}>⏳</span>
+                กำลังอ่านใบเสร็จ… Reading receipt…
+              </div>
+            )}
           </div>
         ) : (
           <button
