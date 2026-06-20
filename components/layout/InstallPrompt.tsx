@@ -127,22 +127,37 @@ export function InstallPrompt() {
               เพื่อประสบการณ์ที่ดีที่สุด เปิดแอปจากหน้าจอหลักเสมอ<br />
               For the best experience, always open from your Home Screen
             </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-              {[
-                { n: "1", icon: <Share size={17} color="#007AFF" />, th: "กด", en: "Tap the", highlight: "Share", end_th: "ด้านล่าง", end_en: "button below" },
-                { n: "2", icon: <Plus size={17} color="#007AFF" />, th: "เลือก", en: "Select", highlight: "Add to Home Screen", end_th: "", end_en: "" },
-              ].map(({ n, icon, th, en, highlight, end_th, end_en }) => (
-                <div key={n} style={{ display: "flex", alignItems: "center", gap: 12, background: "#F9FAFB", borderRadius: 10, padding: "10px 12px" }}>
-                  <div style={{ width: 26, height: 26, borderRadius: "50%", background: "#1E3A8A", color: "white", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700, flexShrink: 0 }}>{n}</div>
-                  <div style={{ fontSize: 13, flex: 1 }}>
-                    <span style={{ color: "#374151" }}>{th} </span>
-                    <strong style={{ color: "#007AFF" }}>{highlight}</strong>
-                    {end_th && <span style={{ color: "#374151" }}> {end_th}</span>}
-                    <span style={{ display: "block", color: "#9CA3AF", fontSize: 12 }}>{en} <strong style={{ color: "#007AFF" }}>{highlight}</strong> {end_en}</span>
-                  </div>
-                  {icon}
-                </div>
-              ))}
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {/* Step 1 */}
+              <div style={{ fontSize: 14, color: "#374151", lineHeight: 1.6 }}>
+                <span style={{ fontWeight: 700, color: "#111827" }}>1. </span>
+                กด&nbsp;
+                <span style={{ display: "inline-flex", alignItems: "center", gap: 3, background: "#F3F4F6", borderRadius: 6, padding: "2px 7px", fontWeight: 600, color: "#1D4ED8" }}>
+                  <Share size={13} /> Share
+                </span>
+                &nbsp;ด้านล่าง
+                <span style={{ display: "block", fontSize: 12, color: "#9CA3AF" }}>
+                  Tap the&nbsp;
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: 2, background: "#F3F4F6", borderRadius: 4, padding: "1px 5px", color: "#6B7280" }}>
+                    <Share size={11} /> Share
+                  </span>
+                  &nbsp;button at the bottom
+                </span>
+              </div>
+              {/* Step 2 */}
+              <div style={{ fontSize: 14, color: "#374151", lineHeight: 1.6 }}>
+                <span style={{ fontWeight: 700, color: "#111827" }}>2. </span>
+                เลือก&nbsp;
+                <span style={{ display: "inline-flex", alignItems: "center", gap: 3, background: "#F3F4F6", borderRadius: 6, padding: "2px 7px", fontWeight: 600, color: "#1D4ED8" }}>
+                  <Plus size={13} /> Add to Home Screen
+                </span>
+                <span style={{ display: "block", fontSize: 12, color: "#9CA3AF" }}>
+                  Select&nbsp;
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: 2, background: "#F3F4F6", borderRadius: 4, padding: "1px 5px", color: "#6B7280" }}>
+                    <Plus size={11} /> Add to Home Screen
+                  </span>
+                </span>
+              </div>
             </div>
             <div style={{ marginTop: 14, padding: "10px 14px", background: "#FFFBEB", border: "1px solid #FDE68A", borderRadius: 10, fontSize: 12, color: "#92400E" }}>
               ⚠️ ทำงานได้ดีที่สุดเมื่อเปิดจากหน้าจอหลัก — ไม่ใช่จาก Safari<br />
