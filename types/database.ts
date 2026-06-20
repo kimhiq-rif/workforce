@@ -29,6 +29,7 @@ export interface User {
   admin_code_hash: string | null;
   language_mode: string;
   session_timeout_hours: number;
+  must_change_password: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -81,6 +82,7 @@ export interface Worker {
   phone: string | null;
   is_active: boolean;
   auth_user_id: string | null;
+  login_email: string | null;
   created_at: string;
   updated_at: string;
   // Joined

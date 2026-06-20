@@ -7,6 +7,7 @@ import { redirect } from "next/navigation";
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { user, profile, ownerId, serviceClient: supabase } = await getAppUserContext();
   if (!user || !profile) redirect("/login");
+  if (profile.must_change_password) redirect("/change-password");
 
   let assignedSiteId: string | null = null;
 

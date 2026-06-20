@@ -6,7 +6,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { DashboardShell } from "@/components/layout/DashboardShell";
-import { ChevronLeft, ChevronRight, Phone, MapPin, X, Banknote, Pencil, Check } from "lucide-react";
+import { ChevronLeft, ChevronRight, Phone, MapPin, X, Banknote, Pencil, Check, KeyRound, Copy, ShieldCheck } from "lucide-react";
 import { formatCurrency, formatThaiDate, formatEnDate, formatTime } from "@/lib/format";
 import { wageReasonLabel } from "@/lib/wage-logic";
 import type { Worker } from "@/types/database";
@@ -49,6 +49,10 @@ export function WorkerProfileClient({ worker: initialWorker, attendanceHistory, 
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingWage, setEditingWage] = useState(false);
   const [newWage, setNewWage] = useState(String(initialWorker.daily_wage));
+  const [showAccessModal, setShowAccessModal] = useState(false);
+  const [resetCreds, setResetCreds] = useState<{ email: string; password: string } | null>(null);
+  const [resetting, setResetting] = useState(false);
+  const [copiedCreds, setCopiedCreds] = useState(false);
 
   function showToast(msg: string) {
     setToast(msg);
@@ -91,6 +95,27 @@ export function WorkerProfileClient({ worker: initialWorker, attendanceHistory, 
     router.push("/workers");
   }
 
+  async function handleResetPassword() {
+    if (!confirm(`รีเซ็ตรหัสผ่านของ ${worker.name_en}? · Reset password?`)) return;
+    setResetting(true);
+    const res = await fetch("/api/team/reset-password", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ worker_id: worker.id }),
+    });
+    const data = await res.json();
+    setResetting(false);
+    if (!res.ok) { showToast("Error: " + (data.error ?? "Failed")); return; }
+    setResetCreds({ email: data.email, password: data.temp_password });
+  }
+
+  async function copyCredsToClipboard() {
+    if (!resetCreds) return;
+    await navigator.clipboard.writeText(`Email: ${resetCreds.email}\nPassword: ${resetCreds.password}`);
+    setCopiedCreds(true);
+    setTimeout(() => setCopiedCreds(false), 2000);
+  }
+
   // ── Right panel ─────────────────────────────────────────────────────────────
   const rightPanel = (
     <>
@@ -124,6 +149,50 @@ export function WorkerProfileClient({ worker: initialWorker, attendanceHistory, 
           ))}
         </select>
       </section>
+
+      {/* App Access section — only for owner */}
+      {userRole === "owner" && (
+        <section className="attention-card">
+          <h2><ShieldCheck size={15} style={{ display: "inline", verticalAlign: "middle", marginRight: 5 }} />การเข้าถึงแอป <span>App Access</span></h2>
+
+          {worker.auth_user_id ? (
+            <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 6 }}>
+              <div style={{ fontSize: 13, color: "var(--text-muted)" }}>
+                Email: <strong style={{ color: "var(--text-primary)", fontFamily: "monospace", fontSize: 12 }}>{worker.login_email ?? "—"}</strong>
+              </div>
+
+              {resetCreds ? (
+                <div style={{ background: "#F0F9FF", border: "1px solid #BAE6FD", borderRadius: 8, padding: "10px 12px" }}>
+                  <div style={{ fontSize: 12, marginBottom: 4, color: "#0369A1", fontWeight: 600 }}>รหัสผ่านใหม่ · New temp password</div>
+                  <div style={{ fontFamily: "monospace", fontSize: 14, fontWeight: 700, letterSpacing: 1 }}>{resetCreds.password}</div>
+                  <button onClick={copyCredsToClipboard} style={{ marginTop: 8, width: "100%", padding: "6px", border: "1px solid #BAE6FD", borderRadius: 6, background: "white", cursor: "pointer", fontSize: 12, display: "flex", alignItems: "center", justifyContent: "center", gap: 5 }}>
+                    {copiedCreds ? <><Check size={13} color="#22C55E" /> Copied!</> : <><Copy size={13} /> คัดลอก · Copy</>}
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={handleResetPassword}
+                  disabled={resetting}
+                  style={{ width: "100%", padding: "9px", background: "#EFF6FF", color: "#1D4ED8", border: "1px solid #BFDBFE", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 600, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}
+                >
+                  <KeyRound size={15} />
+                  {resetting ? "กำลังรีเซ็ต…" : "รีเซ็ตรหัสผ่าน · Reset Password"}
+                </button>
+              )}
+            </div>
+          ) : (
+            <div style={{ marginTop: 6 }}>
+              <div style={{ fontSize: 13, color: "var(--text-muted)", marginBottom: 8 }}>ยังไม่มีบัญชี · No app account</div>
+              <button
+                onClick={() => setShowAccessModal(true)}
+                style={{ width: "100%", padding: "9px", background: "#EFF6FF", color: "#1D4ED8", border: "1px solid #BFDBFE", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 600 }}
+              >
+                + ให้สิทธิ์เข้าถึง · Grant Access
+              </button>
+            </div>
+          )}
+        </section>
+      )}
 
       <section className="attention-card">
         <button
@@ -346,7 +415,83 @@ export function WorkerProfileClient({ worker: initialWorker, attendanceHistory, 
         />
       )}
 
+      {showAccessModal && (
+        <GrantAccessModal
+          worker={worker}
+          onClose={() => setShowAccessModal(false)}
+          onGranted={(email, tempPassword) => {
+            setWorker((w) => ({ ...w, auth_user_id: "granted", login_email: email }));
+            setShowAccessModal(false);
+            setResetCreds({ email, password: tempPassword });
+            showToast("สร้างบัญชีสำเร็จ · Account created");
+          }}
+        />
+      )}
+
     </>
+  );
+}
+
+// ── Grant Access Modal (from worker profile) ───────────────────────────────────
+function GrantAccessModal({
+  worker, onClose, onGranted,
+}: {
+  worker: Worker & { site?: any };
+  onClose: () => void;
+  onGranted: (email: string, tempPassword: string) => void;
+}) {
+  const [email, setEmail]   = useState("");
+  const [role, setRole]     = useState<"field_manager" | "technical_admin">("field_manager");
+  const [saving, setSaving] = useState(false);
+  const [error, setError]   = useState("");
+
+  async function handleGrant() {
+    if (!email.trim()) { setError("กรุณากรอก email · Email required"); return; }
+    setSaving(true); setError("");
+    const res = await fetch("/api/team/set-access", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ worker_id: worker.id, email: email.trim(), role }),
+    });
+    const data = await res.json();
+    setSaving(false);
+    if (!res.ok) { setError(data.error ?? "Error"); return; }
+    onGranted(email.trim(), data.temp_password);
+  }
+
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 999, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
+      <div style={{ background: "white", borderRadius: 16, padding: "28px 24px", width: "100%", maxWidth: 400 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18 }}>
+          <h2 style={{ fontSize: 18, fontWeight: 700 }}>ให้สิทธิ์เข้าถึง <small style={{ fontWeight: 400, color: "#6B7280", fontSize: 13 }}>Grant App Access</small></h2>
+          <button onClick={onClose} style={{ background: "transparent", border: "none", cursor: "pointer" }}><X size={22} /></button>
+        </div>
+        {error && <div style={{ background: "#FEF2F2", color: "#B91C1C", borderRadius: 8, padding: "10px 14px", marginBottom: 14, fontSize: 14 }}>{error}</div>}
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+            <span style={{ fontSize: 13, fontWeight: 600 }}>Email</span>
+            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="worker@email.com" style={{ padding: "9px 12px", border: "1px solid #D1D5DB", borderRadius: 8, fontSize: 14 }} />
+          </label>
+          <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+            <span style={{ fontSize: 13, fontWeight: 600 }}>Role</span>
+            <select value={role} onChange={(e) => setRole(e.target.value as "field_manager" | "technical_admin")} style={{ padding: "9px 12px", border: "1px solid #D1D5DB", borderRadius: 8, fontSize: 14, appearance: "none" }}>
+              <option value="field_manager">Field Manager</option>
+              <option value="technical_admin">Driver Manager</option>
+            </select>
+          </label>
+          <div style={{ fontSize: 12, color: "#6B7280", background: "#F9FAFB", borderRadius: 6, padding: "8px 10px" }}>
+            ระบบสร้างรหัสผ่านชั่วคราว พนักงานต้องเปลี่ยนเมื่อเข้าครั้งแรก<br/>
+            System generates temp password; worker must change it on first login
+          </div>
+        </div>
+        <div style={{ display: "flex", gap: 10, marginTop: 20 }}>
+          <button onClick={onClose} style={{ flex: 1, padding: "10px", border: "1px solid #D1D5DB", borderRadius: 8, background: "white", cursor: "pointer", fontSize: 14 }}>ยกเลิก</button>
+          <button onClick={handleGrant} disabled={saving} style={{ flex: 2, padding: "10px", border: "none", borderRadius: 8, background: "#1E3A8A", color: "white", cursor: "pointer", fontSize: 14, fontWeight: 700 }}>
+            {saving ? "กำลังสร้าง…" : "สร้างบัญชี · Create Account"}
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }
 

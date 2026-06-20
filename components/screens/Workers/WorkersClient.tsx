@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 
 import { createClient } from "@/lib/supabase/client";
 import { DashboardShell } from "@/components/layout/DashboardShell";
-import { Search, CirclePlus, ChevronRight, UserCheck, Clock, Users, X } from "lucide-react";
+import { Search, CirclePlus, ChevronRight, UserCheck, Clock, Users, X, Copy, Check } from "lucide-react";
 import { formatCurrency, formatTime } from "@/lib/format";
 import type { Worker } from "@/types/database";
 
@@ -469,19 +469,16 @@ function AddWorkerModal({
   onClose: () => void;
   onAdded: (w: any) => void;
 }) {
-  const supabase = createClient();
   const [form, setForm] = useState({
-    name_th: "",
-    name_en: "",
-    role_th: "",
-    role_en: "",
-    phone: "",
-    daily_wage: "500",
-    assigned_site_id: "",
-    is_temporary: false,
+    name_th: "", name_en: "", role_th: "", role_en: "",
+    phone: "", daily_wage: "500", assigned_site_id: "", is_temporary: false,
   });
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState("");
+  const [appEmail, setAppEmail]   = useState("");
+  const [appRole, setAppRole]     = useState<"field_manager" | "technical_admin">("field_manager");
+  const [saving, setSaving]       = useState(false);
+  const [error, setError]         = useState("");
+  const [copied, setCopied]       = useState(false);
+  const [tempCreds, setTempCreds] = useState<{ email: string; password: string } | null>(null);
 
   async function handleSave() {
     if (!form.name_th || !form.name_en) {
@@ -491,29 +488,80 @@ function AddWorkerModal({
     setSaving(true);
     setError("");
 
-    const response = await fetch("/api/workers", {
+    // Step 1: create worker
+    const workerRes = await fetch("/api/workers", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        name_th: form.name_th,
-        name_en: form.name_en,
-        role_th: form.role_th || null,
-        role_en: form.role_en || null,
-        phone: form.phone || null,
-        daily_wage: Number(form.daily_wage) || 500,
-        assigned_site_id: form.assigned_site_id || null,
-        is_temporary: form.is_temporary,
+        name_th: form.name_th, name_en: form.name_en,
+        role_th: form.role_th || null, role_en: form.role_en || null,
+        phone: form.phone || null, daily_wage: Number(form.daily_wage) || 500,
+        assigned_site_id: form.assigned_site_id || null, is_temporary: form.is_temporary,
       }),
     });
-    const result = await response.json();
+    const workerResult = await workerRes.json();
+    if (!workerRes.ok) { setError("เกิดข้อผิดพลาด · " + (workerResult.error ?? "Error")); setSaving(false); return; }
+
+    const newWorker = workerResult.data;
+
+    // Step 2: set up app access if email provided
+    if (appEmail.trim()) {
+      const accessRes = await fetch("/api/team/set-access", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ worker_id: newWorker.id, email: appEmail.trim(), role: appRole }),
+      });
+      const accessResult = await accessRes.json();
+      if (!accessRes.ok) { setError("Worker created but access failed: " + (accessResult.error ?? "")); setSaving(false); return; }
+      setTempCreds({ email: appEmail.trim(), password: accessResult.temp_password });
+    } else {
+      onAdded(newWorker);
+    }
 
     setSaving(false);
+  }
 
-    if (!response.ok) {
-      setError("เกิดข้อผิดพลาด · " + (result.error ?? "Error adding worker"));
-      return;
-    }
-    onAdded(result.data);
+  async function copyAll() {
+    if (!tempCreds) return;
+    await navigator.clipboard.writeText(`Email: ${tempCreds.email}\nPassword: ${tempCreds.password}`);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  }
+
+  // Step 2: show credentials
+  if (tempCreds) {
+    return (
+      <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 998, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
+        <div style={{ background: "white", borderRadius: 16, padding: "28px 24px", width: "100%", maxWidth: 420 }}>
+          <div style={{ textAlign: "center", marginBottom: 20 }}>
+            <div style={{ fontSize: 40, marginBottom: 8 }}>✅</div>
+            <h2 style={{ fontSize: 18, fontWeight: 700 }}>สร้างบัญชีสำเร็จ · Account created</h2>
+            <p style={{ fontSize: 13, color: "#6B7280", marginTop: 4 }}>แชร์ข้อมูลนี้กับพนักงาน · Share these login details with the worker</p>
+          </div>
+          <div style={{ background: "#F0F9FF", border: "1px solid #BAE6FD", borderRadius: 10, padding: "14px 16px", marginBottom: 16 }}>
+            <div style={{ fontSize: 13, marginBottom: 6 }}>
+              <span style={{ color: "#6B7280" }}>Email: </span>
+              <strong style={{ fontFamily: "monospace" }}>{tempCreds.email}</strong>
+            </div>
+            <div style={{ fontSize: 13 }}>
+              <span style={{ color: "#6B7280" }}>Password: </span>
+              <strong style={{ fontFamily: "monospace", fontSize: 15, letterSpacing: 1 }}>{tempCreds.password}</strong>
+            </div>
+          </div>
+          <p style={{ fontSize: 12, color: "#F97316", marginBottom: 16, textAlign: "center" }}>
+            ⚠️ พนักงานจะต้องเปลี่ยนรหัสผ่านเมื่อเข้าครั้งแรก<br/>Worker must change password on first login
+          </p>
+          <div style={{ display: "flex", gap: 10 }}>
+            <button onClick={copyAll} style={{ flex: 1, padding: "10px", border: "1px solid #BAE6FD", borderRadius: 8, background: "#F0F9FF", cursor: "pointer", fontSize: 14, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+              {copied ? <><Check size={16} color="#22C55E" /> Copied!</> : <><Copy size={16} /> คัดลอก · Copy</>}
+            </button>
+            <button onClick={() => { onAdded(null); }} className="btn-primary" style={{ flex: 1, justifyContent: "center" }}>
+              เสร็จสิ้น · Done
+            </button>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -532,112 +580,88 @@ function AddWorkerModal({
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
             <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
               <span style={{ fontSize: 13, fontWeight: 600 }}>ชื่อภาษาไทย *</span>
-              <input
-                value={form.name_th}
-                onChange={(e) => setForm((f) => ({ ...f, name_th: e.target.value }))}
-                placeholder="สมชาย"
-                style={{ padding: "9px 12px", border: "1px solid var(--border)", borderRadius: 8, fontSize: 14 }}
-              />
+              <input value={form.name_th} onChange={(e) => setForm((f) => ({ ...f, name_th: e.target.value }))} placeholder="สมชาย" style={{ padding: "9px 12px", border: "1px solid var(--border)", borderRadius: 8, fontSize: 14 }} />
             </label>
             <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
               <span style={{ fontSize: 13, fontWeight: 600 }}>Name (English) *</span>
-              <input
-                value={form.name_en}
-                onChange={(e) => setForm((f) => ({ ...f, name_en: e.target.value }))}
-                placeholder="Somchai"
-                style={{ padding: "9px 12px", border: "1px solid var(--border)", borderRadius: 8, fontSize: 14 }}
-              />
+              <input value={form.name_en} onChange={(e) => setForm((f) => ({ ...f, name_en: e.target.value }))} placeholder="Somchai" style={{ padding: "9px 12px", border: "1px solid var(--border)", borderRadius: 8, fontSize: 14 }} />
             </label>
           </div>
-
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
             <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
               <span style={{ fontSize: 13, fontWeight: 600 }}>ตำแหน่ง (ไทย)</span>
-              <input
-                value={form.role_th}
-                onChange={(e) => setForm((f) => ({ ...f, role_th: e.target.value }))}
-                placeholder="ช่างปูน"
-                style={{ padding: "9px 12px", border: "1px solid var(--border)", borderRadius: 8, fontSize: 14 }}
-              />
+              <input value={form.role_th} onChange={(e) => setForm((f) => ({ ...f, role_th: e.target.value }))} placeholder="ช่างปูน" style={{ padding: "9px 12px", border: "1px solid var(--border)", borderRadius: 8, fontSize: 14 }} />
             </label>
             <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
               <span style={{ fontSize: 13, fontWeight: 600 }}>Role (English)</span>
-              <input
-                value={form.role_en}
-                onChange={(e) => setForm((f) => ({ ...f, role_en: e.target.value }))}
-                placeholder="Mason"
-                style={{ padding: "9px 12px", border: "1px solid var(--border)", borderRadius: 8, fontSize: 14 }}
-              />
+              <input value={form.role_en} onChange={(e) => setForm((f) => ({ ...f, role_en: e.target.value }))} placeholder="Mason" style={{ padding: "9px 12px", border: "1px solid var(--border)", borderRadius: 8, fontSize: 14 }} />
             </label>
           </div>
-
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
             <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
               <span style={{ fontSize: 13, fontWeight: 600 }}>เบอร์โทร Phone</span>
-              <input
-                value={form.phone}
-                onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
-                placeholder="0812345678"
-                type="tel"
-                style={{ padding: "9px 12px", border: "1px solid var(--border)", borderRadius: 8, fontSize: 14 }}
-              />
+              <input value={form.phone} onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))} placeholder="0812345678" type="tel" style={{ padding: "9px 12px", border: "1px solid var(--border)", borderRadius: 8, fontSize: 14 }} />
             </label>
             <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
               <span style={{ fontSize: 13, fontWeight: 600 }}>ค่าแรง/วัน Daily wage ฿</span>
-              <input
-                value={form.daily_wage}
-                onChange={(e) => setForm((f) => ({ ...f, daily_wage: e.target.value }))}
-                type="number"
-                min="0"
-                step="50"
-                style={{ padding: "9px 12px", border: "1px solid var(--border)", borderRadius: 8, fontSize: 14 }}
-              />
+              <input value={form.daily_wage} onChange={(e) => setForm((f) => ({ ...f, daily_wage: e.target.value }))} type="number" min="0" step="50" style={{ padding: "9px 12px", border: "1px solid var(--border)", borderRadius: 8, fontSize: 14 }} />
             </label>
           </div>
-
           {sites.length > 0 && (
             <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
               <span style={{ fontSize: 13, fontWeight: 600 }}>ไซต์ที่ทำงาน Site</span>
-              <select
-                value={form.assigned_site_id}
-                onChange={(e) => setForm((f) => ({ ...f, assigned_site_id: e.target.value }))}
-                style={{ padding: "9px 12px", border: "1px solid var(--border)", borderRadius: 8, fontSize: 14, appearance: "none" }}
-              >
+              <select value={form.assigned_site_id} onChange={(e) => setForm((f) => ({ ...f, assigned_site_id: e.target.value }))} style={{ padding: "9px 12px", border: "1px solid var(--border)", borderRadius: 8, fontSize: 14, appearance: "none" }}>
                 <option value="">ยังไม่กำหนด · Not assigned</option>
-                {sites.map((s) => (
-                  <option key={s.id} value={s.id}>{s.name_th} · {s.name_en}</option>
-                ))}
+                {sites.map((s) => <option key={s.id} value={s.id}>{s.name_th} · {s.name_en}</option>)}
               </select>
             </label>
           )}
-
           <label style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer" }}>
-            <input
-              type="checkbox"
-              checked={form.is_temporary}
-              onChange={(e) => setForm((f) => ({ ...f, is_temporary: e.target.checked }))}
-              style={{ width: 18, height: 18, accentColor: "var(--brand-primary)" }}
-            />
-            <span style={{ fontSize: 14 }}>
-              <strong>พนักงานชั่วคราว</strong>
-              <small style={{ display: "block", color: "var(--text-muted)", fontSize: 12 }}>Temporary worker</small>
-            </span>
+            <input type="checkbox" checked={form.is_temporary} onChange={(e) => setForm((f) => ({ ...f, is_temporary: e.target.checked }))} style={{ width: 18, height: 18, accentColor: "var(--brand-primary)" }} />
+            <span style={{ fontSize: 14 }}><strong>พนักงานชั่วคราว</strong><small style={{ display: "block", color: "var(--text-muted)", fontSize: 12 }}>Temporary worker</small></span>
           </label>
+
+          {/* App Access section */}
+          <div style={{ borderTop: "1px solid var(--border)", paddingTop: 14, marginTop: 2 }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: "#1E3A8A", marginBottom: 10 }}>
+              🔐 การเข้าถึงแอป · App Access <small style={{ fontWeight: 400, color: "var(--text-muted)" }}>(optional)</small>
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                <span style={{ fontSize: 13, fontWeight: 600 }}>Email</span>
+                <input
+                  type="email"
+                  value={appEmail}
+                  onChange={(e) => setAppEmail(e.target.value)}
+                  placeholder="worker@email.com"
+                  style={{ padding: "9px 12px", border: "1px solid var(--border)", borderRadius: 8, fontSize: 14 }}
+                />
+              </label>
+              <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                <span style={{ fontSize: 13, fontWeight: 600 }}>Role</span>
+                <select
+                  value={appRole}
+                  onChange={(e) => setAppRole(e.target.value as "field_manager" | "technical_admin")}
+                  style={{ padding: "9px 12px", border: "1px solid var(--border)", borderRadius: 8, fontSize: 14, appearance: "none" }}
+                >
+                  <option value="field_manager">Field Manager — מנהל שטח</option>
+                  <option value="technical_admin">Driver Manager — מנהל נהג</option>
+                </select>
+              </label>
+              {appEmail && (
+                <div style={{ fontSize: 12, color: "#6B7280", background: "#F9FAFB", borderRadius: 6, padding: "8px 10px" }}>
+                  ระบบจะสร้างรหัสผ่านชั่วคราวให้ · System generates a temp password to share with worker
+                </div>
+              )}
+            </div>
+          </div>
         </div>
 
         <div style={{ display: "flex", gap: 12, marginTop: 24 }}>
-          <button
-            onClick={onClose}
-            style={{ flex: 1, padding: "11px", border: "1px solid var(--border)", borderRadius: 10, background: "white", cursor: "pointer", fontSize: 14 }}
-          >
+          <button onClick={onClose} style={{ flex: 1, padding: "11px", border: "1px solid var(--border)", borderRadius: 10, background: "white", cursor: "pointer", fontSize: 14 }}>
             ยกเลิก · Cancel
           </button>
-          <button
-            onClick={handleSave}
-            disabled={saving}
-            className="btn-primary"
-            style={{ flex: 2, justifyContent: "center" }}
-          >
+          <button onClick={handleSave} disabled={saving} className="btn-primary" style={{ flex: 2, justifyContent: "center" }}>
             {saving ? "กำลังบันทึก…" : "บันทึก · Save"}
           </button>
         </div>
