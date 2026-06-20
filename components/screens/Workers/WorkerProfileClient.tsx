@@ -687,6 +687,16 @@ function EditWorkerModal({ worker, onClose, onSaved }: {
           {field("เบอร์โทร · Phone", phone, setPhone, { type: "tel", placeholder: "+66 8X XXX XXXX" })}
           {field("ค่าแรง/วัน · Daily wage (฿) *", wage, setWage, { type: "number", placeholder: "400" })}
 
+          {worker.login_email && (
+            <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+              <span style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)" }}>🔐 App Login Email</span>
+              <div style={{ padding: "9px 12px", border: "1px solid var(--border)", borderRadius: 8, fontSize: 14, background: "#F9FAFB", color: "#6B7280", fontFamily: "monospace" }}>
+                {worker.login_email}
+              </div>
+              <span style={{ fontSize: 11, color: "#9CA3AF" }}>לשינוי email — App Access בפרופיל · To change, use App Access in profile</span>
+            </label>
+          )}
+
           <label style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer", padding: "10px 12px", border: "1px solid var(--border)", borderRadius: 8 }}>
             <input
               type="checkbox"
