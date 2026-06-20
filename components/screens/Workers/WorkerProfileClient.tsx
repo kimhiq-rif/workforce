@@ -53,6 +53,7 @@ export function WorkerProfileClient({ worker: initialWorker, attendanceHistory, 
   const [resetCreds, setResetCreds] = useState<{ email: string; password: string } | null>(null);
   const [resetting, setResetting] = useState(false);
   const [copiedCreds, setCopiedCreds] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
 
   function showToast(msg: string) {
     setToast(msg);
@@ -89,10 +90,73 @@ export function WorkerProfileClient({ worker: initialWorker, attendanceHistory, 
     if (!error) router.refresh();
   }
 
-  async function handleDeactivate() {
-    if (!confirm(`ยืนยันการลบ ${worker.name_th}? · Confirm deactivate?`)) return;
+  async function doDeactivate() {
     await supabase.from("workers").update({ is_active: false }).eq("id", worker.id);
     router.push("/workers");
+  }
+
+  function handleDeactivate() {
+    setShowDeleteModal(true);
+  }
+
+  function generateReport(): string {
+    const today = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Bangkok" });
+    const daysWorked = attendanceHistory.filter((a) => (a.wage_amount ?? 0) > 0).length;
+    const totalEarned = attendanceHistory.reduce((s, a) => s + (a.wage_amount ?? 0), 0);
+    const totalAdv = advances.reduce((s, a) => s + a.amount, 0);
+
+    const lines = [
+      "WORKFORCE — WORKER REPORT",
+      "=".repeat(44),
+      `Name:        ${worker.name_th} / ${worker.name_en}`,
+      `Role:        ${worker.role_th ?? "-"} / ${worker.role_en ?? "-"}`,
+      `Phone:       ${worker.phone ?? "-"}`,
+      `Daily Wage:  ฿${formatCurrency(worker.daily_wage)}`,
+      `Report Date: ${today}`,
+      "",
+      "ATTENDANCE — LAST 30 DAYS",
+      "-".repeat(44),
+      "Date        Site                  Arrival  Wage",
+      ...attendanceHistory.map((a) =>
+        `${a.event_date}  ${(a.site?.name_en ?? "-").padEnd(20)}  ${(a.arrival_time?.slice(0,5) ?? "-").padEnd(7)}  ${a.wage_amount != null ? "฿" + formatCurrency(a.wage_amount) : "-"}`
+      ),
+      "",
+      "ADVANCES",
+      "-".repeat(44),
+      "Date        Amount      Reason                Status",
+      ...advances.map((a) =>
+        `${a.created_at.slice(0, 10)}  ฿${String(formatCurrency(a.amount)).padEnd(10)}  ${(a.reason ?? "-").padEnd(20)}  ${a.status}`
+      ),
+      "",
+      "SUMMARY",
+      "-".repeat(44),
+      `Days Worked:      ${daysWorked}`,
+      `Total Earned:     ฿${formatCurrency(totalEarned)}`,
+      `Total Advances:   ฿${formatCurrency(totalAdv)}`,
+      `Net:              ฿${formatCurrency(totalEarned - totalAdv)}`,
+    ];
+    return lines.join("\n");
+  }
+
+  async function handleExportAndDelete() {
+    const report = generateReport();
+    const fileName = `${worker.name_en.replace(/\s+/g, "_")}_report_${new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Bangkok" })}.txt`;
+    const blob = new Blob([report], { type: "text/plain" });
+
+    try {
+      const file = new File([blob], fileName, { type: "text/plain" });
+      if (navigator.share && navigator.canShare?.({ files: [file] })) {
+        await navigator.share({ files: [file], title: `Worker Report: ${worker.name_en}` });
+      } else {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url; a.download = fileName; a.click();
+        URL.revokeObjectURL(url);
+      }
+    } catch {
+      // user cancelled share — still delete
+    }
+    await doDeactivate();
   }
 
   async function handleResetPassword() {
@@ -430,7 +494,79 @@ export function WorkerProfileClient({ worker: initialWorker, attendanceHistory, 
         />
       )}
 
+      {showDeleteModal && (
+        <DeleteWorkerModal
+          workerName={worker.name_th}
+          workerNameEn={worker.name_en}
+          onCancel={() => setShowDeleteModal(false)}
+          onExportAndDelete={handleExportAndDelete}
+          onDeleteOnly={doDeactivate}
+        />
+      )}
+
     </>
+  );
+}
+
+// ── Delete + Export confirmation modal ────────────────────────────────────────
+function DeleteWorkerModal({ workerName, workerNameEn, onCancel, onExportAndDelete, onDeleteOnly }: {
+  workerName: string;
+  workerNameEn: string;
+  onCancel: () => void;
+  onExportAndDelete: () => Promise<void>;
+  onDeleteOnly: () => Promise<void>;
+}) {
+  const [busy, setBusy] = useState(false);
+
+  async function run(fn: () => Promise<void>) {
+    setBusy(true);
+    await fn();
+    setBusy(false);
+  }
+
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.55)", zIndex: 999, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
+      <div style={{ background: "white", borderRadius: 18, padding: "28px 24px", width: "100%", maxWidth: 400 }}>
+        <div style={{ textAlign: "center", marginBottom: 20 }}>
+          <div style={{ fontSize: 42, marginBottom: 8 }}>🗂️</div>
+          <h2 style={{ fontSize: 18, fontWeight: 700, color: "#111827" }}>
+            ลบพนักงาน · Remove Worker
+          </h2>
+          <p style={{ fontSize: 14, color: "#6B7280", marginTop: 6 }}>
+            <strong>{workerName}</strong> · {workerNameEn}
+          </p>
+        </div>
+
+        <div style={{ background: "#FFFBEB", border: "1px solid #FDE68A", borderRadius: 10, padding: "12px 14px", marginBottom: 20, fontSize: 13, color: "#92400E" }}>
+          ต้องการออกรายงานสรุปก่อนลบ?<br />
+          <span style={{ color: "#6B7280" }}>Export full report (attendance + advances) before removing?</span>
+        </div>
+
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          <button
+            disabled={busy}
+            onClick={() => run(onExportAndDelete)}
+            style={{ padding: "13px", borderRadius: 11, border: "none", background: "#1E3A8A", color: "white", fontSize: 15, fontWeight: 700, cursor: busy ? "not-allowed" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}
+          >
+            📄 {busy ? "กำลังส่งออก…" : "ส่งออกรายงาน + ลบ · Export & Delete"}
+          </button>
+          <button
+            disabled={busy}
+            onClick={() => run(onDeleteOnly)}
+            style={{ padding: "11px", borderRadius: 11, border: "1.5px solid #FECACA", background: "#FEF2F2", color: "#B91C1C", fontSize: 14, fontWeight: 600, cursor: busy ? "not-allowed" : "pointer" }}
+          >
+            ลบโดยไม่ส่งออก · Delete without export
+          </button>
+          <button
+            disabled={busy}
+            onClick={onCancel}
+            style={{ padding: "10px", borderRadius: 11, border: "1px solid #E5E7EB", background: "white", color: "#6B7280", fontSize: 14, cursor: busy ? "not-allowed" : "pointer" }}
+          >
+            ยกเลิก · Cancel
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }
 
