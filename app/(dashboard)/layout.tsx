@@ -2,6 +2,7 @@
 import { getAppUserContext } from "@/lib/auth-context";
 import { UserRoleProvider } from "@/components/layout/UserRoleContext";
 import { ReceiptNotificationReceiver } from "@/components/layout/ReceiptNotificationReceiver";
+import { InstallPrompt } from "@/components/layout/InstallPrompt";
 import { redirect } from "next/navigation";
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -26,6 +27,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
   return (
     <UserRoleProvider role={profile.role} assignedSiteId={assignedSiteId}>
       <ReceiptNotificationReceiver />
+      <InstallPrompt />
       {children}
     </UserRoleProvider>
   );
