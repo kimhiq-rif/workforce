@@ -28,7 +28,7 @@ export default async function SuppliersPage() {
     .from("receipts")
     .select(`
       id, amount, status, category, description, photo_url,
-      payment_type, gps_lat, gps_lng, created_at,
+      payment_type, gps_lat, gps_lng, submitted_by, created_at,
       site:site_id(id, name_th, name_en),
       supplier:supplier_id(id, name_th, name_en)
     `)
@@ -98,7 +98,7 @@ export default async function SuppliersPage() {
   // Pending QR payments (owner sees these to approve)
   const { data: pendingQrRaw } = await supabase
     .from("receipts")
-    .select("id, amount, description, notes, qr_value, created_at, site:site_id(id, name_th, name_en), scanned_by_user:scanned_by(name_th, name_en)")
+    .select("id, amount, description, notes, qr_value, submitted_by, created_at, site:site_id(id, name_th, name_en), scanned_by_user:submitted_by(name_th, name_en)")
     .eq("owner_id", ownerId)
     .eq("status", "pending_qr")
     .order("created_at", { ascending: false });

@@ -48,6 +48,7 @@ type ReceiptRow = {
   payment_type: string | null;
   gps_lat: number | null;
   gps_lng: number | null;
+  submitted_by: string | null;
   created_at: string;
   site?: { id: string; name_th: string; name_en: string } | null;
   supplier?: { id: string; name_th: string; name_en: string } | null;
@@ -66,6 +67,7 @@ interface PendingQrReceipt {
   description: string | null;
   notes: string | null;
   qr_value: string | null;
+  submitted_by: string | null;
   created_at: string;
   site?: { id: string; name_th: string; name_en: string } | null;
   scanned_by_user?: { name_th: string; name_en: string } | null;
@@ -135,15 +137,28 @@ export function SuppliersClient({
   }), [receipts]);
 
   async function handleMarkPaid(id: string) {
+    const receipt = receipts.find((r) => r.id === id);
     const { error } = await supabase.from("receipts").update({ status: "paid" }).eq("id", id);
     if (!error) {
       setReceipts((prev) => prev.map((r) => r.id === id ? { ...r, status: "paid" } : r));
       setSelectedReceipt(null);
       showToast("อัปเดตสถานะเป็น 'จ่ายแล้ว' · Marked as paid");
+      if (receipt?.submitted_by) {
+        fetch("/api/push", {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            user_id: receipt.submitted_by,
+            title: "✅ ใบเสร็จชำระแล้ว · Receipt Paid",
+            body: `฿${formatCurrency(receipt.amount)}${receipt.site?.name_th ? ` · ${receipt.site.name_th}` : ""} · เจ้าของชำระแล้ว`,
+            url: "/suppliers", tag: "receipt_paid",
+          }),
+        }).catch(() => {});
+      }
     }
   }
 
   async function handleApproveQr(id: string) {
+    const qrReceipt = pendingQr.find((r) => r.id === id);
     const { error } = await supabase
       .from("receipts")
       .update({ status: "paid", paid_at: new Date().toISOString(), paid_by: userId ?? null })
@@ -151,6 +166,17 @@ export function SuppliersClient({
     if (!error) {
       setPendingQr((prev) => prev.filter((r) => r.id !== id));
       showToast("✓ ชำระ QR แล้ว · QR Payment confirmed");
+      if (qrReceipt?.submitted_by) {
+        fetch("/api/push", {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            user_id: qrReceipt.submitted_by,
+            title: "✅ QR ชำระแล้ว · QR Paid",
+            body: `฿${formatCurrency(qrReceipt.amount)}${qrReceipt.site?.name_th ? ` · ${qrReceipt.site.name_th}` : ""} · เจ้าของสแกน QR ชำระแล้ว`,
+            url: "/suppliers", tag: "receipt_paid",
+          }),
+        }).catch(() => {});
+      }
     }
   }
 
@@ -403,6 +429,7 @@ export function SuppliersClient({
               receipts={receipts}
               onAddReceipt={() => setShowAddReceipt(true)}
               myBalance={myBalance}
+              today={today}
             />
           ) : (
             <>
@@ -656,11 +683,17 @@ function PhotoPreviewScreen({
 
 // ── Driver Manager mobile view ────────────────────────────────────────────────
 
-function DriverManagerMobile({ receipts, onAddReceipt, myBalance }: {
+function DriverManagerMobile({ receipts, onAddReceipt, myBalance, today }: {
   receipts: ReceiptRow[];
   onAddReceipt: () => void;
   myBalance: { totalGiven: number; totalSpent: number; balance: number } | null;
+  today: string;
 }) {
+  const todayReceipts = receipts.filter((r) => {
+    const d = new Date(r.created_at).toLocaleDateString("en-CA", { timeZone: "Asia/Bangkok" });
+    return d === today;
+  });
+
   return (
     <div>
       <style>{BRAND_KEYFRAMES}</style>
@@ -722,29 +755,42 @@ function DriverManagerMobile({ receipts, onAddReceipt, myBalance }: {
         </div>
 
         <h3 style={{ fontSize: 14, fontWeight: 600, color: "var(--text-muted)", marginBottom: 10 }}>
-          ใบเสร็จล่าสุด · Recent submissions
+          ใบเสร็จวันนี้ · Today's submissions
         </h3>
 
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-          {receipts.length === 0 ? (
+          {todayReceipts.length === 0 ? (
             <div style={{ textAlign: "center", padding: "32px", color: "var(--text-muted)", fontSize: 14 }}>
-              ยังไม่มีใบเสร็จ · No receipts yet
+              ยังไม่มีใบเสร็จวันนี้ · No submissions today
             </div>
           ) : (
-            receipts.slice(0, 20).map((r) => (
-              <div key={r.id} style={{ background: "white", borderRadius: 10, padding: "14px", border: "1px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-                <div style={{ flex: 1 }}>
-                  <strong style={{ fontSize: 15 }}>{r.supplier?.name_th ?? "ไม่ระบุ · None"}</strong>
-                  <small style={{ display: "block", color: "var(--text-muted)", fontSize: 12, marginTop: 2 }}>
-                    {r.site?.name_en ?? r.site?.name_th ?? "-"} · {formatThaiDate(r.created_at)}
-                  </small>
-                  {r.description && (
-                    <small style={{ display: "block", color: "var(--text-muted)", fontSize: 11, marginTop: 1 }}>{r.description}</small>
-                  )}
-                </div>
-                <div style={{ textAlign: "right", flexShrink: 0, marginLeft: 12 }}>
-                  <strong style={{ fontSize: 16 }}>฿{formatCurrency(r.amount)}</strong>
-                  <div style={{ marginTop: 4 }}><ReceiptStatusBadge status={r.status} /></div>
+            todayReceipts.map((r) => (
+              <div key={r.id} style={{
+                background: r.status === "paid" ? "#F0FDF4" : "white",
+                borderRadius: 10, padding: "12px 14px",
+                border: `1px solid ${r.status === "paid" ? "#BBF7D0" : "var(--border)"}`,
+              }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                      <strong style={{ fontSize: 15 }}>{r.supplier?.name_th ?? "ไม่ระบุ · None"}</strong>
+                      {r.payment_type && (
+                        <span style={{ fontSize: 10, fontWeight: 700, padding: "1px 6px", borderRadius: 4, background: r.payment_type === "qr" ? "#EFF6FF" : "#FFF7ED", color: r.payment_type === "qr" ? "#1D4ED8" : "#C2410C" }}>
+                          {r.payment_type === "qr" ? "🔷 QR" : "💵 Cash"}
+                        </span>
+                      )}
+                    </div>
+                    <small style={{ display: "block", color: "var(--text-muted)", fontSize: 12, marginTop: 2 }}>
+                      {r.site?.name_en ?? r.site?.name_th ?? "-"} · {formatThaiDate(r.created_at)}
+                    </small>
+                    {r.description && (
+                      <small style={{ display: "block", color: "var(--text-muted)", fontSize: 11, marginTop: 1 }}>{r.description}</small>
+                    )}
+                  </div>
+                  <div style={{ textAlign: "right", flexShrink: 0, marginLeft: 12 }}>
+                    <strong style={{ fontSize: 16 }}>฿{formatCurrency(r.amount)}</strong>
+                    <div style={{ marginTop: 4 }}><ReceiptStatusBadge status={r.status} /></div>
+                  </div>
                 </div>
               </div>
             ))
@@ -1160,6 +1206,7 @@ function AddReceiptModal({ ownerId, userId, suppliers, sites, defaultSiteId, onC
   const [showPreview, setShowPreview] = useState(false);
   const [showPaymentChoice, setShowPaymentChoice] = useState(false);
   const [paymentType, setPaymentType] = useState<"qr" | "cash" | null>(null);
+  const [qrValue, setQrValue]         = useState<string | null>(null);
   const [ocrLoading, setOcrLoading]   = useState(false);
   const [ocrResult, setOcrResult]     = useState<OcrResult | null>(null);
   const [ocrStatus, setOcrStatus]     = useState<"idle" | "low_confidence" | "no_result">("idle");
@@ -1186,6 +1233,7 @@ function AddReceiptModal({ ownerId, userId, suppliers, sites, defaultSiteId, onC
     setPhotoBlob(file);
     setOcrStatus("idle");
     setOcrResult(null);
+    setQrValue(null);
     setNewSupplierName(null);
     setError("");
     setGps(null);
@@ -1193,55 +1241,103 @@ function AddReceiptModal({ ownerId, userId, suppliers, sites, defaultSiteId, onC
     setShowPreview(true);
     setOcrLoading(true);
 
-    // Capture GPS
+    // Capture GPS in parallel
     navigator.geolocation?.getCurrentPosition(
       (pos) => setGps({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
       () => {},
       { timeout: 6000, maximumAge: 0 }
     );
 
-    try {
-      // Resize to max 1024px (avoids iOS memory crash)
-      const base64 = await new Promise<string>((resolve, reject) => {
-        const blobUrl = URL.createObjectURL(file);
-        const img = new Image();
-        img.onerror = () => { URL.revokeObjectURL(blobUrl); reject(new Error("Image load failed")); };
-        img.onload = () => {
-          URL.revokeObjectURL(blobUrl);
-          const maxPx = 1024;
-          const scale = Math.min(1, maxPx / Math.max(img.width, img.height));
-          const canvas = document.createElement("canvas");
-          canvas.width  = Math.round(img.width * scale);
-          canvas.height = Math.round(img.height * scale);
-          canvas.getContext("2d")!.drawImage(img, 0, 0, canvas.width, canvas.height);
-          resolve(canvas.toDataURL("image/jpeg", 0.78).split(",")[1]);
-        };
-        img.src = blobUrl;
-      });
+    if (paymentType === "qr") {
+      // ── QR decode path ────────────────────────────────────────────────────────
+      try {
+        const decoded = await (async (): Promise<string | null> => {
+          const { default: jsQR } = await import("jsqr");
+          const blobUrl = URL.createObjectURL(file);
+          return new Promise((resolve) => {
+            const img = new Image();
+            img.onerror = () => { URL.revokeObjectURL(blobUrl); resolve(null); };
+            img.onload = () => {
+              URL.revokeObjectURL(blobUrl);
+              const maxPx = 1600;
+              const scale = Math.min(1, maxPx / Math.max(img.width, img.height));
+              const canvas = document.createElement("canvas");
+              canvas.width  = Math.round(img.width  * scale);
+              canvas.height = Math.round(img.height * scale);
+              canvas.getContext("2d")!.drawImage(img, 0, 0, canvas.width, canvas.height);
+              const imgData = canvas.getContext("2d")!.getImageData(0, 0, canvas.width, canvas.height);
+              const result = jsQR(imgData.data, imgData.width, imgData.height);
+              resolve(result ? result.data : null);
+            };
+            img.src = blobUrl;
+          });
+        })();
 
-      const ocrRes = await fetch("/api/receipts/ocr", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ imageBase64: base64, ownerId }),
-      });
-      const ocr = await ocrRes.json();
-
-      if (ocr._err) {
-        setError(`OCR: ${ocr._err}`);
+        if (decoded) {
+          setQrValue(decoded);
+          const parsed = parseThaiQR(decoded);
+          const syntheticOcr: OcrResult = {
+            amount:      parsed?.amount ?? 0,
+            description: parsed?.merchantName ?? decoded.slice(0, 40),
+            merchant:    parsed?.merchantName ?? "",
+            confidence:  95,
+          };
+          setOcrResult(syntheticOcr);
+          setOcrStatus("idle");
+        } else {
+          setError("ไม่พบ QR Code ในภาพ · QR not detected — try again");
+          setOcrStatus("no_result");
+        }
+      } catch (err: any) {
+        setError(`QR Error: ${err.message}`);
         setOcrStatus("no_result");
-      } else if (ocr.confidence >= 60 && ocr.amount > 0) {
-        setOcrResult(ocr);
-        setOcrStatus("idle");
-      } else if (ocr.confidence > 0) {
-        setOcrStatus("low_confidence");
-      } else {
-        setOcrStatus("no_result");
+      } finally {
+        setOcrLoading(false);
       }
-    } catch (err: any) {
-      setError(`ข้อผิดพลาด · Error: ${err.message}`);
-      setOcrStatus("no_result");
-    } finally {
-      setOcrLoading(false);
+    } else {
+      // ── OCR path (cash receipt) ───────────────────────────────────────────────
+      try {
+        const base64 = await new Promise<string>((resolve, reject) => {
+          const blobUrl = URL.createObjectURL(file);
+          const img = new Image();
+          img.onerror = () => { URL.revokeObjectURL(blobUrl); reject(new Error("Image load failed")); };
+          img.onload = () => {
+            URL.revokeObjectURL(blobUrl);
+            const maxPx = 1024;
+            const scale = Math.min(1, maxPx / Math.max(img.width, img.height));
+            const canvas = document.createElement("canvas");
+            canvas.width  = Math.round(img.width * scale);
+            canvas.height = Math.round(img.height * scale);
+            canvas.getContext("2d")!.drawImage(img, 0, 0, canvas.width, canvas.height);
+            resolve(canvas.toDataURL("image/jpeg", 0.78).split(",")[1]);
+          };
+          img.src = blobUrl;
+        });
+
+        const ocrRes = await fetch("/api/receipts/ocr", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ imageBase64: base64, ownerId }),
+        });
+        const ocr = await ocrRes.json();
+
+        if (ocr._err) {
+          setError(`OCR: ${ocr._err}`);
+          setOcrStatus("no_result");
+        } else if (ocr.confidence >= 60 && ocr.amount > 0) {
+          setOcrResult(ocr);
+          setOcrStatus("idle");
+        } else if (ocr.confidence > 0) {
+          setOcrStatus("low_confidence");
+        } else {
+          setOcrStatus("no_result");
+        }
+      } catch (err: any) {
+        setError(`ข้อผิดพลาด · Error: ${err.message}`);
+        setOcrStatus("no_result");
+      } finally {
+        setOcrLoading(false);
+      }
     }
   }
 
@@ -1275,6 +1371,7 @@ function AddReceiptModal({ ownerId, userId, suppliers, sites, defaultSiteId, onC
     setPhotoUrl(null);
     setPhotoBlob(null);
     setOcrResult(null);
+    setQrValue(null);
     setOcrStatus("idle");
     setGps(null);
     // Reset file input so the same file can be re-selected
@@ -1329,8 +1426,9 @@ function AddReceiptModal({ ownerId, userId, suppliers, sites, defaultSiteId, onC
         category:      form.category || null,
         description:   form.description || null,
         photo_url:     storedPhotoUrl,
-        status:        "pending",
+        status:        paymentType === "qr" ? "pending_qr" : "pending",
         payment_type:  paymentType ?? "cash",
+        qr_value:      qrValue ?? null,
         gps_lat:       gps?.lat ?? null,
         gps_lng:       gps?.lng ?? null,
       })
@@ -1341,16 +1439,16 @@ function AddReceiptModal({ ownerId, userId, suppliers, sites, defaultSiteId, onC
 
     // Push notification to owner
     const siteName = (data as any)?.site?.name_th ?? "";
-    const payLabel = paymentType === "qr" ? "QR" : "เงินสด";
+    const isQr = paymentType === "qr";
     fetch("/api/push", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        owner_id:          ownerId,
-        title:             "ใบเสร็จใหม่ · New Receipt",
-        body:              `฿${formatCurrency(amt)}${siteName ? ` · ${siteName}` : ""}${form.description ? ` · ${form.description}` : ""} · ${payLabel}`,
-        url:               "/suppliers",
-        tag:               "new_receipt",
+        owner_id:           ownerId,
+        title:              isQr ? "🔷 QR ใหม่รอชำระ · New QR Payment" : "ใบเสร็จใหม่ · New Receipt",
+        body:               `฿${formatCurrency(amt)}${siteName ? ` · ${siteName}` : ""}${form.description ? ` · ${form.description}` : ""}${isQr ? " · กรุณาสแกน QR" : " · เงินสด"}`,
+        url:                "/suppliers",
+        tag:                "new_receipt",
         requireInteraction: true,
       }),
     }).catch(() => {});
