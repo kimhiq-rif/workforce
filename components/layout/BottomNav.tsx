@@ -3,15 +3,15 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, Users, QrCode, MapPin, MoreHorizontal } from "lucide-react";
+import { Home, Users, Receipt, MapPin, MoreHorizontal } from "lucide-react";
 import { useUserRole, type AppRole } from "./UserRoleContext";
 
 const BOTTOM_ITEMS = [
-  { href: "/",          roleHref: {},                              icon: Home,          th: "แดชบอร์ด", en: "Dashboard", roles: ["owner", "field_manager", "technical_admin"] as AppRole[] },
-  { href: "/workers",   roleHref: {},                              icon: Users,          th: "พนักงาน",  en: "Workers",   roles: ["owner"] as AppRole[] },
-  { href: "/suppliers", roleHref: { technical_admin: "/scan" },    icon: QrCode,         th: "สแกน",     en: "Scan",      roles: ["owner", "technical_admin"] as AppRole[], accent: true },
-  { href: "/sites",     roleHref: {},                              icon: MapPin,         th: "ไซต์",     en: "Sites",     roles: ["owner", "field_manager", "technical_admin"] as AppRole[] },
-  { href: "/more",      roleHref: {},                              icon: MoreHorizontal, th: "เพิ่มเติม",en: "More",      roles: ["owner", "field_manager", "technical_admin"] as AppRole[] },
+  { href: "/",          roleHref: {},  icon: Home,          th: "แดชบอร์ด", en: "Dashboard", roles: ["owner", "field_manager", "technical_admin"] as AppRole[] },
+  { href: "/workers",   roleHref: {},  icon: Users,          th: "พนักงาน",  en: "Workers",   roles: ["owner"] as AppRole[] },
+  { href: "/suppliers", roleHref: {},  icon: Receipt,        th: "ใบเสร็จ",  en: "Receipts",  roles: ["owner", "technical_admin"] as AppRole[], accent: true },
+  { href: "/sites",     roleHref: {},  icon: MapPin,         th: "ไซต์",     en: "Sites",     roles: ["owner", "field_manager", "technical_admin"] as AppRole[] },
+  { href: "/more",      roleHref: {},  icon: MoreHorizontal, th: "เพิ่มเติม",en: "More",      roles: ["owner", "field_manager", "technical_admin"] as AppRole[] },
 ];
 
 export function BottomNav() {

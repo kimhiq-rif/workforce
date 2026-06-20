@@ -1,6 +1,7 @@
 // Copyright © 2026 Workforce. All rights reserved.
 import { getAppUserContext } from "@/lib/auth-context";
 import { UserRoleProvider } from "@/components/layout/UserRoleContext";
+import { ReceiptNotificationReceiver } from "@/components/layout/ReceiptNotificationReceiver";
 import { redirect } from "next/navigation";
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -23,6 +24,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
   return (
     <UserRoleProvider role={profile.role} assignedSiteId={assignedSiteId}>
+      <ReceiptNotificationReceiver />
       {children}
     </UserRoleProvider>
   );
