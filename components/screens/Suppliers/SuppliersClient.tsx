@@ -7,7 +7,7 @@ import { createClient } from "@/lib/supabase/client";
 import { DashboardShell } from "@/components/layout/DashboardShell";
 import { useUserRole } from "@/components/layout/UserRoleContext";
 import {
-  Search, CirclePlus, Camera, Check, X,
+  Search, CirclePlus, Camera, Check, X, Send,
   Receipt, Truck, AlertTriangle, Wallet, Plus, Clock, Download, MapPin, RefreshCw,
 } from "lucide-react";
 import { formatCurrency, formatThaiDate } from "@/lib/format";
@@ -526,11 +526,22 @@ function PhotoPreviewScreen({
       }}>
         {/* Payment type badge */}
         {paymentType && (
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <span style={{ fontSize: 20 }}>{paymentType === "qr" ? "🔷" : "💵"}</span>
-            <span style={{ fontSize: 14, fontWeight: 700, color: "white" }}>
-              {paymentType === "qr" ? "สแกน QR · QR Payment" : "เงินสดคนขับ · Driver Cash"}
-            </span>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <span style={{ fontSize: 20 }}>{paymentType === "qr" ? "🔷" : "💵"}</span>
+              <span style={{ fontSize: 14, fontWeight: 700, color: "white" }}>
+                {paymentType === "qr" ? "สแกน QR · QR Payment" : "เงินสดคนขับ · Driver Cash"}
+              </span>
+            </div>
+            {paymentType === "qr" && (
+              <div style={{
+                background: "rgba(30,58,138,0.55)", border: "1px solid rgba(37,99,235,0.5)",
+                borderRadius: 8, padding: "8px 12px", fontSize: 12, color: "rgba(255,255,255,0.85)", lineHeight: 1.5,
+              }}>
+                📲 เจ้าของจะสแกน QR ผ่านแอปธนาคาร<br />
+                <span style={{ opacity: 0.7 }}>Owner pays via banking app (PromptPay / transfer)</span>
+              </div>
+            )}
           </div>
         )}
 
@@ -615,8 +626,13 @@ function PhotoPreviewScreen({
               animation: ocrLoading ? "none" : "pulse-brand 2.2s ease-in-out infinite",
             }}
           >
-            <Check size={20} />
-            {ocrLoading ? "กำลังอ่าน…" : "ยืนยัน · Confirm"}
+            <Send size={20} />
+            {ocrLoading
+              ? "กำลังอ่าน…"
+              : paymentType === "qr"
+                ? "ส่ง QR ให้เจ้าของ · Send QR"
+                : "ส่งให้เจ้าของ · Send to Owner"
+            }
           </button>
         </div>
       </div>
@@ -1494,7 +1510,8 @@ function AddReceiptModal({ ownerId, userId, suppliers, sites, defaultSiteId, onC
         )}
       </div>
 
-      <ModalActions onCancel={onClose} onSave={handleSave} saving={saving} saveLabel="บันทึกใบเสร็จ · Save" />
+      <ModalActions onCancel={onClose} onSave={handleSave} saving={saving}
+        saveLabel={paymentType === "qr" ? "ส่ง QR ให้เจ้าของ · Send QR" : "ส่งใบเสร็จ · Send"} />
     </ModalWrapper>
   );
 }
