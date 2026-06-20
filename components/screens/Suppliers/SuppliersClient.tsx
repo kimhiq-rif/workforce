@@ -275,7 +275,7 @@ export function SuppliersClient({
                 </div>
                 <div style={{ textAlign: "right" }}>
                   <div style={{ fontSize: 15, fontWeight: 700, color: d.balance >= 0 ? "#15803D" : "#B91C1C" }}>
-                    ฿{formatCurrency(d.balance)}
+                    {d.balance >= 0 ? "+" : ""}฿{formatCurrency(d.balance)}
                   </div>
                   <button
                     onClick={() => setGiveCashDriver(d)}
@@ -315,6 +315,12 @@ export function SuppliersClient({
               <span style={{ color: "var(--text-muted)" }}>สถานะ Status</span>
               <ReceiptStatusBadge status={selectedReceipt.status} />
             </div>
+            {(selectedReceipt.gps_lat || selectedReceipt.gps_lng) && (
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 14, alignItems: "center" }}>
+                <span style={{ color: "var(--text-muted)" }}>📍 GPS</span>
+                <GpsLink lat={selectedReceipt.gps_lat} lng={selectedReceipt.gps_lng} />
+              </div>
+            )}
           </div>
           {selectedReceipt.status === "pending" && (
             <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
@@ -504,6 +510,20 @@ export function SuppliersClient({
 }
 
 // ── Status badge ─────────────────────────────────────────────────────────────
+
+function GpsLink({ lat, lng }: { lat: number | null; lng: number | null }) {
+  if (!lat || !lng) return null;
+  return (
+    <a
+      href={`https://maps.google.com/?q=${lat},${lng}`}
+      target="_blank" rel="noopener noreferrer"
+      style={{ display: "inline-flex", alignItems: "center", gap: 3, fontSize: 11, color: "#1D4ED8", textDecoration: "none", fontWeight: 500 }}
+      onClick={(e) => e.stopPropagation()}
+    >
+      <MapPin size={11} /> {lat.toFixed(5)}, {lng.toFixed(5)}
+    </a>
+  );
+}
 
 function ReceiptStatusBadge({ status }: { status: string }) {
   const config: Record<string, { bg: string; color: string; th: string; en: string }> = {
@@ -786,6 +806,11 @@ function DriverManagerMobile({ receipts, onAddReceipt, myBalance, today }: {
                     {r.description && (
                       <small style={{ display: "block", color: "var(--text-muted)", fontSize: 11, marginTop: 1 }}>{r.description}</small>
                     )}
+                    {(r.gps_lat || r.gps_lng) && (
+                      <div style={{ marginTop: 4 }}>
+                        <GpsLink lat={r.gps_lat ?? null} lng={r.gps_lng ?? null} />
+                      </div>
+                    )}
                   </div>
                   <div style={{ textAlign: "right", flexShrink: 0, marginLeft: 12 }}>
                     <strong style={{ fontSize: 16 }}>฿{formatCurrency(r.amount)}</strong>
@@ -1005,6 +1030,11 @@ function MobileSuppliers({ suppliers, receipts, stats, tab, setTab, search, setS
                       {r.payment_type === "qr" ? "🔷 QR" : "💵 Cash"}
                     </span>
                   )}
+                  {(r.gps_lat || r.gps_lng) && (
+                    <div style={{ marginTop: 4 }}>
+                      <GpsLink lat={r.gps_lat ?? null} lng={r.gps_lng ?? null} />
+                    </div>
+                  )}
                 </div>
                 <div style={{ textAlign: "right" }}>
                   <strong style={{ fontSize: 16 }}>฿{formatCurrency(r.amount)}</strong>
@@ -1077,19 +1107,63 @@ function GiveCashModal({ driver, ownerId, userId, onClose, onDone }: {
   onClose: () => void;
   onDone: () => void;
 }) {
-  const supabase = createClient();
-  const [amount, setAmount] = useState("");
-  const [notes, setNotes] = useState("");
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState("");
+  const supabase   = createClient();
+  const fileRef    = useRef<HTMLInputElement>(null);
+  const [amount, setAmount]     = useState("");
+  const [notes, setNotes]       = useState("");
+  const [saving, setSaving]     = useState(false);
+  const [error, setError]       = useState("");
+  const [photoBlob, setPhotoBlob] = useState<Blob | null>(null);
+  const [photoUrl, setPhotoUrl]   = useState<string | null>(null);
+  const [gps, setGps]             = useState<{ lat: number; lng: number } | null>(null);
+  const [gpsLoading, setGpsLoading] = useState(false);
+
+  function handleCameraClick() {
+    setGpsLoading(true);
+    navigator.geolocation?.getCurrentPosition(
+      (pos) => { setGps({ lat: pos.coords.latitude, lng: pos.coords.longitude }); setGpsLoading(false); },
+      ()    => { setGpsLoading(false); },
+      { timeout: 6000, maximumAge: 0 }
+    );
+    setTimeout(() => fileRef.current?.click(), 50);
+  }
+
+  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setPhotoBlob(file);
+    setPhotoUrl(URL.createObjectURL(file));
+  }
 
   async function handleSave() {
     const amt = Number(amount);
     if (!amt || amt <= 0) { setError("กรอกยอดที่ถูกต้อง · Valid amount required"); return; }
     setSaving(true);
+
+    let storedPhotoUrl: string | null = null;
+    if (photoBlob) {
+      const fileName = `cash-entries/${ownerId}/${Date.now()}.jpg`;
+      const { data: uploadData } = await supabase.storage
+        .from("receipt-photos")
+        .upload(fileName, photoBlob, { contentType: "image/jpeg" });
+      if (uploadData) {
+        const { data: urlData } = supabase.storage.from("receipt-photos").getPublicUrl(fileName);
+        storedPhotoUrl = urlData?.publicUrl ?? null;
+      }
+    }
+
     const { error: dbError } = await supabase
       .from("driver_cash_entries")
-      .insert({ owner_id: ownerId, driver_user_id: driver.id, amount: amt, notes: notes || null, given_by: userId ?? null });
+      .insert({
+        owner_id:       ownerId,
+        driver_user_id: driver.id,
+        amount:         amt,
+        notes:          notes || null,
+        given_by:       userId ?? null,
+        photo_url:      storedPhotoUrl,
+        gps_lat:        gps?.lat ?? null,
+        gps_lng:        gps?.lng ?? null,
+      });
     setSaving(false);
     if (dbError) { setError(dbError.message); return; }
     onDone();
@@ -1097,7 +1171,10 @@ function GiveCashModal({ driver, ownerId, userId, onClose, onDone }: {
 
   return (
     <ModalWrapper title="มอบเงินคนขับ" subtitle="Give cash to driver" onClose={onClose}>
+      <style>{BRAND_KEYFRAMES}</style>
       {error && <ErrorBox msg={error} />}
+
+      {/* Driver chip */}
       <div style={{ background: "#EFF6FF", borderRadius: 10, padding: "12px 16px", display: "flex", alignItems: "center", gap: 10 }}>
         <Wallet size={20} color="var(--brand-primary)" />
         <div>
@@ -1105,8 +1182,49 @@ function GiveCashModal({ driver, ownerId, userId, onClose, onDone }: {
           <div style={{ fontSize: 12, color: "var(--text-muted)" }}>{driver.name_en} · Driver Manager</div>
         </div>
       </div>
+
       <FormField label="ยอดเงิน Amount ฿ *" value={amount} onChange={setAmount} type="number" placeholder="0" />
       <FormField label="หมายเหตุ Notes" value={notes} onChange={setNotes} placeholder="ค่าวัสดุสำหรับไซต์…" />
+
+      {/* Photo preview or camera button */}
+      {photoUrl ? (
+        <div style={{ position: "relative", borderRadius: 10, overflow: "hidden", border: "2px solid var(--border)" }}>
+          <img src={photoUrl} alt="proof" style={{ width: "100%", height: 160, objectFit: "cover", display: "block" }} />
+          {gps && (
+            <div style={{ position: "absolute", bottom: 6, left: 6, background: "rgba(0,0,0,0.65)", borderRadius: 6, padding: "3px 8px", fontSize: 11, color: "white", display: "flex", alignItems: "center", gap: 4 }}>
+              <MapPin size={11} /> {gps.lat.toFixed(5)}, {gps.lng.toFixed(5)}
+            </div>
+          )}
+          <button
+            onClick={() => { setPhotoUrl(null); setPhotoBlob(null); if (fileRef.current) fileRef.current.value = ""; }}
+            style={{ position: "absolute", top: 6, right: 6, background: "rgba(0,0,0,0.55)", border: "none", borderRadius: "50%", width: 28, height: 28, color: "white", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
+          >
+            <X size={14} />
+          </button>
+        </div>
+      ) : (
+        <button
+          onClick={handleCameraClick}
+          style={{
+            width: "100%", padding: "15px 16px", borderRadius: 12, border: "none",
+            background: "linear-gradient(135deg, #1E3A8A 0%, #FF6A00 100%)",
+            color: "white", display: "flex", alignItems: "center", gap: 12, cursor: "pointer",
+            boxShadow: "0 4px 18px rgba(255,106,0,0.35)",
+            animation: "pulse-brand 2.2s ease-in-out infinite",
+          }}
+        >
+          <Camera size={22} />
+          <div style={{ textAlign: "left" }}>
+            <div style={{ fontSize: 14, fontWeight: 700 }}>
+              {gpsLoading ? "กำลังหาตำแหน่ง…" : "ถ่ายรูปหลักฐาน · Photo proof"}
+            </div>
+            <div style={{ fontSize: 11, opacity: 0.8 }}>GPS captured automatically</div>
+          </div>
+        </button>
+      )}
+
+      <input ref={fileRef} type="file" accept="image/*" capture="environment" style={{ display: "none" }} onChange={handleFileChange} />
+
       <ModalActions onCancel={onClose} onSave={handleSave} saving={saving} saveLabel="มอบเงิน · Give cash" />
     </ModalWrapper>
   );
