@@ -383,6 +383,7 @@ export function WorkerProfileClient({ worker: initialWorker, attendanceHistory, 
             stats={{ daysWorked, totalEarned, lateDays, pendingAdvances }}
             onAddAdvance={() => setShowAdvanceModal(true)}
             onEdit={userRole === "owner" ? () => setShowEditModal(true) : undefined}
+            onDeactivate={userRole === "owner" ? handleDeactivate : undefined}
           />
         </div>
 
@@ -404,6 +405,7 @@ export function WorkerProfileClient({ worker: initialWorker, attendanceHistory, 
 
       {showEditModal && (
         <EditWorkerModal
+          key={worker.updated_at}
           worker={worker}
           onClose={() => setShowEditModal(false)}
           onSaved={(updated) => {
@@ -505,13 +507,14 @@ function AttHistoryBadge({ status, isLate, wageReason }: { status: string; isLat
   return <span style={{ background: "#F3F4F6", color: "#6B7280", padding: "3px 8px", borderRadius: 6, fontSize: 11 }}>{status}</span>;
 }
 
-function MobileWorkerProfile({ worker, attendanceHistory, advances, stats, onAddAdvance, onEdit }: {
+function MobileWorkerProfile({ worker, attendanceHistory, advances, stats, onAddAdvance, onEdit, onDeactivate }: {
   worker: any;
   attendanceHistory: AttendanceRow[];
   advances: AdvanceRow[];
   stats: { daysWorked: number; totalEarned: number; lateDays: number; pendingAdvances: number };
   onAddAdvance: () => void;
   onEdit?: () => void;
+  onDeactivate?: () => void;
 }) {
   return (
     <div>
@@ -562,7 +565,11 @@ function MobileWorkerProfile({ worker, attendanceHistory, advances, stats, onAdd
         <div>
           <div style={{ fontSize: 16, fontWeight: 600, marginBottom: 10 }}>ประวัติการทำงาน <small style={{ color: "var(--text-muted)", fontSize: 12 }}>30-day history</small></div>
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-            {attendanceHistory.slice(0, 20).map((a) => (
+            {attendanceHistory.length === 0 ? (
+              <div style={{ textAlign: "center", color: "var(--text-muted)", fontSize: 14, padding: "20px 0" }}>
+                ยังไม่มีประวัติ · No history yet
+              </div>
+            ) : attendanceHistory.slice(0, 20).map((a) => (
               <div key={a.event_date} style={{ background: "white", borderRadius: 10, padding: "10px 14px", display: "flex", justifyContent: "space-between", alignItems: "center", border: "1px solid var(--border)" }}>
                 <div>
                   <strong style={{ fontSize: 14 }}>{formatThaiDate(a.event_date)}</strong>
@@ -581,6 +588,15 @@ function MobileWorkerProfile({ worker, attendanceHistory, advances, stats, onAdd
             ))}
           </div>
         </div>
+
+        {onDeactivate && (
+          <button
+            onClick={onDeactivate}
+            style={{ width: "100%", padding: "12px", background: "#FEF2F2", color: "#B91C1C", border: "1px solid #FECACA", borderRadius: 10, cursor: "pointer", fontSize: 14, fontWeight: 600 }}
+          >
+            ลบพนักงาน · Remove worker
+          </button>
+        )}
       </div>
     </div>
   );
