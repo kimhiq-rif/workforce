@@ -522,13 +522,6 @@ function AddWorkerModal({
     setSaving(false);
   }
 
-  async function copyAll() {
-    if (!tempCreds) return;
-    await navigator.clipboard.writeText(`Email: ${tempCreds.email}\nPassword: ${tempCreds.password}`);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  }
-
   // Step 2: show credentials
   if (tempCreds) {
     return (
