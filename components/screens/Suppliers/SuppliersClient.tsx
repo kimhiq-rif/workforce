@@ -45,6 +45,9 @@ type ReceiptRow = {
   category: string | null;
   description: string | null;
   photo_url: string | null;
+  payment_type: string | null;
+  gps_lat: number | null;
+  gps_lng: number | null;
   created_at: string;
   site?: { id: string; name_th: string; name_en: string } | null;
   supplier?: { id: string; name_th: string; name_en: string } | null;
@@ -267,15 +270,23 @@ export function SuppliersClient({
           <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 8 }}>
             {[
               { th: "ซัพพลายเออร์", val: selectedReceipt.supplier?.name_th ?? "-" },
-              { th: "ยอด",           val: `฿${formatCurrency(selectedReceipt.amount)}` },
+              { th: "ยอด Amount",   val: `฿${formatCurrency(selectedReceipt.amount)}` },
             ].map((row) => (
               <div key={row.th} style={{ display: "flex", justifyContent: "space-between", fontSize: 14 }}>
                 <span style={{ color: "var(--text-muted)" }}>{row.th}</span>
                 <strong>{row.val}</strong>
               </div>
             ))}
+            {selectedReceipt.payment_type && (
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 14 }}>
+                <span style={{ color: "var(--text-muted)" }}>ชำระ Payment</span>
+                <span style={{ fontWeight: 700, color: selectedReceipt.payment_type === "qr" ? "#1D4ED8" : "#15803D" }}>
+                  {selectedReceipt.payment_type === "qr" ? "🔷 QR" : "💵 Cash"}
+                </span>
+              </div>
+            )}
             <div style={{ display: "flex", justifyContent: "space-between", fontSize: 14 }}>
-              <span style={{ color: "var(--text-muted)" }}>สถานะ</span>
+              <span style={{ color: "var(--text-muted)" }}>สถานะ Status</span>
               <ReceiptStatusBadge status={selectedReceipt.status} />
             </div>
           </div>
@@ -361,7 +372,7 @@ export function SuppliersClient({
                 <div
                   key={r.id}
                   className={`table-row ${selectedReceipt?.id === r.id ? "selected" : ""}`}
-                  style={{ gridTemplateColumns: "1.5fr 1.2fr 80px 120px 100px 80px", display: "grid", padding: "12px 20px", gap: 12, alignItems: "center", cursor: "pointer" }}
+                  style={{ gridTemplateColumns: "1.5fr 1.2fr 80px 120px 70px 100px 80px", display: "grid", padding: "12px 20px", gap: 12, alignItems: "center", cursor: "pointer" }}
                   onClick={() => setSelectedReceipt(r)}
                 >
                   <span>
@@ -374,6 +385,9 @@ export function SuppliersClient({
                   </span>
                   <span style={{ fontSize: 12, color: "var(--text-muted)" }}>{r.category ?? "-"}</span>
                   <span style={{ fontSize: 16, fontWeight: 700 }}>฿{formatCurrency(r.amount)}</span>
+                  <span style={{ fontSize: 11, fontWeight: 600, color: r.payment_type === "qr" ? "#1D4ED8" : "#15803D" }}>
+                    {r.payment_type === "qr" ? "🔷 QR" : "💵 Cash"}
+                  </span>
                   <span><ReceiptStatusBadge status={r.status} /></span>
                   <span style={{ fontSize: 12, color: "var(--text-muted)" }}>{formatThaiDate(r.created_at)}</span>
                 </div>
@@ -935,6 +949,16 @@ function MobileSuppliers({ suppliers, receipts, stats, tab, setTab, search, setS
                   <small style={{ display: "block", color: "var(--text-muted)", fontSize: 12 }}>
                     {r.site?.name_en ?? r.site?.name_th ?? "-"} · {formatThaiDate(r.created_at)}
                   </small>
+                  {r.payment_type && (
+                    <span style={{
+                      display: "inline-flex", alignItems: "center", gap: 4, marginTop: 4,
+                      fontSize: 11, fontWeight: 600, padding: "2px 7px", borderRadius: 5,
+                      background: r.payment_type === "qr" ? "#EFF6FF" : "#F0FDF4",
+                      color:      r.payment_type === "qr" ? "#1D4ED8" : "#15803D",
+                    }}>
+                      {r.payment_type === "qr" ? "🔷 QR" : "💵 Cash"}
+                    </span>
+                  )}
                 </div>
                 <div style={{ textAlign: "right" }}>
                   <strong style={{ fontSize: 16 }}>฿{formatCurrency(r.amount)}</strong>

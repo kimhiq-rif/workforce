@@ -28,7 +28,7 @@ export default async function SuppliersPage() {
     .from("receipts")
     .select(`
       id, amount, status, category, description, photo_url,
-      created_at,
+      payment_type, gps_lat, gps_lng, created_at,
       site:site_id(id, name_th, name_en),
       supplier:supplier_id(id, name_th, name_en)
     `)

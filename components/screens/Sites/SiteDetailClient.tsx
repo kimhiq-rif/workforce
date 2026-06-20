@@ -425,7 +425,7 @@ export function SiteDetailClient({
         </div>
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
           <SiteStatusBadge status={site.status as any} />
-          {(userRole === "owner" || userRole === "field_manager") && (
+          {(userRole === "owner" || userRole === "field_manager" || userRole === "technical_admin") && (
             <button
               className="btn-primary"
               style={{ background: "#8B5CF6" }}
@@ -1014,7 +1014,7 @@ function MobileSiteDetail({
           <h1 style={{ color: "white" }}>{site.name_th}</h1>
           <p style={{ color: "rgba(255,255,255,0.75)" }}>{site.name_en} · Site detail</p>
         </div>
-        {(userRole === "owner" || userRole === "field_manager") && (
+        {(userRole === "owner" || userRole === "field_manager" || userRole === "technical_admin") && (
           <button
             onClick={onUpdateSitePhoto}
             className="mobile-topbar-action" style={{ padding: "6px 10px" }}
