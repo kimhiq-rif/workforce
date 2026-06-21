@@ -21,6 +21,18 @@ type SiteWorker = Pick<
   "id" | "name_th" | "name_en" | "role_th" | "role_en" | "daily_wage" | "is_temporary" | "photo_url"
 >;
 
+interface SiteStage {
+  id: string;
+  name_th: string;
+  name_en: string;
+  color: string;
+  position: number;
+  is_current: boolean;
+  started_at: string | null;
+  completed_at: string | null;
+  target_end_date: string | null;
+}
+
 interface SiteDetailClientProps {
   site: Site & { manager?: { id: string; name_th: string; name_en: string } | null };
   attendanceEvents: (AttendanceEvent & {
@@ -36,6 +48,7 @@ interface SiteDetailClientProps {
   today: string;
   userId?: string;
   userRole?: string;
+  stages?: SiteStage[];
 }
 
 export function SiteDetailClient({
@@ -51,6 +64,7 @@ export function SiteDetailClient({
   today,
   userId,
   userRole,
+  stages = [],
 }: SiteDetailClientProps) {
   const router = useRouter();
   const supabase = createClient();
@@ -68,6 +82,34 @@ export function SiteDetailClient({
   const [showReportFlow, setShowReportFlow] = useState(false);
   const [showSitePhotoCamera, setShowSitePhotoCamera] = useState(false);
   const [sitePhotoCapturing, setSitePhotoCapturing] = useState(false);
+
+  // Move Stage
+  const [moveStageModal, setMoveStageModal] = useState(false);
+  const [moveStageNote, setMoveStageNote] = useState("");
+  const [movingStage, setMovingStage] = useState(false);
+
+  const currentStage = stages.find((s) => s.is_current) ?? null;
+  const isLongProject = (site as any).project_type === "long";
+
+  async function handleMoveStage() {
+    if (!currentStage || movingStage) return;
+    setMovingStage(true);
+    try {
+      const res = await fetch(`/api/sites/${site.id}/move-stage`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ transition_note: moveStageNote || undefined }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Error");
+      setMoveStageModal(false);
+      router.push(`/reports/stage/${data.stage_report_id}`);
+    } catch (err: any) {
+      showToast(err.message ?? "Error");
+    } finally {
+      setMovingStage(false);
+    }
+  }
   const sitePhotoVideoRef = useRef<HTMLVideoElement>(null);
   const sitePhotoStreamRef = useRef<MediaStream | null>(null);
 
@@ -445,6 +487,16 @@ export function SiteDetailClient({
               ฝน · Rain
             </button>
           )}
+          {userRole === "owner" && isLongProject && currentStage && (
+            <button
+              className="btn-primary"
+              style={{ background: "#6C5CE7" }}
+              onClick={() => { setMoveStageNote(""); setMoveStageModal(true); }}
+            >
+              <Zap size={18} />
+              ย้ายขั้นตอน · Move Stage
+            </button>
+          )}
         </div>
       </div>
 
@@ -634,6 +686,8 @@ export function SiteDetailClient({
             onRain={() => setRainModal(true)}
             onTransfer={(w) => setTransferModal({ worker: w })}
             onUpdateSitePhoto={openSitePhotoCamera}
+            onMoveStage={() => { setMoveStageNote(""); setMoveStageModal(true); }}
+            currentStage={currentStage}
             rainStatus={rainStatus}
             today={today}
             userRole={userRole}
@@ -799,6 +853,79 @@ export function SiteDetailClient({
               <Camera size={20} />
               {sitePhotoCapturing ? "กำลังบันทึก…" : "ถ่ายภาพ · Capture"}
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Move Stage modal */}
+      {moveStageModal && currentStage && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
+          <div style={{ background: "white", borderRadius: 20, padding: "28px 24px", width: "100%", maxWidth: 440 }}>
+            <div style={{ textAlign: "center", marginBottom: 20 }}>
+              <div style={{ fontSize: 42, marginBottom: 8 }}>🚀</div>
+              <h2 style={{ fontSize: 22, fontWeight: 700, color: "#1E3A8A", marginBottom: 4 }}>
+                ย้ายขั้นตอน
+              </h2>
+              <p style={{ fontSize: 14, color: "var(--text-muted)" }}>Move Stage</p>
+            </div>
+
+            {/* Current stage */}
+            <div style={{ background: "#F2F4FF", borderRadius: 12, padding: "12px 16px", marginBottom: 16, display: "flex", alignItems: "center", gap: 10 }}>
+              <div style={{ width: 12, height: 12, borderRadius: "50%", background: currentStage.color, flexShrink: 0 }} />
+              <div>
+                <p style={{ fontSize: 15, fontWeight: 600, color: "#1E3A8A" }}>{currentStage.name_th}</p>
+                <p style={{ fontSize: 13, color: "var(--text-muted)" }}>{currentStage.name_en} → จะถูกปิด / will be closed</p>
+              </div>
+            </div>
+
+            {/* Next stage preview */}
+            {(() => {
+              const next = stages.find((s) => !s.is_current && !s.completed_at);
+              if (!next) return (
+                <div style={{ background: "#FEF2F2", borderRadius: 12, padding: "12px 16px", marginBottom: 16, fontSize: 14, color: "#991B1B" }}>
+                  ⚠️ ไม่มีขั้นตอนถัดไป · No next stage defined
+                </div>
+              );
+              return (
+                <div style={{ background: "#F0FDF4", borderRadius: 12, padding: "12px 16px", marginBottom: 16, display: "flex", alignItems: "center", gap: 10 }}>
+                  <div style={{ width: 12, height: 12, borderRadius: "50%", background: next.color, flexShrink: 0 }} />
+                  <div>
+                    <p style={{ fontSize: 15, fontWeight: 600, color: "#166534" }}>{next.name_th}</p>
+                    <p style={{ fontSize: 13, color: "var(--text-muted)" }}>{next.name_en} → จะเปิด / will activate</p>
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* Optional note */}
+            <div style={{ marginBottom: 20 }}>
+              <label style={{ fontSize: 13, color: "var(--text-muted)", display: "block", marginBottom: 6 }}>
+                หมายเหตุ · Note (optional)
+              </label>
+              <textarea
+                value={moveStageNote}
+                onChange={(e) => setMoveStageNote(e.target.value)}
+                rows={2}
+                placeholder="เช่น งานฐานรากเสร็จแล้ว · e.g. Foundation complete"
+                style={{ width: "100%", borderRadius: 10, border: "1px solid #D1D5DB", padding: "10px 12px", fontSize: 14, resize: "vertical", fontFamily: "inherit" }}
+              />
+            </div>
+
+            <div style={{ display: "flex", gap: 10 }}>
+              <button
+                onClick={() => setMoveStageModal(false)}
+                style={{ flex: 1, padding: "12px 0", borderRadius: 10, border: "1px solid #D1D5DB", background: "white", fontSize: 15, cursor: "pointer" }}
+              >
+                ยกเลิก · Cancel
+              </button>
+              <button
+                onClick={handleMoveStage}
+                disabled={movingStage}
+                style={{ flex: 2, padding: "12px 0", borderRadius: 10, background: "#6C5CE7", color: "white", fontSize: 15, fontWeight: 600, border: "none", cursor: movingStage ? "not-allowed" : "pointer", opacity: movingStage ? 0.7 : 1 }}
+              >
+                {movingStage ? "กำลังประมวลผล…" : "🚀 ย้ายขั้นตอน · Move Stage"}
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -988,7 +1115,8 @@ function AttendanceStatusBadge({ status, isLate }: { status: string; isLate: boo
 
 function MobileSiteDetail({
   site, workers, attendanceEvents, reported, totalWage, late,
-  onCheckIn, onStartReport, onRain, onTransfer, onUpdateSitePhoto, rainStatus, today, userRole,
+  onCheckIn, onStartReport, onRain, onTransfer, onUpdateSitePhoto, onMoveStage,
+  currentStage, rainStatus, today, userRole,
 }: {
   site: Site;
   workers: SiteWorker[];
@@ -1001,6 +1129,8 @@ function MobileSiteDetail({
   onRain: () => void;
   onTransfer: (w: SiteWorker) => void;
   onUpdateSitePhoto: () => void;
+  onMoveStage: () => void;
+  currentStage: SiteStage | null;
   rainStatus: string;
   today: string;
   userRole?: string;
@@ -1028,6 +1158,14 @@ function MobileSiteDetail({
             className="mobile-topbar-action" style={{ padding: "6px 10px" }}
           >
             <CloudRain size={16} /> ฝน
+          </button>
+        )}
+        {userRole === "owner" && (site as any).project_type === "long" && currentStage && (
+          <button
+            onClick={onMoveStage}
+            className="mobile-topbar-action" style={{ padding: "6px 10px", background: "#6C5CE7" }}
+          >
+            <Zap size={16} />
           </button>
         )}
       </div>

@@ -92,6 +92,14 @@ export default async function SiteDetailPage({ params }: Props) {
     .gte("created_at", `${today}T00:00:00+07:00`)
     .order("created_at", { ascending: false });
 
+  // Fetch stages for long projects
+  const { data: stages } = await supabase
+    .from("site_stages")
+    .select("id, name_th, name_en, color, position, is_current, started_at, completed_at, target_end_date")
+    .eq("site_id", params.siteId)
+    .eq("owner_id", ownerId)
+    .order("position", { ascending: true });
+
   const yesterdayWorkerIdSet = new Set((yesterdayWorkerIds ?? []).map((r) => r.worker_id));
 
   return (
@@ -108,6 +116,7 @@ export default async function SiteDetailPage({ params }: Props) {
       today={today}
       userId={profile?.id ?? undefined}
       userRole={profile?.role ?? undefined}
+      stages={stages ?? []}
     />
   );
 }
