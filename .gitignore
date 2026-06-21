@@ -23,3 +23,5 @@ Thumbs.db
 
 # Local assistant metadata
 .claude/
+
+tsconfig.tsbuildinfo
