@@ -1,11 +1,11 @@
-﻿"use client";
+"use client";
 // Copyright © 2026 Workforce. All rights reserved.
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { DashboardShell } from "@/components/layout/DashboardShell";
-import { ChevronRight, Check, AlertTriangle, Clock, FileText, Send } from "lucide-react";
+import { ChevronRight, Check, AlertTriangle, Clock, FileText, Send, TrendingUp, CreditCard } from "lucide-react";
 import { formatCurrency, formatThaiDate } from "@/lib/format";
 
 interface ReportsClientProps {
@@ -24,7 +24,7 @@ export function ReportsClient({ sites, attendance, receipts, dayStatuses, today,
 
   function showToast(msg: string) {
     setToast(msg);
-    setTimeout(() => setToast(""), 5000);
+    setTimeout(() => setToast(""), 3000);
   }
 
   const siteReports = useMemo(() => {
@@ -112,9 +112,40 @@ export function ReportsClient({ sites, attendance, receipts, dayStatuses, today,
         <div className="desktop-only">
           <div className="content-header">
             <div>
-              <h1>รายงานประจำวัน</h1>
-              <p>Daily reports · {formatThaiDate(today)}</p>
+              <h1>รายงาน</h1>
+              <p>Reports hub · {formatThaiDate(today)}</p>
             </div>
+          </div>
+
+          {/* Report type nav */}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12, marginBottom: 28 }}>
+            {[
+              { href: "/reports",          icon: FileText,   th: "รายงานประจำวัน",    en: "Daily reports",      color: "#1E3A8A" },
+              { href: "/reports/halfmonth", icon: CreditCard, th: "เงินเดือนครึ่งเดือน", en: "Half-month payroll", color: "#7C3AED" },
+              { href: "/reports/monthly",   icon: TrendingUp, th: "สรุปรายเดือน",      en: "Monthly summary",    color: "#0E7490" },
+            ].map((r) => {
+              const Icon = r.icon;
+              return (
+                <Link
+                  key={r.href}
+                  href={r.href}
+                  style={{
+                    display: "flex", alignItems: "center", gap: 14,
+                    background: "white", border: "1px solid var(--border)", borderRadius: 12,
+                    padding: "16px 18px", textDecoration: "none", color: "inherit",
+                  }}
+                >
+                  <div style={{ width: 40, height: 40, borderRadius: 10, background: r.color, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                    <Icon size={20} color="white" />
+                  </div>
+                  <div>
+                    <strong style={{ fontSize: 15, display: "block" }}>{r.th}</strong>
+                    <small style={{ color: "var(--text-muted)", fontSize: 12 }}>{r.en}</small>
+                  </div>
+                  <ChevronRight size={16} color="var(--text-muted)" style={{ marginLeft: "auto" }} />
+                </Link>
+              );
+            })}
           </div>
 
           {/* Blocked section */}
@@ -244,11 +275,31 @@ function MobileReports({ siteReports, blocked, ready, today, onSend, sendingId }
       <div className="mobile-topbar">
         <div style={{ flex: 1 }}>
           <h1 style={{ color: "white" }}>รายงาน</h1>
-          <p style={{ color: "rgba(255,255,255,0.75)" }}>Daily reports · {formatThaiDate(today)}</p>
+          <p style={{ color: "rgba(255,255,255,0.75)", fontSize: 12 }}>Reports · {formatThaiDate(today)}</p>
         </div>
       </div>
 
       <div style={{ padding: "12px 16px", display: "flex", flexDirection: "column", gap: 8 }}>
+        {/* Report type nav */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 4 }}>
+          {[
+            { href: "/reports/halfmonth", th: "เงินเดือนครึ่งเดือน", en: "Half-month payroll", color: "#7C3AED" },
+            { href: "/reports/monthly",   th: "สรุปรายเดือน",       en: "Monthly summary",    color: "#0E7490" },
+          ].map((r) => (
+            <Link
+              key={r.href}
+              href={r.href}
+              style={{ display: "flex", alignItems: "center", gap: 10, background: "white", border: "1px solid var(--border)", borderRadius: 10, padding: "12px 14px", textDecoration: "none", color: "inherit" }}
+            >
+              <div style={{ width: 8, height: 32, borderRadius: 4, background: r.color, flexShrink: 0 }} />
+              <div style={{ flex: 1 }}>
+                <strong style={{ fontSize: 15 }}>{r.th}</strong>
+                <small style={{ display: "block", color: "var(--text-muted)", fontSize: 12 }}>{r.en}</small>
+              </div>
+              <ChevronRight size={18} color="var(--text-muted)" />
+            </Link>
+          ))}
+        </div>
         {blocked.length > 0 && (
           <div style={{ background: "#FEF2F2", border: "1px solid #FECACA", borderRadius: 10, padding: "12px 14px", display: "flex", alignItems: "center", gap: 8, color: "#B91C1C" }}>
             <AlertTriangle size={18} />

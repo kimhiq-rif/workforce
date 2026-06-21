@@ -5,7 +5,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { DashboardShell } from "@/components/layout/DashboardShell";
-import { Clock, Shield, Phone, Users, Languages, ChevronDown, Check, LogOut, Eye, EyeOff, UserCog, Copy } from "lucide-react";
+import { Clock, Shield, Phone, Users, Languages, ChevronDown, Check, LogOut, Eye, EyeOff, UserCog, Copy, KeyRound } from "lucide-react";
 import { formatCurrency } from "@/lib/format";
 
 interface SettingsClientProps {
@@ -22,6 +22,7 @@ const SECTIONS = [
   { key: "support", icon: Phone, th: "ติดต่อสนับสนุน", en: "Support" },
   { key: "users", icon: Users, th: "ผู้ใช้งาน", en: "Users & team" },
   { key: "language", icon: Languages, th: "ภาษา", en: "Language mode" },
+  { key: "password", icon: KeyRound, th: "เปลี่ยนรหัสผ่าน", en: "Change password" },
 ];
 
 export function SettingsClient({ profile, workdaySettings, teamMembers, workers, ownerId }: SettingsClientProps) {
@@ -48,6 +49,23 @@ export function SettingsClient({ profile, workdaySettings, teamMembers, workers,
   const [engineRoomCode, setEngineRoomCode] = useState("");
   const [engineRoomOpen, setEngineRoomOpen] = useState(false);
   const [engineRoomError, setEngineRoomError] = useState("");
+
+  // Change password state
+  const [pwNew, setPwNew] = useState("");
+  const [pwConfirm, setPwConfirm] = useState("");
+  const [pwShow, setPwShow] = useState(false);
+  const [pwSaving, setPwSaving] = useState(false);
+
+  async function changePassword() {
+    if (pwNew.length < 8) { showToast("รหัสผ่านต้องมีอย่างน้อย 8 ตัวอักษร · Min 8 characters"); return; }
+    if (pwNew !== pwConfirm) { showToast("รหัสผ่านไม่ตรงกัน · Passwords do not match"); return; }
+    setPwSaving(true);
+    const { error } = await supabase.auth.updateUser({ password: pwNew });
+    setPwSaving(false);
+    if (error) { showToast("เกิดข้อผิดพลาด · " + error.message); return; }
+    setPwNew(""); setPwConfirm("");
+    showToast("เปลี่ยนรหัสผ่านสำเร็จ · Password changed successfully");
+  }
 
   // Language mode — persist in localStorage (useEffect avoids SSR mismatch)
   const [langMode, setLangMode] = useState("th-primary");
@@ -463,6 +481,64 @@ export function SettingsClient({ profile, workdaySettings, teamMembers, workers,
         <p style={{ fontSize: 13, color: "var(--text-muted)", lineHeight: 1.6 }}>
           Changes apply instantly across the entire app and persist after refresh.
         </p>
+      </div>
+    ),
+
+    password: (
+      <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+        <h2 style={{ fontSize: 22, fontWeight: 700 }}>เปลี่ยนรหัสผ่าน <small style={{ fontSize: 14, fontWeight: 400, color: "var(--text-muted)" }}>Change password</small></h2>
+
+        <div style={{ display: "flex", flexDirection: "column", gap: 14, maxWidth: 400 }}>
+          <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            <span style={{ fontSize: 13, fontWeight: 600 }}>รหัสผ่านใหม่ <small style={{ fontWeight: 400, color: "var(--text-muted)" }}>New password</small></span>
+            <div style={{ position: "relative" }}>
+              <input
+                type={pwShow ? "text" : "password"}
+                value={pwNew}
+                onChange={(e) => setPwNew(e.target.value)}
+                placeholder="อย่างน้อย 8 ตัวอักษร · Min 8 characters"
+                style={{ width: "100%", padding: "10px 40px 10px 12px", border: "1px solid var(--border)", borderRadius: 8, fontSize: 15, boxSizing: "border-box" }}
+              />
+              <button
+                type="button"
+                onClick={() => setPwShow((v) => !v)}
+                style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", color: "var(--text-muted)", padding: 2 }}
+              >
+                {pwShow ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
+            </div>
+          </label>
+
+          <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            <span style={{ fontSize: 13, fontWeight: 600 }}>ยืนยันรหัสผ่าน <small style={{ fontWeight: 400, color: "var(--text-muted)" }}>Confirm password</small></span>
+            <input
+              type={pwShow ? "text" : "password"}
+              value={pwConfirm}
+              onChange={(e) => setPwConfirm(e.target.value)}
+              placeholder="พิมพ์รหัสผ่านใหม่อีกครั้ง · Repeat new password"
+              style={{ padding: "10px 12px", border: `1px solid ${pwConfirm && pwConfirm !== pwNew ? "#EF4444" : "var(--border)"}`, borderRadius: 8, fontSize: 15 }}
+            />
+            {pwConfirm && pwConfirm !== pwNew && (
+              <span style={{ fontSize: 12, color: "#EF4444" }}>รหัสผ่านไม่ตรงกัน · Passwords do not match</span>
+            )}
+          </label>
+
+          <button
+            onClick={changePassword}
+            disabled={pwSaving || !pwNew || !pwConfirm}
+            className="btn-primary"
+            style={{ alignSelf: "flex-start" }}
+          >
+            <KeyRound size={18} />
+            {pwSaving ? "กำลังบันทึก…" : "เปลี่ยนรหัสผ่าน · Change password"}
+          </button>
+        </div>
+
+        <div style={{ background: "#F0FDF4", border: "1px solid #BBF7D0", borderRadius: 10, padding: "12px 16px", fontSize: 13, color: "#15803D" }}>
+          รหัสผ่านจะมีผลทันที ครั้งต่อไปที่เข้าระบบจะใช้รหัสผ่านใหม่
+          <br />
+          <em>Password change takes effect immediately. Next login will use the new password.</em>
+        </div>
       </div>
     ),
   };

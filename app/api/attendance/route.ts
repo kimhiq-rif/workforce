@@ -1,7 +1,11 @@
 // Copyright © 2026 Workforce. All rights reserved.
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { computeAttendanceWageReason, computeWageAmount } from "@/lib/wage-logic";
+import {
+  computeAttendanceWageReason,
+  computeWageAmount,
+  computeLateDeduction,
+} from "@/lib/wage-logic";
 import { todayBangkok, nowBangkok } from "@/lib/format";
 
 export async function POST(req: NextRequest) {
@@ -17,7 +21,7 @@ export async function POST(req: NextRequest) {
 
   const { data: worker } = await supabase
     .from("workers")
-    .select("id, daily_wage, owner_id")
+    .select("id, daily_wage, owner_id, is_temporary")
     .eq("id", worker_id)
     .single();
 
@@ -31,13 +35,17 @@ export async function POST(req: NextRequest) {
 
   if (!site) return NextResponse.json({ error: "Site not found" }, { status: 404 });
 
-  const today = todayBangkok();
+  const today       = todayBangkok();
   const arrivalTime = nowBangkok();
-  const workdayStart = "08:00";
-  const isLate = arrivalTime > workdayStart;
 
-  const wageReason = computeAttendanceWageReason(arrivalTime, site.status);
-  const wageAmount = wageReason ? computeWageAmount(worker.daily_wage, wageReason) : 0;
+  const wageReason        = computeAttendanceWageReason(arrivalTime, site.status);
+  const lateDeductionBaht = wageReason
+    ? computeLateDeduction(arrivalTime, wageReason, worker.is_temporary ?? false)
+    : 0;
+  const wageAmount = wageReason
+    ? computeWageAmount(worker.daily_wage, wageReason, lateDeductionBaht)
+    : 0;
+  const isLate = lateDeductionBaht > 0;
 
   const { data, error } = await supabase
     .from("attendance_events")
@@ -55,6 +63,7 @@ export async function POST(req: NextRequest) {
       is_late: isLate,
       wage_reason: wageReason,
       wage_amount: wageAmount,
+      late_deduction_baht: lateDeductionBaht,
     }, { onConflict: "worker_id,event_date,site_id" })
     .select()
     .single();

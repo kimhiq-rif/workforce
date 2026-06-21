@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 // Copyright © 2026 Workforce. All rights reserved.
 
 import { useState } from "react";
@@ -6,7 +6,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { DashboardShell } from "@/components/layout/DashboardShell";
-import { ChevronLeft, ChevronRight, Phone, MapPin, X, Banknote, Pencil, Check, KeyRound, Copy, ShieldCheck } from "lucide-react";
+import { ChevronLeft, Phone, MapPin, X, Banknote, Pencil, Check, KeyRound, Copy, ShieldCheck, Printer, Trash2 } from "lucide-react";
 import { formatCurrency, formatThaiDate, formatEnDate, formatTime } from "@/lib/format";
 import { wageReasonLabel } from "@/lib/wage-logic";
 import type { Worker } from "@/types/database";
@@ -18,6 +18,8 @@ type AttendanceRow = {
   is_late: boolean;
   wage_amount: number | null;
   wage_reason: string | null;
+  photo_lat?: number | null;
+  photo_lng?: number | null;
   site?: { name_th: string; name_en: string } | null;
 };
 
@@ -97,6 +99,10 @@ export function WorkerProfileClient({ worker: initialWorker, attendanceHistory, 
 
   function handleDeactivate() {
     setShowDeleteModal(true);
+  }
+
+  function handlePrintReport() {
+    window.open(`/workers/${worker.id}/report`, "_blank");
   }
 
   function generateReport(): string {
@@ -350,6 +356,15 @@ export function WorkerProfileClient({ worker: initialWorker, attendanceHistory, 
               บันทึกเบิกเงิน
               <small>Record advance</small>
             </button>
+            <button
+              className="btn-primary"
+              onClick={handlePrintReport}
+              style={{ background: "#1D4ED8" }}
+            >
+              <Printer size={18} />
+              ดูรายงาน
+              <small>Print report</small>
+            </button>
           </div>
 
           {/* Attendance history */}
@@ -388,6 +403,16 @@ export function WorkerProfileClient({ worker: initialWorker, attendanceHistory, 
                       <span style={{ fontSize: 14 }}>{a.site?.name_th ?? "-"}</span>
                       <span style={{ fontSize: 15, fontWeight: 600 }}>
                         {a.arrival_time ? formatTime(a.arrival_time) : <span style={{ color: "var(--text-muted)" }}>-</span>}
+                        {a.photo_lat && a.photo_lng && (
+                          <a
+                            href={`https://www.google.com/maps?q=${a.photo_lat},${a.photo_lng}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            style={{ display: "block", fontSize: 10, color: "#3B82F6", marginTop: 1, textDecoration: "none" }}
+                          >
+                            📍 GPS
+                          </a>
+                        )}
                       </span>
                       <span>
                         <AttHistoryBadge status={a.status} isLate={a.is_late} wageReason={a.wage_reason} />
@@ -446,6 +471,7 @@ export function WorkerProfileClient({ worker: initialWorker, attendanceHistory, 
             advances={advances}
             stats={{ daysWorked, totalEarned, lateDays, pendingAdvances }}
             onAddAdvance={() => setShowAdvanceModal(true)}
+            onPrintReport={handlePrintReport}
             onEdit={userRole === "owner" ? () => setShowEditModal(true) : undefined}
             onDeactivate={userRole === "owner" ? handleDeactivate : undefined}
           />
@@ -570,7 +596,7 @@ function DeleteWorkerModal({ workerName, workerNameEn, onCancel, onExportAndDele
   );
 }
 
-// ── Grant Access Modal (from worker profile) ───────────────────────────────────
+// ── Grant Access Modal ──────────────────────────────────────────────────────────
 function GrantAccessModal({
   worker, onClose, onGranted,
 }: {
@@ -643,12 +669,13 @@ function AttHistoryBadge({ status, isLate, wageReason }: { status: string; isLat
   return <span style={{ background: "#F3F4F6", color: "#6B7280", padding: "3px 8px", borderRadius: 6, fontSize: 11 }}>{status}</span>;
 }
 
-function MobileWorkerProfile({ worker, attendanceHistory, advances, stats, onAddAdvance, onEdit, onDeactivate }: {
+function MobileWorkerProfile({ worker, attendanceHistory, advances, stats, onAddAdvance, onPrintReport, onEdit, onDeactivate }: {
   worker: any;
   attendanceHistory: AttendanceRow[];
   advances: AdvanceRow[];
   stats: { daysWorked: number; totalEarned: number; lateDays: number; pendingAdvances: number };
   onAddAdvance: () => void;
+  onPrintReport: () => void;
   onEdit?: () => void;
   onDeactivate?: () => void;
 }) {
@@ -657,14 +684,9 @@ function MobileWorkerProfile({ worker, attendanceHistory, advances, stats, onAdd
       <div className="mobile-topbar">
         <Link href="/workers" className="mobile-topbar-back"><ChevronLeft size={24} /></Link>
         <div style={{ flex: 1 }}>
-          <h1 style={{ color: "white" }}>{worker.name_th}</h1>
-          <p style={{ color: "rgba(255,255,255,0.75)" }}>{worker.name_en}</p>
+          <h1 style={{ color: "white", fontSize: 19 }}>{worker.name_th}</h1>
+          <p style={{ color: "rgba(255,255,255,0.75)", fontSize: 12 }}>{worker.name_en}</p>
         </div>
-        {onEdit && (
-          <button onClick={onEdit} className="mobile-topbar-action">
-            <Pencil size={15} /> แก้ไข · Edit
-          </button>
-        )}
       </div>
 
       <div style={{ padding: "16px", display: "flex", flexDirection: "column", gap: 16 }}>
@@ -693,17 +715,46 @@ function MobileWorkerProfile({ worker, attendanceHistory, advances, stats, onAdd
           </div>
         </div>
 
-        <button className="btn-primary" style={{ width: "100%", justifyContent: "center", background: "#F59E0B" }} onClick={onAddAdvance}>
-          <Banknote size={18} />
-          บันทึกเบิกเงิน · Record advance
-        </button>
+        <div style={{ display: "flex", gap: 8 }}>
+          <button className="btn-primary" style={{ flex: 2, justifyContent: "center", background: "#F59E0B" }} onClick={onAddAdvance}>
+            <Banknote size={18} />
+            บันทึกเบิกเงิน
+          </button>
+          <button className="btn-primary" style={{ flex: 1, justifyContent: "center", background: "#1D4ED8" }} onClick={onPrintReport}>
+            <Printer size={18} />
+            รายงาน
+          </button>
+        </div>
+
+        {(onEdit || onDeactivate) && (
+          <div style={{ display: "flex", gap: 8 }}>
+            {onEdit && (
+              <button
+                onClick={onEdit}
+                style={{ flex: 1, padding: "12px 8px", background: "#F0FDF4", color: "#15803D", border: "1px solid #BBF7D0", borderRadius: 10, cursor: "pointer", fontSize: 14, fontWeight: 600, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}
+              >
+                <Pencil size={16} />
+                แก้ไข · Edit
+              </button>
+            )}
+            {onDeactivate && (
+              <button
+                onClick={onDeactivate}
+                style={{ flex: 1, padding: "12px 8px", background: "#FEF2F2", color: "#B91C1C", border: "1px solid #FECACA", borderRadius: 10, cursor: "pointer", fontSize: 14, fontWeight: 600, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}
+              >
+                <Trash2 size={16} />
+                เก็บถาวร · Archive
+              </button>
+            )}
+          </div>
+        )}
 
         <div>
           <div style={{ fontSize: 16, fontWeight: 600, marginBottom: 10 }}>ประวัติการทำงาน <small style={{ color: "var(--text-muted)", fontSize: 12 }}>30-day history</small></div>
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
             {attendanceHistory.length === 0 ? (
               <div style={{ textAlign: "center", color: "var(--text-muted)", fontSize: 14, padding: "20px 0" }}>
-                ยังไม่มีประวัติ · No history yet
+                ยังไม่מีประวัติ · No history yet
               </div>
             ) : attendanceHistory.slice(0, 20).map((a) => (
               <div key={a.event_date} style={{ background: "white", borderRadius: 10, padding: "10px 14px", display: "flex", justifyContent: "space-between", alignItems: "center", border: "1px solid var(--border)" }}>
@@ -724,15 +775,6 @@ function MobileWorkerProfile({ worker, attendanceHistory, advances, stats, onAdd
             ))}
           </div>
         </div>
-
-        {onDeactivate && (
-          <button
-            onClick={onDeactivate}
-            style={{ width: "100%", padding: "12px", background: "#FEF2F2", color: "#B91C1C", border: "1px solid #FECACA", borderRadius: 10, cursor: "pointer", fontSize: 14, fontWeight: 600 }}
-          >
-            ลบพนักงาน · Remove worker
-          </button>
-        )}
       </div>
     </div>
   );
@@ -829,7 +871,7 @@ function EditWorkerModal({ worker, onClose, onSaved }: {
               <div style={{ padding: "9px 12px", border: "1px solid var(--border)", borderRadius: 8, fontSize: 14, background: "#F9FAFB", color: "#6B7280", fontFamily: "monospace" }}>
                 {worker.login_email}
               </div>
-              <span style={{ fontSize: 11, color: "#9CA3AF" }}>לשינוי email — App Access בפרופיל · To change, use App Access in profile</span>
+              <span style={{ fontSize: 11, color: "#9CA3AF" }}>To change email — use App Access in worker profile</span>
             </label>
           )}
 
