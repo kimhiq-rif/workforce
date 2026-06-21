@@ -2,6 +2,7 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { LangModeApplier } from "@/components/layout/LangModeApplier";
+import { IntroSplashGate } from "@/components/IntroSplashGate";
 
 export const metadata: Metadata = {
   title: "Workforce · Driven by Proof",
@@ -39,6 +40,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body>
         <LangModeApplier />
+        <IntroSplashGate />
         {children}
       </body>
     </html>
