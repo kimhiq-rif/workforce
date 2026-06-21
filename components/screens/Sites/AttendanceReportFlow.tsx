@@ -284,29 +284,24 @@ export function AttendanceReportFlow({
     if (!selectedWorker || !capturedBlob) return;
     setSaving(true);
 
-    // GPS (optional)
-    let lat: number | null = null;
-    let lng: number | null = null;
-    try {
-      const pos = await new Promise<GeolocationPosition>((res, rej) =>
-        navigator.geolocation.getCurrentPosition(res, rej, { timeout: 5000 })
-      );
-      lat = pos.coords.latitude;
-      lng = pos.coords.longitude;
-    } catch {}
-
-    // Upload photo
     const fileName = `attendance/${site.id}/${today}/${selectedWorker.id}_${Date.now()}.jpg`;
-    let photoUrl: string | null = null;
 
-    const { data: uploadData, error: uploadError } = await supabase.storage
-      .from("attendance-photos")
-      .upload(fileName, capturedBlob, { contentType: "image/jpeg", upsert: false });
-
-    if (!uploadError && uploadData) {
-      const { data: urlData } = supabase.storage
+    // GPS and photo upload in parallel to cut wait time
+    const [gpsResult, uploadResult] = await Promise.allSettled([
+      new Promise<GeolocationPosition>((res, rej) =>
+        navigator.geolocation.getCurrentPosition(res, rej, { timeout: 3000 })
+      ),
+      supabase.storage
         .from("attendance-photos")
-        .getPublicUrl(fileName);
+        .upload(fileName, capturedBlob, { contentType: "image/jpeg", upsert: false }),
+    ]);
+
+    const lat = gpsResult.status === "fulfilled" ? gpsResult.value.coords.latitude : null;
+    const lng = gpsResult.status === "fulfilled" ? gpsResult.value.coords.longitude : null;
+
+    let photoUrl: string | null = null;
+    if (uploadResult.status === "fulfilled" && !uploadResult.value.error) {
+      const { data: urlData } = supabase.storage.from("attendance-photos").getPublicUrl(fileName);
       photoUrl = urlData?.publicUrl ?? null;
     }
 
@@ -337,6 +332,19 @@ export function AttendanceReportFlow({
       setSaving(false);
       return;
     }
+
+    // Push to owner (non-blocking)
+    fetch("/api/push", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        owner_id: site.owner_id,
+        title: `✅ ${selectedWorker.name_th}`,
+        body: `${site.name_th} · ${bangkokTime}${isLate ? " (สาย)" : ""}`,
+        url: "/",
+        tag: "attendance",
+      }),
+    }).catch(() => {});
 
     // If transfer: create SiteTransferEvent + push to owner
     if (selectedWorker.isOtherSite && selectedWorker.fromSiteId) {

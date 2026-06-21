@@ -22,6 +22,7 @@ export async function POST(req: NextRequest) {
       daily_wage: Number(body.daily_wage) || 500,
       assigned_site_id: body.assigned_site_id || null,
       is_temporary: Boolean(body.is_temporary),
+      photo_url: body.photo_url || null,
       is_active: true,
     })
     .select("id, name_th, name_en, role_th, role_en, daily_wage, phone, is_temporary, is_active, assigned_site_id, site:assigned_site_id(id, name_th, name_en, status)")
