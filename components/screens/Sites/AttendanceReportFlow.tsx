@@ -98,6 +98,7 @@ export function AttendanceReportFlow({
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [capturedBlob, setCapturedBlob] = useState<Blob | null>(null);
   const [capturedDataUrl, setCapturedDataUrl] = useState<string | null>(null);
   const [cameraError, setCameraError] = useState("");
@@ -182,11 +183,22 @@ export function AttendanceReportFlow({
 
   // ── Camera ─────────────────────────────────────────────────────────────────
 
+  function isMobileDevice(): boolean {
+    if (typeof navigator === "undefined") return false;
+    return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+  }
+
   async function openCamera(worker: WorkerInQueue) {
     setSelectedWorker(worker);
     setCapturedBlob(null);
     setCapturedDataUrl(null);
     setCameraError("");
+
+    if (isMobileDevice()) {
+      fileInputRef.current?.click();
+      return;
+    }
+
     setPhase("camera");
 
     try {
@@ -202,6 +214,21 @@ export function AttendanceReportFlow({
     } catch {
       setCameraError("ไม่สามารถเปิดกล้องได้ · Camera access denied");
     }
+  }
+
+  function handleMobileFileInput(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      setCapturedDataUrl(ev.target?.result as string);
+      setCapturedBlob(file);
+      setPhase("preview");
+    };
+    reader.readAsDataURL(file);
+
+    e.target.value = "";
   }
 
   function stopCamera() {
@@ -673,6 +700,15 @@ export function AttendanceReportFlow({
             {toast}
           </div>
         )}
+
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          capture="environment"
+          style={{ display: "none" }}
+          onChange={handleMobileFileInput}
+        />
       </div>
     );
   }
