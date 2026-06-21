@@ -1,7 +1,7 @@
 "use client";
 // Copyright © 2026 Workforce. All rights reserved.
 
-import { useState, useRef, useCallback, useMemo, useEffect } from "react";
+import { useState, useRef, useCallback, useMemo, useEffect, type ChangeEvent } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { Camera, X, ChevronLeft, Check, AlertTriangle, Send } from "lucide-react";
 import { formatTime } from "@/lib/format";
@@ -216,7 +216,7 @@ export function AttendanceReportFlow({
     }
   }
 
-  function handleMobileFileInput(e: React.ChangeEvent<HTMLInputElement>) {
+  function handleMobileFileInput(e: ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
 
