@@ -62,9 +62,36 @@ const ACCORDION_ITEMS: { key: AccordionKey; label_th: string; label_en: string; 
   { key: "receipt_problems", label_th: "ปัญหาใบเสร็จ",      label_en: "Receipt problems",       countKey: "receipt_problem_count" },
 ];
 
-export default function StageReportClient({ report }: { report: StageReport }) {
+export default function StageReportClient({
+  report,
+  nextStageId,
+  nextStageHasTarget,
+}: {
+  report: StageReport;
+  nextStageId?: string | null;
+  nextStageHasTarget?: boolean;
+}) {
   const router = useRouter();
   const [open, setOpen] = useState<Set<AccordionKey>>(new Set());
+  const [targetDate, setTargetDate] = useState("");
+  const [savingTarget, setSavingTarget] = useState(false);
+  const [targetSaved, setTargetSaved] = useState(nextStageHasTarget ?? false);
+
+  async function saveTargetDate() {
+    if (!targetDate || !nextStageId) return;
+    setSavingTarget(true);
+    try {
+      const siteId = (report as any).site_id;
+      const res = await fetch(`/api/sites/${siteId}/stage-target`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ target_end_date: targetDate }),
+      });
+      if (res.ok) setTargetSaved(true);
+    } finally {
+      setSavingTarget(false);
+    }
+  }
 
   function toggleAccordion(key: AccordionKey) {
     setOpen((prev) => {
@@ -99,6 +126,45 @@ export default function StageReportClient({ report }: { report: StageReport }) {
       </div>
 
       <div className="max-w-2xl mx-auto px-4 py-6 space-y-4">
+
+        {/* Set target date banner — shown when next stage has no target yet */}
+        {nextStageId && !targetSaved && (
+          <div style={{
+            background: "linear-gradient(135deg, #6C5CE7, #5B4BD0)",
+            borderRadius: 16, padding: "16px 20px", color: "white",
+          }}>
+            <p style={{ fontSize: 13, opacity: 0.8, marginBottom: 4 }}>⚡ Next step required</p>
+            <p style={{ fontSize: 17, fontWeight: 700, marginBottom: 12 }}>
+              กำหนดวันที่เป้าหมายขั้นตอนถัดไป
+            </p>
+            <p style={{ fontSize: 13, opacity: 0.8, marginBottom: 12 }}>Set target end date for current stage</p>
+            <div style={{ display: "flex", gap: 8 }}>
+              <input
+                type="date"
+                value={targetDate}
+                onChange={(e) => setTargetDate(e.target.value)}
+                style={{ flex: 1, border: "none", borderRadius: 8, padding: "9px 12px", fontSize: 14, color: "#1E3A8A", background: "white" }}
+              />
+              <button
+                onClick={saveTargetDate}
+                disabled={!targetDate || savingTarget}
+                style={{
+                  background: "#FF6A00", color: "white", border: "none",
+                  borderRadius: 8, padding: "9px 18px", fontSize: 14, fontWeight: 700,
+                  cursor: !targetDate || savingTarget ? "not-allowed" : "pointer",
+                  opacity: !targetDate || savingTarget ? 0.7 : 1,
+                }}
+              >
+                {savingTarget ? "…" : "บันทึก · Save"}
+              </button>
+            </div>
+          </div>
+        )}
+        {targetSaved && nextStageId && (
+          <div style={{ background: "#F0FDF4", border: "1px solid #86EFAC", borderRadius: 12, padding: "12px 16px", display: "flex", alignItems: "center", gap: 10, color: "#166534", fontSize: 14 }}>
+            ✅ บันทึกวันที่เป้าหมายแล้ว · Target date saved
+          </div>
+        )}
 
         {/* Stage identity badge */}
         <div

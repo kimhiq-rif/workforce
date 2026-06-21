@@ -7,7 +7,12 @@ export async function POST(req: NextRequest) {
   const { user, ownerId, serviceClient } = await getAppUserContext();
   if (!user || !ownerId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { name_th, name_en, location_th, location_en, project_type } = await req.json();
+  const {
+    name_th, name_en, location_th, location_en, project_type,
+    project_target_end_date, first_stage_target_end_date,
+    stages,
+  } = await req.json();
+
   if (!name_th || !name_en) {
     return NextResponse.json({ error: "Thai and English site names are required" }, { status: 400 });
   }
@@ -22,6 +27,7 @@ export async function POST(req: NextRequest) {
       location_th: location_th ?? null,
       location_en: location_en ?? null,
       project_type: validType,
+      project_target_end_date: project_target_end_date || null,
       status: "waiting",
       is_active: true,
     })
@@ -29,6 +35,32 @@ export async function POST(req: NextRequest) {
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  // For long projects: create stage records
+  if (validType === "long" && Array.isArray(stages) && stages.length > 0) {
+    const stageRows = stages
+      .filter((s: any) => s.name_en?.trim())
+      .map((s: any, i: number) => ({
+        owner_id: ownerId,
+        site_id: data.id,
+        name_en: s.name_en.trim(),
+        name_th: s.name_th ?? "",
+        color: s.color ?? "#6C5CE7",
+        position: i,
+        is_current: i === 0,
+        started_at: i === 0 ? new Date().toISOString() : null,
+        target_end_date: i === 0 ? (first_stage_target_end_date || null) : null,
+      }));
+
+    const { error: stageError } = await serviceClient
+      .from("site_stages")
+      .insert(stageRows);
+
+    if (stageError) {
+      return NextResponse.json({ error: `Site created but stages failed: ${stageError.message}` }, { status: 207 });
+    }
+  }
+
   return NextResponse.json({ data });
 }
 

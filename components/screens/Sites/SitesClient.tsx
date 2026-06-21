@@ -28,12 +28,30 @@ interface SitesClientProps {
   ownerId: string;
 }
 
+interface StageInput {
+  name_en: string;
+  color: string;
+}
+
+const DEFAULT_STAGES: StageInput[] = [
+  { name_en: "Started",    color: "#6C5CE7" },
+  { name_en: "Foundation", color: "#3B82F6" },
+  { name_en: "Structure",  color: "#06B6D4" },
+  { name_en: "Systems",    color: "#22C55E" },
+  { name_en: "Finishing",  color: "#F59E0B" },
+  { name_en: "Completed",  color: "#1E3A8A" },
+];
+
+const STAGE_COLORS = ["#6C5CE7", "#3B82F6", "#06B6D4", "#22C55E", "#F59E0B", "#1E3A8A", "#EC4899", "#8B5CF6"];
+
 interface AddSiteForm {
   name_th: string;
   name_en: string;
   location_th: string;
   location_en: string;
   project_type: "short" | "long";
+  project_target_end_date: string;
+  first_stage_target_end_date: string;
 }
 
 export function SitesClient({ sites: initialSites, ownerId }: SitesClientProps) {
@@ -48,7 +66,9 @@ export function SitesClient({ sites: initialSites, ownerId }: SitesClientProps) 
   const [showAddModal, setShowAddModal] = useState(false);
   const [addForm, setAddForm] = useState<AddSiteForm>({
     name_th: "", name_en: "", location_th: "", location_en: "", project_type: "short",
+    project_target_end_date: "", first_stage_target_end_date: "",
   });
+  const [stages, setStages] = useState<StageInput[]>(DEFAULT_STAGES);
   const [adding, setAdding] = useState(false);
 
   const filtered = useMemo(() => {
@@ -98,7 +118,8 @@ export function SitesClient({ sites: initialSites, ownerId }: SitesClientProps) 
   }
 
   function handleAddSite() {
-    setAddForm({ name_th: "", name_en: "", location_th: "", location_en: "", project_type: "short" });
+    setAddForm({ name_th: "", name_en: "", location_th: "", location_en: "", project_type: "short", project_target_end_date: "", first_stage_target_end_date: "" });
+    setStages(DEFAULT_STAGES);
     setShowAddModal(true);
   }
 
@@ -107,11 +128,22 @@ export function SitesClient({ sites: initialSites, ownerId }: SitesClientProps) 
       showToast("กรุณากรอกชื่อไซต์ทั้งสองภาษา · Both names required");
       return;
     }
+    if (addForm.project_type === "long" && stages.filter(s => s.name_en.trim()).length < 2) {
+      showToast("Long project ต้องมีอย่างน้อย 2 ขั้นตอน · Minimum 2 stages required");
+      return;
+    }
     setAdding(true);
     const response = await fetch("/api/sites", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(addForm),
+      body: JSON.stringify({
+        ...addForm,
+        stages: addForm.project_type === "long"
+          ? stages
+              .filter(s => s.name_en.trim())
+              .map((s, i) => ({ ...s, position: i }))
+          : undefined,
+      }),
     });
     const result = await response.json();
     setAdding(false);
@@ -431,6 +463,89 @@ export function SitesClient({ sites: initialSites, ownerId }: SitesClientProps) 
               </div>
             </div>
 
+            {/* Long project extra fields */}
+            {addForm.project_type === "long" && (
+              <div style={{ borderTop: "1px solid var(--border)", paddingTop: 16, marginBottom: 16 }}>
+                <p style={{ fontSize: 13, fontWeight: 700, color: "#FF6A00", marginBottom: 12 }}>
+                  ⚙️ Long Project Setup
+                </p>
+
+                {/* Dates */}
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 16 }}>
+                  <div>
+                    <label style={{ fontSize: 11, fontWeight: 600, color: "var(--text-muted)", display: "block", marginBottom: 4 }}>
+                      Project target end date
+                    </label>
+                    <input
+                      type="date"
+                      value={addForm.project_target_end_date}
+                      onChange={(e) => setAddForm(f => ({ ...f, project_target_end_date: e.target.value }))}
+                      style={{ width: "100%", border: "1px solid var(--border)", borderRadius: 8, padding: "8px 10px", fontSize: 13, boxSizing: "border-box" }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ fontSize: 11, fontWeight: 600, color: "var(--text-muted)", display: "block", marginBottom: 4 }}>
+                      1st stage target date
+                    </label>
+                    <input
+                      type="date"
+                      value={addForm.first_stage_target_end_date}
+                      onChange={(e) => setAddForm(f => ({ ...f, first_stage_target_end_date: e.target.value }))}
+                      style={{ width: "100%", border: "1px solid var(--border)", borderRadius: 8, padding: "8px 10px", fontSize: 13, boxSizing: "border-box" }}
+                    />
+                  </div>
+                </div>
+
+                {/* Stage names */}
+                <p style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)", marginBottom: 8 }}>
+                  Stage names <span style={{ fontWeight: 400 }}>(drag to reorder, click color to change)</span>
+                </p>
+                <div style={{ display: "flex", flexDirection: "column", gap: 6, maxHeight: 240, overflowY: "auto" }}>
+                  {stages.map((stage, i) => (
+                    <div key={i} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      {/* Color picker */}
+                      <div style={{ position: "relative", flexShrink: 0 }}>
+                        <div style={{ width: 28, height: 28, borderRadius: "50%", background: stage.color, cursor: "pointer", border: "2px solid white", boxShadow: "0 0 0 1px #D1D5DB" }} />
+                        <select
+                          value={stage.color}
+                          onChange={(e) => setStages(prev => prev.map((s, j) => j === i ? { ...s, color: e.target.value } : s))}
+                          style={{ position: "absolute", inset: 0, opacity: 0, cursor: "pointer", width: "100%", height: "100%" }}
+                        >
+                          {STAGE_COLORS.map(c => <option key={c} value={c}>{c}</option>)}
+                        </select>
+                      </div>
+                      {/* Position number */}
+                      <span style={{ fontSize: 11, color: "var(--text-muted)", width: 16, textAlign: "center", flexShrink: 0 }}>{i + 1}</span>
+                      {/* Name */}
+                      <input
+                        value={stage.name_en}
+                        onChange={(e) => setStages(prev => prev.map((s, j) => j === i ? { ...s, name_en: e.target.value } : s))}
+                        placeholder={`Stage ${i + 1}`}
+                        style={{ flex: 1, border: "1px solid var(--border)", borderRadius: 7, padding: "7px 10px", fontSize: 13 }}
+                      />
+                      {/* Remove */}
+                      {stages.length > 2 && (
+                        <button
+                          onClick={() => setStages(prev => prev.filter((_, j) => j !== i))}
+                          style={{ background: "none", border: "none", cursor: "pointer", color: "#9CA3AF", padding: 2, flexShrink: 0 }}
+                        >
+                          <X size={14} />
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+                {stages.length < 8 && (
+                  <button
+                    onClick={() => setStages(prev => [...prev, { name_en: "", color: STAGE_COLORS[prev.length % STAGE_COLORS.length] }])}
+                    style={{ marginTop: 8, fontSize: 12, color: "#FF6A00", background: "none", border: "1px dashed #FF6A00", borderRadius: 8, padding: "6px 12px", cursor: "pointer", width: "100%" }}
+                  >
+                    + Add stage
+                  </button>
+                )}
+              </div>
+            )}
+
             <div style={{ display: "flex", gap: 10 }}>
               <button
                 onClick={() => setShowAddModal(false)}
@@ -446,7 +561,7 @@ export function SitesClient({ sites: initialSites, ownerId }: SitesClientProps) 
                   fontSize: 14, fontWeight: 700, color: "white",
                   background: addForm.project_type === "long"
                     ? "linear-gradient(135deg, #FF6A00, #FF8C00)"
-                    : "linear-gradient(135deg, #7C3AED, #6D28D9)",
+                    : "linear-gradient(135deg, #6C5CE7, #5B4BD0)",
                   opacity: adding ? 0.7 : 1,
                 }}
               >

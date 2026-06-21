@@ -12,15 +12,26 @@ export default async function StageReportPage({
 
   const { data: report, error } = await serviceClient
     .from("stage_reports")
-    .select(`
-      *,
-      sites ( name_th, name_en, project_type )
-    `)
+    .select(`*, sites ( name_th, name_en, project_type )`)
     .eq("id", params.id)
     .eq("owner_id", ownerId)
     .single();
 
   if (error || !report) notFound();
 
-  return <StageReportClient report={report} />;
+  // Check if there's a next active stage and whether it has a target date
+  const { data: nextStage } = await serviceClient
+    .from("site_stages")
+    .select("id, target_end_date")
+    .eq("site_id", report.site_id)
+    .eq("is_current", true)
+    .maybeSingle();
+
+  return (
+    <StageReportClient
+      report={report}
+      nextStageId={nextStage?.id ?? null}
+      nextStageHasTarget={!!nextStage?.target_end_date}
+    />
+  );
 }
