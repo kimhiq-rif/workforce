@@ -5,7 +5,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { DashboardShell } from "@/components/layout/DashboardShell";
-import { ChevronRight, Check, AlertTriangle, Clock, FileText, Send, TrendingUp, CreditCard } from "lucide-react";
+import { ChevronRight, Check, AlertTriangle, FileText, Send, TrendingUp, CreditCard, CalendarRange } from "lucide-react";
 import { formatCurrency, formatThaiDate } from "@/lib/format";
 
 interface ReportsClientProps {
@@ -118,11 +118,12 @@ export function ReportsClient({ sites, attendance, receipts, dayStatuses, today,
           </div>
 
           {/* Report type nav */}
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12, marginBottom: 28 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12, marginBottom: 28 }}>
             {[
               { href: "/reports",          icon: FileText,   th: "รายงานประจำวัน",    en: "Daily reports",      color: "#1E3A8A" },
               { href: "/reports/halfmonth", icon: CreditCard, th: "เงินเดือนครึ่งเดือน", en: "Half-month payroll", color: "#6C5CE7" },
               { href: "/reports/monthly",   icon: TrendingUp, th: "สรุปรายเดือน",      en: "Monthly summary",    color: "#06B6D4" },
+              { href: "/reports/annual",    icon: CalendarRange, th: "Annual overview", en: "Big document", color: "#FF6A00" },
             ].map((r) => {
               const Icon = r.icon;
               return (
@@ -285,6 +286,7 @@ function MobileReports({ siteReports, blocked, ready, today, onSend, sendingId }
           {[
             { href: "/reports/halfmonth", th: "เงินเดือนครึ่งเดือน", en: "Half-month payroll", color: "#6C5CE7" },
             { href: "/reports/monthly",   th: "สรุปรายเดือน",       en: "Monthly summary",    color: "#06B6D4" },
+            { href: "/reports/annual",    th: "Annual overview",     en: "Big document",       color: "#FF6A00" },
           ].map((r) => (
             <Link
               key={r.href}
