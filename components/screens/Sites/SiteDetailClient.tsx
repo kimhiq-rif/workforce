@@ -1,7 +1,7 @@
 ﻿"use client";
 // Copyright © 2026 Workforce. All rights reserved.
 
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, type ChangeEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
@@ -1402,6 +1402,8 @@ function AttendanceReportFlow({
   const supabase = createClient();
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const pendingMobileWorkerRef = useRef<SiteWorker | null>(null);
   const [cameraWorker, setCameraWorker] = useState<SiteWorker | null>(null);
   const [capturing, setCapturing] = useState(false);
   const [reportedIds, setReportedIds] = useState<Set<string>>(new Set());
@@ -1429,7 +1431,18 @@ function AttendanceReportFlow({
       return a.name_th.localeCompare(b.name_th, "th");
     });
 
+  function isMobileDevice(): boolean {
+    if (typeof navigator === "undefined") return false;
+    return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+  }
+
   async function openCamera(worker: SiteWorker) {
+    if (isMobileDevice()) {
+      pendingMobileWorkerRef.current = worker;
+      fileInputRef.current?.click();
+      return;
+    }
+
     let stream: MediaStream;
     try {
       stream = await navigator.mediaDevices.getUserMedia({
@@ -1443,6 +1456,94 @@ function AttendanceReportFlow({
     streamRef.current = stream;
     // Set worker AFTER stream is ready so the video callback-ref can immediately apply srcObject
     setCameraWorker(worker);
+  }
+
+  async function handleMobileFileInput(e: ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    const worker = pendingMobileWorkerRef.current;
+    pendingMobileWorkerRef.current = null;
+    if (!file || !worker) return;
+
+    setCapturing(true);
+
+    let lat: number | null = null;
+    let lng: number | null = null;
+    try {
+      const pos = await new Promise<GeolocationPosition>((resolve, reject) =>
+        navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 5000 })
+      );
+      lat = pos.coords.latitude;
+      lng = pos.coords.longitude;
+    } catch {}
+
+    const fileName = `attendance/${site.id}/${today}/${worker.id}_${Date.now()}.jpg`;
+    const { data: uploadData, error: uploadError } = await supabase.storage
+      .from("attendance-photos")
+      .upload(fileName, file, { contentType: file.type || "image/jpeg", upsert: false });
+
+    let photoUrl: string | null = null;
+    if (!uploadError && uploadData) {
+      const { data: urlData } = supabase.storage.from("attendance-photos").getPublicUrl(fileName);
+      photoUrl = urlData?.publicUrl ?? null;
+    }
+
+    const now = new Date();
+    const bangkokTime = now.toLocaleTimeString("en-US", {
+      timeZone: "Asia/Bangkok",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    });
+    const isLate = bangkokTime > "08:00";
+    const wageReason = computeAttendanceWageReason(bangkokTime, site.status as any);
+    const wageAmount = wageReason ? computeWageAmount(worker.daily_wage, wageReason) : 0;
+
+    const { error: dbError } = await supabase.from("attendance_events").insert({
+      owner_id: site.owner_id,
+      site_id: site.id,
+      worker_id: worker.id,
+      reported_by: userId ?? null,
+      event_date: today,
+      arrival_time: bangkokTime,
+      photo_url: photoUrl,
+      photo_lat: lat,
+      photo_lng: lng,
+      status: isLate ? "late" : "on_site",
+      is_late: isLate,
+      wage_reason: wageReason,
+      wage_amount: wageAmount,
+    });
+
+    await supabase.from("workers").update({ assigned_site_id: site.id }).eq("id", worker.id);
+
+    if (alreadyReportedHere.size === 0 && reportedIds.size === 0) {
+      await supabase.from("site_day_status_events").upsert(
+        {
+          owner_id: site.owner_id,
+          site_id: site.id,
+          event_date: today,
+          status: "live",
+          set_by: userId,
+          set_at: now.toISOString(),
+          set_before_attendance: false,
+          wage_decision: "full_day",
+          wage_reason: "full_day",
+          attendance_count_at_change: 0,
+        },
+        { onConflict: "site_id,event_date" }
+      );
+      await supabase.from("sites").update({ status: "live" }).eq("id", site.id);
+    }
+
+    setCapturing(false);
+    if (dbError) {
+      showToast("เกิดข้อผิดพลาด · " + (dbError.message ?? "Error saving"));
+      return;
+    }
+
+    setReportedIds((prev) => { const s = new Set(Array.from(prev)); s.add(worker.id); return s; });
+    showToast(`✓ ${worker.name_th} · ${bangkokTime}${isLate ? " (สาย)" : ""}`);
   }
 
   function closeCamera() {
@@ -1762,6 +1863,15 @@ function AttendanceReportFlow({
           ส่ง · Send ({reportedIds.size})
         </button>
       </div>
+
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        style={{ display: "none" }}
+        onChange={handleMobileFileInput}
+      />
     </div>
   );
 }
