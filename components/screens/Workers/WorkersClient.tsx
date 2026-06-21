@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 
 import { createClient } from "@/lib/supabase/client";
 import { DashboardShell } from "@/components/layout/DashboardShell";
-import { Search, CirclePlus, ChevronRight, UserCheck, X, Check, Printer, Trash2 } from "lucide-react";
+import { Search, CirclePlus, ChevronRight, UserCheck, X, Check, Printer, Trash2, ImagePlus } from "lucide-react";
 import { formatCurrency, formatTime } from "@/lib/format";
 import type { Worker } from "@/types/database";
 
@@ -553,12 +553,15 @@ function AddWorkerModal({
   onClose: () => void;
   onAdded: (w: any) => void;
 }) {
+  const supabase = createClient();
   const [form, setForm] = useState({
     name_th: "", name_en: "", role_th: "", role_en: "",
     phone: "", daily_wage: "500", assigned_site_id: "", is_temporary: false,
   });
-  const [appEmail, setAppEmail]   = useState("");
-  const [appRole, setAppRole]     = useState<"field_manager" | "technical_admin">("field_manager");
+  const [photoFile, setPhotoFile]     = useState<File | null>(null);
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const [appEmail, setAppEmail]       = useState("");
+  const [appRole, setAppRole]         = useState<"field_manager" | "technical_admin">("field_manager");
   const [saving, setSaving]           = useState(false);
   const [error, setError]             = useState("");
   const [tempCreds, setTempCreds]     = useState<{ email: string; password: string } | null>(null);
@@ -572,6 +575,19 @@ function AddWorkerModal({
     setSaving(true);
     setError("");
 
+    // Upload photo if selected
+    let photoUrl: string | null = null;
+    if (photoFile) {
+      const ext = photoFile.type === "image/png" ? "png" : "jpg";
+      const fileName = `workers/${ownerId}/${Date.now()}.${ext}`;
+      const { data: uploadData } = await supabase.storage
+        .from("worker-photos")
+        .upload(fileName, photoFile, { contentType: photoFile.type, upsert: false });
+      if (uploadData) {
+        photoUrl = supabase.storage.from("worker-photos").getPublicUrl(fileName).data.publicUrl;
+      }
+    }
+
     // Step 1: create worker
     const workerRes = await fetch("/api/workers", {
       method: "POST",
@@ -581,6 +597,7 @@ function AddWorkerModal({
         role_th: form.role_th || null, role_en: form.role_en || null,
         phone: form.phone || null, daily_wage: Number(form.daily_wage) || 500,
         assigned_site_id: form.assigned_site_id || null, is_temporary: form.is_temporary,
+        photo_url: photoUrl,
       }),
     });
     const workerResult = await workerRes.json();
@@ -662,6 +679,36 @@ function AddWorkerModal({
         )}
 
         <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+          {/* Photo picker */}
+          <div style={{ display: "flex", justifyContent: "center" }}>
+            <label style={{ cursor: "pointer" }}>
+              <div style={{
+                width: 80, height: 80, borderRadius: "50%",
+                background: photoPreview ? "transparent" : "var(--surface)",
+                border: `2px dashed ${photoPreview ? "var(--brand-violet)" : "var(--border)"}`,
+                display: "flex", alignItems: "center", justifyContent: "center",
+                overflow: "hidden", position: "relative",
+              }}>
+                {photoPreview ? (
+                  <img src={photoPreview} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                ) : (
+                  <div style={{ textAlign: "center", color: "var(--text-muted)" }}>
+                    <ImagePlus size={22} />
+                    <div style={{ fontSize: 10, marginTop: 2 }}>Photo</div>
+                  </div>
+                )}
+              </div>
+              <input type="file" accept="image/*" style={{ display: "none" }}
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  setPhotoFile(file);
+                  setPhotoPreview(URL.createObjectURL(file));
+                }}
+              />
+            </label>
+          </div>
+
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
             <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
               <span style={{ fontSize: 13, fontWeight: 600 }}>ชื่อภาษาไทย *</span>

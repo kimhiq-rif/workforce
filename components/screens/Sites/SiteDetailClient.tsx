@@ -1571,16 +1571,6 @@ function AttendanceReportFlow({
     canvas.height = videoRef.current.videoHeight || 720;
     canvas.getContext("2d")!.drawImage(videoRef.current, 0, 0);
 
-    let lat: number | null = null;
-    let lng: number | null = null;
-    try {
-      const pos = await new Promise<GeolocationPosition>((resolve, reject) =>
-        navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 5000 })
-      );
-      lat = pos.coords.latitude;
-      lng = pos.coords.longitude;
-    } catch {}
-
     const blob = await new Promise<Blob | null>((resolve) =>
       canvas.toBlob(resolve, "image/jpeg", 0.85)
     );
@@ -1589,13 +1579,24 @@ function AttendanceReportFlow({
       setCapturing(false);
       return;
     }
+
     const fileName = `attendance/${site.id}/${today}/${cameraWorker.id}_${Date.now()}.jpg`;
-    const { data: uploadData, error: uploadError } = await supabase.storage
-      .from("attendance-photos")
-      .upload(fileName, blob, { contentType: "image/jpeg", upsert: false });
+
+    // GPS and upload in parallel
+    const [gpsResult, uploadResult] = await Promise.allSettled([
+      new Promise<GeolocationPosition>((resolve, reject) =>
+        navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 3000 })
+      ),
+      supabase.storage
+        .from("attendance-photos")
+        .upload(fileName, blob, { contentType: "image/jpeg", upsert: false }),
+    ]);
+
+    const lat = gpsResult.status === "fulfilled" ? gpsResult.value.coords.latitude : null;
+    const lng = gpsResult.status === "fulfilled" ? gpsResult.value.coords.longitude : null;
 
     let photoUrl: string | null = null;
-    if (!uploadError && uploadData) {
+    if (uploadResult.status === "fulfilled" && !uploadResult.value.error) {
       const { data: urlData } = supabase.storage.from("attendance-photos").getPublicUrl(fileName);
       photoUrl = urlData?.publicUrl ?? null;
     }
@@ -1659,6 +1660,20 @@ function AttendanceReportFlow({
 
     setReportedIds((prev) => { const s = new Set(Array.from(prev)); s.add(cameraWorker.id); return s; });
     showToast(`✓ ${cameraWorker.name_th} · ${bangkokTime}${isLate ? " (สาย)" : ""}`);
+
+    // Push to owner (non-blocking)
+    fetch("/api/push", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        owner_id: site.owner_id,
+        title: `✅ ${cameraWorker.name_th}`,
+        body: `${site.name_th} · ${bangkokTime}${isLate ? " (สาย)" : ""}`,
+        url: "/",
+        tag: "attendance",
+      }),
+    }).catch(() => {});
+
     closeCamera();
   }
 

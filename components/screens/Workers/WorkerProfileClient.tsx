@@ -6,7 +6,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { DashboardShell } from "@/components/layout/DashboardShell";
-import { ChevronLeft, Phone, MapPin, X, Banknote, Pencil, Check, KeyRound, Copy, ShieldCheck, Printer, Trash2 } from "lucide-react";
+import { ChevronLeft, Phone, MapPin, X, Banknote, Pencil, Check, KeyRound, Copy, ShieldCheck, Printer, Trash2, ImagePlus } from "lucide-react";
 import { formatCurrency, formatThaiDate, formatEnDate, formatTime } from "@/lib/format";
 import { wageReasonLabel } from "@/lib/wage-logic";
 import type { Worker } from "@/types/database";
@@ -793,6 +793,8 @@ function EditWorkerModal({ worker, onClose, onSaved }: {
   const [phone, setPhone] = useState(worker.phone ?? "");
   const [wage, setWage] = useState(String(worker.daily_wage ?? ""));
   const [isTemp, setIsTemp] = useState(worker.is_temporary ?? false);
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [photoPreview, setPhotoPreview] = useState<string | null>(worker.photo_url ?? null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
@@ -802,6 +804,19 @@ function EditWorkerModal({ worker, onClose, onSaved }: {
     if (!wageNum || wageNum <= 0) { setError("ค่าแรงต้องมากกว่า 0"); return; }
     setSaving(true);
 
+    // Upload new photo if selected
+    let newPhotoUrl: string | undefined = undefined;
+    if (photoFile) {
+      const ext = photoFile.type === "image/png" ? "png" : "jpg";
+      const fileName = `workers/${worker.id}/${Date.now()}.${ext}`;
+      const { data: uploadData } = await supabase.storage
+        .from("worker-photos")
+        .upload(fileName, photoFile, { contentType: photoFile.type, upsert: false });
+      if (uploadData) {
+        newPhotoUrl = supabase.storage.from("worker-photos").getPublicUrl(fileName).data.publicUrl;
+      }
+    }
+
     const patch: Partial<Worker> = {
       name_th: nameTh.trim(),
       name_en: nameEn.trim() || undefined,
@@ -810,6 +825,7 @@ function EditWorkerModal({ worker, onClose, onSaved }: {
       phone: phone.trim() || undefined,
       daily_wage: wageNum,
       is_temporary: isTemp,
+      ...(newPhotoUrl ? { photo_url: newPhotoUrl } : {}),
     };
 
     const dbPatch = {
@@ -820,6 +836,7 @@ function EditWorkerModal({ worker, onClose, onSaved }: {
       phone: patch.phone ?? null,
       daily_wage: patch.daily_wage,
       is_temporary: patch.is_temporary,
+      ...(newPhotoUrl ? { photo_url: newPhotoUrl } : {}),
     };
 
     const { error: dbError } = await supabase
@@ -858,6 +875,41 @@ function EditWorkerModal({ worker, onClose, onSaved }: {
         {error && <div style={{ background: "#FEF2F2", color: "#B91C1C", borderRadius: 8, padding: "10px 14px", marginBottom: 16, fontSize: 13 }}>{error}</div>}
 
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          {/* Photo */}
+          <div style={{ display: "flex", justifyContent: "center", marginBottom: 4 }}>
+            <label style={{ cursor: "pointer", position: "relative" }}>
+              <div style={{
+                width: 80, height: 80, borderRadius: "50%",
+                background: "var(--surface)", border: `2px solid ${photoPreview && photoFile ? "var(--brand-violet)" : "var(--border)"}`,
+                display: "flex", alignItems: "center", justifyContent: "center",
+                overflow: "hidden",
+              }}>
+                {photoPreview ? (
+                  <img src={photoPreview} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                ) : (
+                  <span style={{ fontSize: 28, fontWeight: 700, color: "var(--text-muted)" }}>{worker.name_th?.[0]}</span>
+                )}
+              </div>
+              <div style={{
+                position: "absolute", bottom: 0, right: 0,
+                width: 24, height: 24, borderRadius: "50%",
+                background: "var(--brand-violet)", color: "white",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                boxShadow: "0 1px 4px rgba(0,0,0,0.2)",
+              }}>
+                <ImagePlus size={13} />
+              </div>
+              <input type="file" accept="image/*" style={{ display: "none" }}
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  setPhotoFile(file);
+                  setPhotoPreview(URL.createObjectURL(file));
+                }}
+              />
+            </label>
+          </div>
+
           {field("ชื่อภาษาไทย · Thai name *", nameTh, setNameTh, { placeholder: "ชื่อ นามสกุล" })}
           {field("ชื่อภาษาอังกฤษ · English name", nameEn, setNameEn, { placeholder: "First Last" })}
           {field("ตำแหน่งภาษาไทย · Thai job title", roleTh, setRoleTh, { placeholder: "ช่างปูน" })}
