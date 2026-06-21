@@ -122,7 +122,7 @@ export function MonthlyReportClient({
         <div style={{ color: "rgba(255,255,255,0.45)", fontSize: 11, marginBottom: 14 }}>
           Total monthly cost · {monthStart} → {monthEnd}
         </div>
-        <div style={{ color: "#4ADE80", fontSize: 32, fontWeight: 700, marginBottom: 14 }}>
+        <div style={{ color: "#22C55E", fontSize: 32, fontWeight: 700, marginBottom: 14 }}>
           ฿{formatCurrency(totals.totalCost)}
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
@@ -182,7 +182,7 @@ export function MonthlyReportClient({
             <p style={{ fontSize: 13, color: "var(--text-muted)" }}>
               Monthly report · {monthStart} → {monthEnd}
               {isCurrentMonth && (
-                <span style={{ marginLeft: 8, background: "#ECFEFF", color: "#0E7490", borderRadius: 6, padding: "2px 8px", fontSize: 12, fontWeight: 600 }}>
+                <span style={{ marginLeft: 8, background: "#ECFEFF", color: "#06B6D4", borderRadius: 6, padding: "2px 8px", fontSize: 12, fontWeight: 600 }}>
                   เดือนนี้ · Current
                 </span>
               )}
@@ -353,7 +353,7 @@ export function MonthlyReportClient({
                     <span className="cell-en">{w.nameEn}</span>
                   </span>
                   <span style={{ fontSize: 15, fontWeight: 600 }}>{w.workDays}</span>
-                  <span style={{ fontSize: 15, color: w.halfDays > 0 ? "#D97706" : "var(--text-muted)" }}>{w.halfDays}</span>
+                  <span style={{ fontSize: 15, color: w.halfDays > 0 ? "#F59E0B" : "var(--text-muted)" }}>{w.halfDays}</span>
                   <span style={{ fontSize: 15, color: w.lateDays > 0 ? "#F97316" : "var(--text-muted)" }}>{w.lateDays}</span>
                   <span style={{ fontSize: 16, fontWeight: 700 }}>฿{formatCurrency(w.totalWage)}</span>
                 </div>
@@ -403,7 +403,7 @@ function MobileMonthly({ targetMonth, siteData, totals, monthStart, monthEnd, is
           <div style={{ textAlign: "center" }}>
             <div style={{ fontSize: 17, fontWeight: 700 }}>{targetMonth}</div>
             {isCurrentMonth && (
-              <div style={{ fontSize: 11, color: "#0E7490", fontWeight: 600 }}>เดือนนี้ · Current</div>
+              <div style={{ fontSize: 11, color: "#06B6D4", fontWeight: 600 }}>เดือนนี้ · Current</div>
             )}
           </div>
           <button onClick={onNext} disabled={isFutureMonth} style={{ background: "none", border: "none", cursor: isFutureMonth ? "not-allowed" : "pointer", padding: 4, opacity: isFutureMonth ? 0.4 : 1 }}>
@@ -416,7 +416,7 @@ function MobileMonthly({ targetMonth, siteData, totals, monthStart, monthEnd, is
           <div style={{ color: "rgba(255,255,255,0.7)", fontSize: 12, marginBottom: 6 }}>
             ค่าใช้จ่ายรวมเดือน · Total monthly cost
           </div>
-          <div style={{ color: "#4ADE80", fontSize: 28, fontWeight: 700, marginBottom: 12 }}>
+          <div style={{ color: "#22C55E", fontSize: 28, fontWeight: 700, marginBottom: 12 }}>
             ฿{formatCurrency(totals.totalCost)}
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>

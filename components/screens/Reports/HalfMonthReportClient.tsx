@@ -37,7 +37,7 @@ export function HalfMonthReportClient({ report, today }: Props) {
       }}>
         <div style={{ color: "rgba(255,255,255,0.7)", fontSize: 13, marginBottom: 2 }}>สุทธิที่ต้องจ่าย</div>
         <div style={{ color: "rgba(255,255,255,0.45)", fontSize: 11, marginBottom: 14 }}>Net payable · {periodStart} → {periodEnd}</div>
-        <div style={{ color: "#4ADE80", fontSize: 32, fontWeight: 700, marginBottom: 14 }}>
+        <div style={{ color: "#22C55E", fontSize: 32, fontWeight: 700, marginBottom: 14 }}>
           ฿{formatCurrency(totals.totalNetPay)}
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
@@ -60,7 +60,7 @@ export function HalfMonthReportClient({ report, today }: Props) {
         {[
           { labelTh: "พนักงาน",     labelEn: "Workers",    value: String(totals.totalWorkers),  color: "#1E3A8A" },
           { labelTh: "วันเต็ม",     labelEn: "Full days",  value: String(totals.totalFullDays), color: "var(--text-primary)" },
-          { labelTh: "ครึ่งวัน",    labelEn: "Half days",  value: String(totals.totalHalfDays), color: "#D97706" },
+          { labelTh: "ครึ่งวัน",    labelEn: "Half days",  value: String(totals.totalHalfDays), color: "#F59E0B" },
         ].map(({ labelTh, labelEn, value, color }) => (
           <div key={labelTh} style={{ display: "flex", justifyContent: "space-between", padding: "7px 0", borderBottom: "1px solid var(--border)", fontSize: 14 }}>
             <span style={{ color: "var(--text-muted)" }}>{labelTh}<br /><small>{labelEn}</small></span>

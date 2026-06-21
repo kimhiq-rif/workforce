@@ -82,14 +82,14 @@ export function DailyReportClient({ report, today }: Props) {
 
       {corrections.length > 0 && (
         <section className="attention-card">
-          <h2 style={{ color: "#7C3AED" }}>🔧 ติดตามการแก้ไข <span>Corrections today</span></h2>
+          <h2 style={{ color: "#6C5CE7" }}>🔧 ติดตามการแก้ไข <span>Corrections today</span></h2>
           {corrections.map((c) => (
             <div key={c.id} style={{ padding: "8px 0", borderBottom: "1px solid #EDE9FE", fontSize: 13 }}>
-              <div style={{ color: "#7C3AED", fontWeight: 600 }}>{c.entityType} · {c.fieldName}</div>
+              <div style={{ color: "#6C5CE7", fontWeight: 600 }}>{c.entityType} · {c.fieldName}</div>
               <div style={{ color: "var(--text-muted)", fontSize: 12 }}>
                 <span style={{ textDecoration: "line-through" }}>{c.originalValue ?? "-"}</span>
                 {" → "}
-                <span style={{ color: "#7C3AED", fontWeight: 600 }}>{c.correctedValue ?? "-"}</span>
+                <span style={{ color: "#6C5CE7", fontWeight: 600 }}>{c.correctedValue ?? "-"}</span>
               </div>
               <div style={{ fontSize: 11, color: "var(--text-muted)" }}>{c.reason}</div>
             </div>

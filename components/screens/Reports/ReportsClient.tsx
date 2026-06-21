@@ -121,8 +121,8 @@ export function ReportsClient({ sites, attendance, receipts, dayStatuses, today,
           <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12, marginBottom: 28 }}>
             {[
               { href: "/reports",          icon: FileText,   th: "รายงานประจำวัน",    en: "Daily reports",      color: "#1E3A8A" },
-              { href: "/reports/halfmonth", icon: CreditCard, th: "เงินเดือนครึ่งเดือน", en: "Half-month payroll", color: "#7C3AED" },
-              { href: "/reports/monthly",   icon: TrendingUp, th: "สรุปรายเดือน",      en: "Monthly summary",    color: "#0E7490" },
+              { href: "/reports/halfmonth", icon: CreditCard, th: "เงินเดือนครึ่งเดือน", en: "Half-month payroll", color: "#6C5CE7" },
+              { href: "/reports/monthly",   icon: TrendingUp, th: "สรุปรายเดือน",      en: "Monthly summary",    color: "#06B6D4" },
             ].map((r) => {
               const Icon = r.icon;
               return (
@@ -283,8 +283,8 @@ function MobileReports({ siteReports, blocked, ready, today, onSend, sendingId }
         {/* Report type nav */}
         <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 4 }}>
           {[
-            { href: "/reports/halfmonth", th: "เงินเดือนครึ่งเดือน", en: "Half-month payroll", color: "#7C3AED" },
-            { href: "/reports/monthly",   th: "สรุปรายเดือน",       en: "Monthly summary",    color: "#0E7490" },
+            { href: "/reports/halfmonth", th: "เงินเดือนครึ่งเดือน", en: "Half-month payroll", color: "#6C5CE7" },
+            { href: "/reports/monthly",   th: "สรุปรายเดือน",       en: "Monthly summary",    color: "#06B6D4" },
           ].map((r) => (
             <Link
               key={r.href}

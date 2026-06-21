@@ -87,6 +87,12 @@ export function SiteDetailClient({
   const [moveStageModal, setMoveStageModal] = useState(false);
   const [moveStageNote, setMoveStageNote] = useState("");
   const [movingStage, setMovingStage] = useState(false);
+  const [stageTransition, setStageTransition] = useState<{
+    doneStage: SiteStage;
+    nextStage: SiteStage | null;
+    reportId: string;
+    phase: "out" | "in" | "done";
+  } | null>(null);
 
   const currentStage = stages.find((s) => s.is_current) ?? null;
   const isLongProject = (site as any).project_type === "long";
@@ -102,8 +108,12 @@ export function SiteDetailClient({
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Error");
+      const nextStage = stages.find((s) => s.id === data.next_stage_id) ?? null;
       setMoveStageModal(false);
-      router.push(`/reports/stage/${data.stage_report_id}`);
+      setStageTransition({ doneStage: currentStage, nextStage, reportId: data.stage_report_id, phase: "out" });
+      // phase out → in → navigate
+      setTimeout(() => setStageTransition((prev) => prev ? { ...prev, phase: "in" } : null), 1200);
+      setTimeout(() => { router.push(`/reports/stage/${data.stage_report_id}`); }, 2800);
     } catch (err: any) {
       showToast(err.message ?? "Error");
     } finally {
@@ -855,6 +865,97 @@ export function SiteDetailClient({
             </button>
           </div>
         </div>
+      )}
+
+      {/* Move Stage transition animation — fullscreen centered */}
+      {stageTransition && (
+        <>
+          <style>{`
+            @keyframes stageShatter {
+              0%   { opacity: 1; transform: scale(1) rotate(0deg); }
+              40%  { opacity: 0.7; transform: scale(1.08) rotate(-1deg); }
+              100% { opacity: 0; transform: scale(0.6) rotate(3deg) translateY(-30px); }
+            }
+            @keyframes stageBuildIn {
+              0%   { opacity: 0; transform: scale(0.7) translateY(20px); }
+              60%  { opacity: 1; transform: scale(1.04) translateY(-4px); }
+              100% { opacity: 1; transform: scale(1) translateY(0); }
+            }
+            @keyframes victoryPulse {
+              0%   { transform: scale(0); opacity: 0; }
+              50%  { transform: scale(1.2); opacity: 1; }
+              100% { transform: scale(1); opacity: 1; }
+            }
+            @keyframes fadeOverlay {
+              0%   { opacity: 0; }
+              20%  { opacity: 1; }
+              85%  { opacity: 1; }
+              100% { opacity: 0; }
+            }
+            .stage-shatter { animation: stageShatter 1.0s ease-in forwards; }
+            .stage-build-in { animation: stageBuildIn 0.9s cubic-bezier(0.34, 1.56, 0.64, 1) forwards; }
+            .victory-pulse { animation: victoryPulse 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards; }
+          `}</style>
+          <div style={{
+            position: "fixed", inset: 0, zIndex: 2000,
+            background: "rgba(10, 10, 30, 0.92)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            flexDirection: "column", gap: 0,
+            animation: "fadeOverlay 2.8s ease forwards",
+          }}>
+            {/* Phase OUT — completed stage shatters */}
+            {stageTransition.phase === "out" && (
+              <div className="stage-shatter" style={{ textAlign: "center" }}>
+                <div style={{
+                  width: 80, height: 80, borderRadius: "50%",
+                  background: stageTransition.doneStage.color,
+                  margin: "0 auto 20px", opacity: 0.9,
+                  boxShadow: `0 0 40px ${stageTransition.doneStage.color}80`,
+                }} />
+                <p style={{ color: "rgba(255,255,255,0.5)", fontSize: 13, letterSpacing: 3, textTransform: "uppercase", marginBottom: 8 }}>
+                  ขั้นตอนเสร็จสิ้น · Stage complete
+                </p>
+                <h2 style={{ color: "white", fontSize: 32, fontWeight: 700, margin: 0 }}>
+                  {stageTransition.doneStage.name_th}
+                </h2>
+                <p style={{ color: "rgba(255,255,255,0.6)", fontSize: 16 }}>{stageTransition.doneStage.name_en}</p>
+              </div>
+            )}
+
+            {/* Phase IN — next stage builds */}
+            {stageTransition.phase === "in" && (
+              <div style={{ textAlign: "center" }}>
+                <div className="victory-pulse" style={{
+                  fontSize: 64, marginBottom: 16, display: "block",
+                }}>🚀</div>
+                {stageTransition.nextStage ? (
+                  <div className="stage-build-in">
+                    <p style={{ color: "rgba(255,255,255,0.5)", fontSize: 13, letterSpacing: 3, textTransform: "uppercase", marginBottom: 8 }}>
+                      ขั้นตอนใหม่ · New stage
+                    </p>
+                    <div style={{
+                      width: 80, height: 80, borderRadius: "50%",
+                      background: stageTransition.nextStage.color,
+                      margin: "0 auto 20px",
+                      boxShadow: `0 0 60px ${stageTransition.nextStage.color}90`,
+                    }} />
+                    <h2 style={{ color: "white", fontSize: 32, fontWeight: 700, margin: 0 }}>
+                      {stageTransition.nextStage.name_th}
+                    </h2>
+                    <p style={{ color: "rgba(255,255,255,0.6)", fontSize: 16 }}>{stageTransition.nextStage.name_en}</p>
+                  </div>
+                ) : (
+                  <div className="stage-build-in">
+                    <p style={{ color: "#22C55E", fontSize: 18, fontWeight: 600 }}>โครงการเสร็จสมบูรณ์ · Project complete</p>
+                  </div>
+                )}
+                <p style={{ color: "rgba(255,255,255,0.3)", fontSize: 12, marginTop: 24 }}>
+                  กำลังสร้างรายงาน… · Generating report…
+                </p>
+              </div>
+            )}
+          </div>
+        </>
       )}
 
       {/* Move Stage modal */}
