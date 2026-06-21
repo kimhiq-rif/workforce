@@ -5,6 +5,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { DashboardShell } from "@/components/layout/DashboardShell";
+import { getBilingualLabel, useLangMode } from "@/components/layout/useLangMode";
 import { Clock, Shield, Phone, Users, Languages, ChevronDown, Check, LogOut, Eye, EyeOff, UserCog, Copy, KeyRound } from "lucide-react";
 import { formatCurrency } from "@/lib/format";
 
@@ -623,13 +624,16 @@ function TimeField({ label, value, onChange }: { label: string; value: string; o
 
 function MobileSettings({ sections, sectionContent, profile, onSignOut }: any) {
   const [open, setOpen] = useState<string | null>(null);
+  const langMode = useLangMode();
+  const title = getBilingualLabel(langMode, "การตั้งค่า", "Settings");
+  const signOut = getBilingualLabel(langMode, "ออกจากระบบ", "Sign out");
 
   return (
     <div>
       <div className="mobile-topbar">
         <div style={{ flex: 1 }}>
-          <h1 style={{ color: "white" }}>การตั้งค่า</h1>
-          <p style={{ color: "rgba(255,255,255,0.75)" }}>Settings</p>
+          <h1 style={{ color: "white" }}>{title.primary}</h1>
+          {title.secondary && <p style={{ color: "rgba(255,255,255,0.75)" }}>{title.secondary}</p>}
         </div>
       </div>
 
@@ -647,6 +651,7 @@ function MobileSettings({ sections, sectionContent, profile, onSignOut }: any) {
         {sections.map((s: any) => {
           const Icon = s.icon;
           const isOpen = open === s.key;
+          const label = getBilingualLabel(langMode, s.th, s.en);
           return (
             <div key={s.key} style={{ background: "white", borderRadius: 12, border: "1px solid var(--border)", overflow: "hidden" }}>
               <button
@@ -661,8 +666,8 @@ function MobileSettings({ sections, sectionContent, profile, onSignOut }: any) {
                   <Icon size={20} />
                 </span>
                 <span style={{ flex: 1 }}>
-                  <strong style={{ display: "block", fontSize: 15 }}>{s.th}</strong>
-                  <small style={{ color: "var(--text-muted)", fontSize: 12 }}>{s.en}</small>
+                  <strong style={{ display: "block", fontSize: 15 }}>{label.primary}</strong>
+                  {label.secondary && <small style={{ color: "var(--text-muted)", fontSize: 12 }}>{label.secondary}</small>}
                 </span>
                 <ChevronDown size={20} color="var(--text-muted)" style={{ transition: "transform 0.2s", transform: isOpen ? "rotate(180deg)" : "none" }} />
               </button>
@@ -682,7 +687,7 @@ function MobileSettings({ sections, sectionContent, profile, onSignOut }: any) {
           style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: "14px", background: "#FEF2F2", border: "1px solid #FECACA", borderRadius: 12, color: "#B91C1C", cursor: "pointer", fontSize: 15, fontWeight: 600 }}
         >
           <LogOut size={20} />
-          ออกจากระบบ · Sign out
+          {signOut.secondary ? `${signOut.primary} · ${signOut.secondary}` : signOut.primary}
         </button>
       </div>
     </div>

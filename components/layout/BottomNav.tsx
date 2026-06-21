@@ -4,6 +4,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Home, Users, QrCode, MapPin, MoreHorizontal } from "lucide-react";
+import { getBilingualLabel, useLangMode } from "@/components/layout/useLangMode";
 
 const BOTTOM_ITEMS = [
   { href: "/",          icon: Home,          th: "แดชบอร์ด", en: "Dashboard" },
@@ -15,6 +16,7 @@ const BOTTOM_ITEMS = [
 
 export function BottomNav() {
   const pathname = usePathname();
+  const langMode = useLangMode();
 
   function isActive(href: string) {
     if (href === "/") return pathname === "/";
@@ -23,17 +25,20 @@ export function BottomNav() {
 
   return (
     <nav className="bottom-nav mobile-only" aria-label="Mobile navigation">
-      {BOTTOM_ITEMS.map(({ href, icon: Icon, th, en, accent }) => (
-        <Link
-          key={href}
-          href={href}
-          className={`bottom-nav-item ${accent ? (isActive(href) ? "scan-active" : "") : isActive(href) ? "active" : ""}`}
-        >
-          <Icon size={22} strokeWidth={1.8} />
-          <span>{th}</span>
-          <small>{en}</small>
-        </Link>
-      ))}
+      {BOTTOM_ITEMS.map(({ href, icon: Icon, th, en, accent }) => {
+        const label = getBilingualLabel(langMode, th, en);
+        return (
+          <Link
+            key={href}
+            href={href}
+            className={`bottom-nav-item ${accent ? (isActive(href) ? "scan-active" : "") : isActive(href) ? "active" : ""}`}
+          >
+            <Icon size={22} strokeWidth={1.8} />
+            <span>{label.primary}</span>
+            {label.secondary && <small>{label.secondary}</small>}
+          </Link>
+        );
+      })}
     </nav>
   );
 }
