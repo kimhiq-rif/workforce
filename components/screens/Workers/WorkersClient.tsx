@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 
 import { createClient } from "@/lib/supabase/client";
 import { DashboardShell } from "@/components/layout/DashboardShell";
-import { Search, CirclePlus, ChevronRight, UserCheck, Clock, Users, X, Check } from "lucide-react";
+import { Search, CirclePlus, ChevronRight, UserCheck, X, Check, Printer, Trash2 } from "lucide-react";
 import { formatCurrency, formatTime } from "@/lib/format";
 import type { Worker } from "@/types/database";
 
@@ -72,6 +72,27 @@ export function WorkersClient({ workers: initialWorkers, todayAttendance, sites,
   function showToast(msg: string) {
     setToast(msg);
     setTimeout(() => setToast(""), 4500);
+  }
+
+  async function handleArchiveWorker(worker: WorkerWithSite) {
+    if (userRole !== "owner") return;
+    const ok = window.confirm(`Archive ${worker.name_en}? The worker will leave the active list, but history stays saved.`);
+    if (!ok) return;
+
+    const { error } = await supabase
+      .from("workers")
+      .update({ is_active: false })
+      .eq("id", worker.id)
+      .eq("owner_id", ownerId);
+
+    if (error) {
+      showToast("เกิดข้อผิดพลาด · Could not archive worker");
+      return;
+    }
+
+    setWorkers((prev) => prev.filter((w) => w.id !== worker.id));
+    if (selectedWorker?.id === worker.id) setSelectedWorker(null);
+    showToast(`เก็บ ${worker.name_th} แล้ว · Worker archived`);
   }
 
   const filtered = useMemo(() => {
@@ -225,13 +246,13 @@ export function WorkersClient({ workers: initialWorkers, todayAttendance, sites,
 
           {/* Workers table */}
           <div className="table-card">
-            <div className="table-header" style={{ gridTemplateColumns: "2.2fr 1.2fr 110px 110px 90px 80px" }}>
+            <div className="table-header" style={{ gridTemplateColumns: "2.2fr 1.2fr 110px 110px 90px 180px" }}>
               <span>พนักงาน <small>Worker</small></span>
               <span>ไซต์ <small>Site</small></span>
               <span>เวลาเข้า <small>Arrival</small></span>
               <span>สถานะ <small>Status</small></span>
               <span>ค่าแรง <small>Wage</small></span>
-              <span />
+              <span>פעולות <small>Actions</small></span>
             </div>
 
             {filtered.length === 0 ? (
@@ -242,11 +263,10 @@ export function WorkersClient({ workers: initialWorkers, todayAttendance, sites,
               filtered.map((worker) => {
                 const att = attendanceMap.get(worker.id);
                 return (
-                  <Link
+                  <div
                     key={worker.id}
-                    href={`/workers/${worker.id}`}
                     className={`table-row ${selectedWorker?.id === worker.id ? "selected" : ""}`}
-                    style={{ gridTemplateColumns: "2.2fr 1.2fr 110px 110px 90px 80px", display: "grid", padding: "12px 20px", gap: 12, alignItems: "center", cursor: "pointer", textDecoration: "none", color: "inherit" }}
+                    style={{ gridTemplateColumns: "2.2fr 1.2fr 110px 110px 90px 180px", display: "grid", padding: "12px 20px", gap: 12, alignItems: "center", cursor: "pointer", textDecoration: "none", color: "inherit" }}
                     onClick={() => setSelectedWorker(worker)}
                   >
                     <span style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -282,10 +302,45 @@ export function WorkersClient({ workers: initialWorkers, todayAttendance, sites,
                       {att?.wage_amount != null ? `฿${formatCurrency(att.wage_amount)}` : <span style={{ color: "var(--text-muted)", fontSize: 13 }}>-</span>}
                     </span>
 
-                    <span style={{ display: "flex", alignItems: "center", gap: 4, color: "var(--brand-primary)", fontSize: 13, fontWeight: 600 }}>
-                      ดู <ChevronRight size={16} />
+                    <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                      <button
+                        type="button"
+                        title="Open profile"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          router.push(`/workers/${worker.id}`);
+                        }}
+                        style={{ width: 34, height: 34, border: "1px solid #D9CCFD", borderRadius: 8, background: "#F2F4FF", color: "#6C5CE7", cursor: "pointer", display: "grid", placeItems: "center" }}
+                      >
+                        <UserCheck size={16} />
+                      </button>
+                      <button
+                        type="button"
+                        title="Print worker report"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          window.open(`/workers/${worker.id}/report`, "_blank");
+                        }}
+                        style={{ width: 34, height: 34, border: "1px solid #BFDBFE", borderRadius: 8, background: "#EFF6FF", color: "#1D4ED8", cursor: "pointer", display: "grid", placeItems: "center" }}
+                      >
+                        <Printer size={16} />
+                      </button>
+                      {userRole === "owner" && (
+                        <button
+                          type="button"
+                          title="Archive worker"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleArchiveWorker(worker);
+                          }}
+                          style={{ width: 34, height: 34, border: "1px solid #FECACA", borderRadius: 8, background: "#FEF2F2", color: "#B91C1C", cursor: "pointer", display: "grid", placeItems: "center" }}
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      )}
+                      <ChevronRight size={16} color="var(--text-muted)" />
                     </span>
-                  </Link>
+                  </div>
                 );
               })
             )}
@@ -303,6 +358,7 @@ export function WorkersClient({ workers: initialWorkers, todayAttendance, sites,
             search={search}
             setSearch={setSearch}
             onAdd={() => setShowAddModal(true)}
+            onArchive={handleArchiveWorker}
             isOwner={userRole === "owner"}
           />
         </div>
@@ -345,6 +401,7 @@ function WorkerStatusBadge({ att }: { att?: AttendanceRow }) {
 
 function MobileWorkers({
   workers, attendanceMap, stats, tab, setTab, search, setSearch, onAdd, isOwner,
+  onArchive,
 }: {
   workers: WorkerWithSite[];
   attendanceMap: Map<string, AttendanceRow>;
@@ -354,6 +411,7 @@ function MobileWorkers({
   search: string;
   setSearch: (v: string) => void;
   onAdd: () => void;
+  onArchive: (worker: WorkerWithSite) => void;
   isOwner: boolean;
 }) {
   return (
@@ -427,9 +485,8 @@ function MobileWorkers({
           {workers.map((worker) => {
             const att = attendanceMap.get(worker.id);
             return (
-              <Link
+              <div
                 key={worker.id}
-                href={`/workers/${worker.id}`}
                 className="mobile-worker-card"
                 style={{ textDecoration: "none", color: "inherit" }}
               >
@@ -446,8 +503,35 @@ function MobileWorkers({
                   </strong>
                   <WorkerStatusBadge att={att} />
                 </div>
-                <ChevronRight size={18} color="var(--text-muted)" />
-              </Link>
+                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  <button
+                    type="button"
+                    aria-label={`Open ${worker.name_en} profile`}
+                    onClick={() => window.location.assign(`/workers/${worker.id}`)}
+                    style={{ width: 34, height: 34, border: "1px solid #D9CCFD", borderRadius: 8, background: "#F2F4FF", color: "#6C5CE7", cursor: "pointer", display: "grid", placeItems: "center" }}
+                  >
+                    <UserCheck size={15} />
+                  </button>
+                  <button
+                    type="button"
+                    aria-label={`Open ${worker.name_en} report`}
+                    onClick={() => window.open(`/workers/${worker.id}/report`, "_blank")}
+                    style={{ width: 34, height: 34, border: "1px solid #BFDBFE", borderRadius: 8, background: "#EFF6FF", color: "#1D4ED8", cursor: "pointer", display: "grid", placeItems: "center" }}
+                  >
+                    <Printer size={15} />
+                  </button>
+                  {isOwner && (
+                    <button
+                      type="button"
+                      aria-label={`Archive ${worker.name_en}`}
+                      onClick={() => onArchive(worker)}
+                      style={{ width: 34, height: 34, border: "1px solid #FECACA", borderRadius: 8, background: "#FEF2F2", color: "#B91C1C", cursor: "pointer", display: "grid", placeItems: "center" }}
+                    >
+                      <Trash2 size={15} />
+                    </button>
+                  )}
+                </div>
+              </div>
             );
           })}
           {workers.length === 0 && (
