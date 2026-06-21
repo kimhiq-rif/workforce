@@ -4,8 +4,8 @@ import { useEffect, useState } from "react";
 import { IntroSplash } from "@/components/IntroSplash";
 
 const INTRO_SEEN_KEY = "workforce:intro-seen";
-const INTRO_DURATION_MS = 3800;
-const REDUCED_MOTION_DURATION_MS = 1300;
+const INTRO_DURATION_MS = 2150;
+const REDUCED_MOTION_DURATION_MS = 1100;
 
 export function IntroSplashGate() {
   const [showIntro, setShowIntro] = useState(false);
