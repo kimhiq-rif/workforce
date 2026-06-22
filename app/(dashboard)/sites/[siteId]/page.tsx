@@ -102,8 +102,17 @@ export default async function SiteDetailPage({ params }: Props) {
 
   const yesterdayWorkerIdSet = new Set((yesterdayWorkerIds ?? []).map((r) => r.worker_id));
 
+  // Today's owner note for this site (cleared at midnight reset)
+  const { data: dailyNote } = await supabase
+    .from("site_daily_notes")
+    .select("note")
+    .eq("site_id", params.siteId)
+    .eq("note_date", today)
+    .maybeSingle();
+
   return (
     <SiteDetailClient
+      dailyNote={dailyNote?.note ?? null}
       site={site}
       attendanceEvents={attendanceEvents ?? []}
       dayStatus={dayStatus}

@@ -105,6 +105,14 @@ export async function GET(req: NextRequest) {
     log.push(`reset ${activeSites.length} sites to waiting`);
   }
 
+  // ── 2b. Clear stale per-site daily notes (they self-expire by note_date) ─────
+
+  const { error: noteErr } = await supabase
+    .from("site_daily_notes")
+    .delete()
+    .lt("note_date", today);
+  if (!noteErr) log.push("cleared stale site_daily_notes");
+
   // ── 3. Get all active owners for notification checks ─────────────────────────
 
   const { data: owners } = await supabase

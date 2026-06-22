@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { DashboardShell } from "@/components/layout/DashboardShell";
+import { SiteDailyNote } from "@/components/screens/Sites/SiteDailyNote";
 import { SiteStatusBadge, siteStatusColor } from "@/components/ui/SiteStatusBadge";
 import {
   ChevronLeft, ChevronRight, Camera, MapPin, CloudRain,
@@ -49,6 +50,7 @@ interface SiteDetailClientProps {
   userId?: string;
   userRole?: string;
   stages?: SiteStage[];
+  dailyNote?: string | null;
 }
 
 export function SiteDetailClient({
@@ -65,6 +67,7 @@ export function SiteDetailClient({
   userId,
   userRole,
   stages = [],
+  dailyNote = null,
 }: SiteDetailClientProps) {
   const router = useRouter();
   const supabase = createClient();
@@ -703,6 +706,11 @@ export function SiteDetailClient({
   return (
     <>
       <DashboardShell rightPanel={rightPanel}>
+        <SiteDailyNote
+          siteId={site.id}
+          initialNote={dailyNote}
+          canEdit={userRole === "owner"}
+        />
         <div className="desktop-only">{mainContent}</div>
         <div className="mobile-only">
           <MobileSiteDetail
