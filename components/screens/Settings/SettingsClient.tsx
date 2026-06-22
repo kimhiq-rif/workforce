@@ -610,11 +610,6 @@ export function SettingsClient({ profile, workdaySettings, teamMembers, workers,
               label: "English primary",
               preview: <><strong style={{ fontSize: 16 }}>Hadsa</strong><small style={{ display: "block", color: "var(--text-muted)", fontSize: 12 }}>หัดสา · ชื่อไซต์</small></>,
             },
-            {
-              value: "th-only",
-              label: "Thai only",
-              preview: <><strong style={{ fontSize: 16 }}>หัดสา</strong></>,
-            },
           ] as const).map((opt) => {
             const isActive = langMode === opt.value;
             return (
