@@ -79,6 +79,20 @@ export default async function MonthlyReportPage({ searchParams }: Props) {
         .eq("is_active", true)
     : { data: [] };
 
+  // Driver cash float given this month
+  const { data: driverCashRaw } = await supabase
+    .from("driver_cash_entries")
+    .select("driver_user_id, amount, created_at, driver:driver_user_id(name_th, name_en)")
+    .eq("owner_id", ownerId)
+    .gte("created_at", `${monthStart}T00:00:00+07:00`)
+    .lte("created_at", `${monthEnd}T23:59:59+07:00`);
+
+  const driverCash = (driverCashRaw ?? []).map((d: any) => ({
+    driverId: d.driver_user_id,
+    amount: d.amount,
+    driver: Array.isArray(d.driver) ? (d.driver[0] ?? null) : d.driver,
+  }));
+
   // Overdue projects: current stage whose target_end_date is in the past
   const { data: overdueStagesRaw } = await supabase
     .from("site_stages")
@@ -102,6 +116,7 @@ export default async function MonthlyReportPage({ searchParams }: Props) {
       attendance={attendance ?? []}
       receipts={receipts ?? []}
       overdueProjects={overdueProjects}
+      driverCash={driverCash}
       workers={workers ?? []}
       targetMonth={targetMonth}
       monthStart={monthStart}

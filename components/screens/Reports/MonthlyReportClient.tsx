@@ -9,12 +9,14 @@ import { ChevronLeft, ChevronRight, TrendingUp, Users, FileText, AlertTriangle }
 import { formatCurrency } from "@/lib/format";
 import { MonthlySuppliersSection } from "@/components/screens/Reports/MonthlySuppliersSection";
 import { MonthlyNeedsAttention, type OverdueProject } from "@/components/screens/Reports/MonthlyNeedsAttention";
+import { MonthlyDriverCash } from "@/components/screens/Reports/MonthlyDriverCash";
 
 interface Props {
   sites: { id: string; name_th: string; name_en: string; status: string }[];
   attendance: { site_id: string; worker_id: string; event_date: string; wage_amount: number | null; status: string; is_late: boolean }[];
   receipts: { site_id: string | null; supplier_id: string | null; amount: number | null; status: string; supplier: { name_th: string; name_en: string } | null }[];
   overdueProjects: OverdueProject[];
+  driverCash: { driverId: string; amount: number | null; driver: { name_th: string; name_en: string } | null }[];
   workers: { id: string; name_th: string; name_en: string; assigned_site_id: string | null; daily_wage: number }[];
   targetMonth: string;
   monthStart: string;
@@ -44,7 +46,7 @@ function nextMonth(ym: string): string {
 }
 
 export function MonthlyReportClient({
-  sites, attendance, receipts, overdueProjects, workers, targetMonth, monthStart, monthEnd, today,
+  sites, attendance, receipts, overdueProjects, driverCash, workers, targetMonth, monthStart, monthEnd, today,
 }: Props) {
   const router = useRouter();
   const [selectedSite, setSelectedSite] = useState<string | null>(null);
@@ -370,6 +372,9 @@ export function MonthlyReportClient({
 
         {/* Suppliers section */}
         <MonthlySuppliersSection receipts={receipts} sites={sites} />
+
+        {/* Driver cash */}
+        <MonthlyDriverCash entries={driverCash} />
       </div>
 
       {/* Mobile */}
@@ -385,6 +390,7 @@ export function MonthlyReportClient({
           receipts={receipts}
           sites={sites}
           overdueProjects={overdueProjects}
+          driverCash={driverCash}
           onPrev={() => router.push(`/reports/monthly?month=${prevMonth(targetMonth)}`)}
           onNext={() => router.push(`/reports/monthly?month=${nextMonth(targetMonth)}`)}
         />
@@ -393,7 +399,7 @@ export function MonthlyReportClient({
   );
 }
 
-function MobileMonthly({ targetMonth, siteData, totals, monthStart, monthEnd, isCurrentMonth, isFutureMonth, receipts, sites, overdueProjects, onPrev, onNext }: any) {
+function MobileMonthly({ targetMonth, siteData, totals, monthStart, monthEnd, isCurrentMonth, isFutureMonth, receipts, sites, overdueProjects, driverCash, onPrev, onNext }: any) {
   return (
     <div>
       <div className="mobile-topbar">
@@ -476,6 +482,8 @@ function MobileMonthly({ targetMonth, siteData, totals, monthStart, monthEnd, is
         )}
 
         <MonthlySuppliersSection receipts={receipts} sites={sites} />
+
+        <MonthlyDriverCash entries={driverCash} />
       </div>
     </div>
   );
