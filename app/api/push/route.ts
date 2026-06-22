@@ -3,9 +3,11 @@
 // callers (crons, AttendanceReportFlow, DriverClient, ScanClient, SuppliersClient,
 // SiteDetailClient) keep working unchanged:
 //   { owner_id | user_id, title, body, url?, tag?, requireInteraction? }
-// Targeting:
-//   user_id  -> OneSignal external_id (set via OneSignal.login on the client)
-//   owner_id -> "owner_id" tag (set via OneSignal.User.addTag on the client)
+// Targeting: both map to OneSignal external_id (set via OneSignal.login).
+//   user_id  -> that specific user's devices
+//   owner_id -> the OWNER only. owner_id == the owner's users.id, and the owner
+//               logs in with external_id = their users.id, so this hits the owner
+//               alone — NOT field managers / drivers under the same owner.
 import { NextRequest, NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic";
@@ -39,15 +41,8 @@ export async function POST(req: NextRequest) {
   // Collapse/replace duplicates of the same kind, mirroring the old SW `tag`.
   if (tag) payload.web_push_topic = tag;
 
-  if (user_id) {
-    // Target a specific app user across all their devices.
-    payload.include_aliases = { external_id: [user_id] };
-  } else {
-    // Fan out to every device tagged with this owner_id.
-    payload.filters = [
-      { field: "tag", key: "owner_id", relation: "=", value: owner_id },
-    ];
-  }
+  // user_id targets that user; owner_id targets the owner (== owner's users.id).
+  payload.include_aliases = { external_id: [user_id ?? owner_id] };
 
   try {
     const res = await fetch(ONESIGNAL_API, {
