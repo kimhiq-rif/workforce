@@ -5,6 +5,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
 import { sendOneSignalPush } from "@/lib/send-push";
+import { sitesMissingStageTarget } from "@/lib/stage-targets";
 
 export const dynamic = "force-dynamic";
 
@@ -136,24 +137,15 @@ export async function GET(req: NextRequest) {
       log.push(`${expiringWorkers.length} visa expiry alerts for owner ${ownerId}`);
     }
 
-    // ── 5. Stage target date missing ─────────────────────────────────────────────
+    // ── 5. Stage target date missing (current stage has no target_end_date) ──────
 
-    const { data: sitesWithoutStageTarget } = await supabase
-      .from("sites")
-      .select("id, name_th")
-      .eq("owner_id", ownerId)
-      .eq("is_active", true)
-      .eq("project_type", "long")
-      .is("current_stage_target_date", null);
-
-    if (sitesWithoutStageTarget?.length) {
-      for (const s of sitesWithoutStageTarget) {
-        pushQueue.push({
-          title: `📅 ยังไม่กำหนดเป้าหมายขั้น`,
-          body: `${s.name_th} — Set target date for current stage`,
-          url: `/sites/${s.id}`,
-        });
-      }
+    const missingTargets = await sitesMissingStageTarget(supabase, ownerId);
+    for (const s of missingTargets) {
+      pushQueue.push({
+        title: `📅 ยังไม่กำหนดเป้าหมายขั้น`,
+        body: `${s.siteNameTh} — Set target date for current stage`,
+        url: `/sites/${s.siteId}`,
+      });
     }
 
     // ── 6. Calendar reminders for tomorrow ───────────────────────────────────────

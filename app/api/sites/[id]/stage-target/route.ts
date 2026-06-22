@@ -9,9 +9,9 @@ export async function PATCH(
   req: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  const { user, ownerId, serviceClient } = await getAppUserContext();
+  const { user, profile, ownerId, serviceClient } = await getAppUserContext();
   if (!user || !ownerId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  if (user.role !== "owner") return NextResponse.json({ error: "Owner only" }, { status: 403 });
+  if (profile?.role !== "owner") return NextResponse.json({ error: "Owner only" }, { status: 403 });
 
   const { target_end_date } = await req.json();
   if (!target_end_date) return NextResponse.json({ error: "target_end_date required" }, { status: 400 });
