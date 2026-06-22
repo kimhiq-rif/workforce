@@ -52,14 +52,23 @@ export default async function MonthlyReportPage({ searchParams }: Props) {
     : { data: [] };
 
   // Receipts for the month
-  const { data: receipts } = siteIds.length
+  const { data: receiptsRaw } = siteIds.length
     ? await supabase
         .from("receipts")
-        .select("site_id, amount, status")
+        .select("site_id, supplier_id, amount, status, supplier:supplier_id(name_th, name_en)")
         .in("site_id", siteIds)
         .gte("created_at", `${monthStart}T00:00:00+07:00`)
         .lte("created_at", `${monthEnd}T23:59:59+07:00`)
     : { data: [] };
+
+  // Flatten the joined supplier (Supabase returns it as an array)
+  const receipts = (receiptsRaw ?? []).map((r: any) => ({
+    site_id: r.site_id,
+    supplier_id: r.supplier_id,
+    amount: r.amount,
+    status: r.status,
+    supplier: Array.isArray(r.supplier) ? (r.supplier[0] ?? null) : r.supplier,
+  }));
 
   // Workers
   const { data: workers } = siteIds.length

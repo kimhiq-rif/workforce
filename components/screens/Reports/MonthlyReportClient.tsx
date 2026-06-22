@@ -7,11 +7,12 @@ import { useRouter } from "next/navigation";
 import { DashboardShell } from "@/components/layout/DashboardShell";
 import { ChevronLeft, ChevronRight, TrendingUp, Users, FileText, AlertTriangle } from "lucide-react";
 import { formatCurrency } from "@/lib/format";
+import { MonthlySuppliersSection } from "@/components/screens/Reports/MonthlySuppliersSection";
 
 interface Props {
   sites: { id: string; name_th: string; name_en: string; status: string }[];
   attendance: { site_id: string; worker_id: string; event_date: string; wage_amount: number | null; status: string; is_late: boolean }[];
-  receipts: { site_id: string; amount: number | null; status: string }[];
+  receipts: { site_id: string | null; supplier_id: string | null; amount: number | null; status: string; supplier: { name_th: string; name_en: string } | null }[];
   workers: { id: string; name_th: string; name_en: string; assigned_site_id: string | null; daily_wage: number }[];
   targetMonth: string;
   monthStart: string;
@@ -361,6 +362,9 @@ export function MonthlyReportClient({
             </div>
           </div>
         )}
+
+        {/* Suppliers section */}
+        <MonthlySuppliersSection receipts={receipts} sites={sites} />
       </div>
 
       {/* Mobile */}
@@ -373,6 +377,8 @@ export function MonthlyReportClient({
           monthEnd={monthEnd}
           isCurrentMonth={isCurrentMonth}
           isFutureMonth={isFutureMonth}
+          receipts={receipts}
+          sites={sites}
           onPrev={() => router.push(`/reports/monthly?month=${prevMonth(targetMonth)}`)}
           onNext={() => router.push(`/reports/monthly?month=${nextMonth(targetMonth)}`)}
         />
@@ -381,7 +387,7 @@ export function MonthlyReportClient({
   );
 }
 
-function MobileMonthly({ targetMonth, siteData, totals, monthStart, monthEnd, isCurrentMonth, isFutureMonth, onPrev, onNext }: any) {
+function MobileMonthly({ targetMonth, siteData, totals, monthStart, monthEnd, isCurrentMonth, isFutureMonth, receipts, sites, onPrev, onNext }: any) {
   return (
     <div>
       <div className="mobile-topbar">
@@ -459,6 +465,8 @@ function MobileMonthly({ targetMonth, siteData, totals, monthStart, monthEnd, is
             ไม่มีข้อมูลในเดือนนี้ · No data for this month
           </div>
         )}
+
+        <MonthlySuppliersSection receipts={receipts} sites={sites} />
       </div>
     </div>
   );
