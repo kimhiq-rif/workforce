@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { DashboardShell } from "@/components/layout/DashboardShell";
 import { SiteDailyNote } from "@/components/screens/Sites/SiteDailyNote";
+import { StageTargetBadge } from "@/components/screens/Sites/StageTargetBadge";
 import { SiteStatusBadge, siteStatusColor } from "@/components/ui/SiteStatusBadge";
 import {
   ChevronLeft, ChevronRight, Camera, MapPin, CloudRain,
@@ -477,27 +478,14 @@ export function SiteDetailClient({
             {site.status === "live" && <span className="live-dot" />}
           </h1>
           <p style={{ fontSize: 14, color: "var(--text-muted)" }}>{site.name_en} · Site detail</p>
-          {/* Stage target badge */}
-          {isLongProject && currentStage && (() => {
-            if (!currentStage.target_end_date) return null;
-            const today = new Date();
-            const target = new Date(currentStage.target_end_date);
-            const diffDays = Math.ceil((target.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-            const overdue = diffDays < 0;
-            return (
-              <div style={{ display: "inline-flex", alignItems: "center", gap: 6, marginTop: 4,
-                background: overdue ? "#FEF2F2" : "#F0FDF4",
-                border: `1px solid ${overdue ? "#FECACA" : "#86EFAC"}`,
-                borderRadius: 20, padding: "3px 10px", fontSize: 12, fontWeight: 600,
-                color: overdue ? "#B91C1C" : "#166534",
-              }}>
-                <div style={{ width: 6, height: 6, borderRadius: "50%", background: currentStage.color }} />
-                {currentStage.name_en} · {overdue
-                  ? `Stage overdue ${Math.abs(diffDays)} days`
-                  : `Stage target: ${diffDays} days remaining`}
-              </div>
-            );
-          })()}
+          {/* Stage target badge — shows target, or owner control to set one */}
+          {isLongProject && currentStage && (
+            <StageTargetBadge
+              siteId={site.id}
+              stage={currentStage}
+              canEdit={userRole === "owner"}
+            />
+          )}
         </div>
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
           <SiteStatusBadge status={site.status as any} />
@@ -1301,6 +1289,14 @@ function MobileSiteDetail({
       </div>
 
       <div style={{ padding: "12px 16px", display: "flex", flexDirection: "column", gap: 12 }}>
+        {/* Stage target — shows target, or owner control to set one */}
+        {(site as any).project_type === "long" && currentStage && (
+          <StageTargetBadge
+            siteId={site.id}
+            stage={currentStage}
+            canEdit={userRole === "owner"}
+          />
+        )}
         {/* Stats */}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>
           <div className="mini-stat">
