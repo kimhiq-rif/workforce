@@ -27,8 +27,8 @@ export default async function SuppliersPage() {
   let receiptsQuery = supabase
     .from("receipts")
     .select(`
-      id, amount, status, category, description, photo_url,
-      payment_type, gps_lat, gps_lng, submitted_by, created_at,
+      id, site_id, supplier_id, receipt_number, amount, status, category, description, notes, photo_url,
+      payment_type, paid_from_driver_cash, gps_lat, gps_lng, submitted_by, created_at,
       site:site_id(id, name_th, name_en),
       supplier:supplier_id(id, name_th, name_en)
     `)

@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Users, TrendingUp, Minus, ArrowDownCircle } from "lucide-react";
+import { ArrowDownCircle, Download, Minus, TrendingUp, Users } from "lucide-react";
 import { DashboardShell } from "@/components/layout/DashboardShell";
 import { formatCurrency } from "@/lib/format";
 import type { HalfMonthReportData, WorkerPayrollRow } from "@/lib/halfmonth-report";
@@ -99,22 +100,45 @@ export function HalfMonthReportClient({ report, today }: Props) {
           <p style={{ fontSize: 15, color: "var(--text-muted)", fontWeight: 600 }}>{periodLabel}</p>
           <p style={{ fontSize: 13, color: "var(--text-muted)" }}>Half-Month Payroll · {periodStart} → {periodEnd}</p>
         </div>
-        <input
-          type="date"
-          value={today}
-          max={today}
-          onChange={(e) => handleDateChange(e.target.value)}
-          style={{
-            padding: "9px 14px",
-            border: "2px solid #1E3A8A",
-            borderRadius: 10,
-            fontSize: 14,
-            color: "#1E3A8A",
-            fontWeight: 600,
-            outline: "none",
-            background: "white",
-          }}
-        />
+        <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+          <a
+            href={`/api/reports/halfmonth/pdf?date=${periodEnd}`}
+            target="_blank"
+            rel="noreferrer"
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 8,
+              padding: "9px 14px",
+              border: "2px solid #FF6A00",
+              borderRadius: 10,
+              color: "#1E3A8A",
+              fontSize: 14,
+              fontWeight: 700,
+              textDecoration: "none",
+              background: "white",
+            }}
+          >
+            <Download size={17} strokeWidth={2.2} />
+            PDF
+          </a>
+          <input
+            type="date"
+            value={today}
+            max={today}
+            onChange={(e) => handleDateChange(e.target.value)}
+            style={{
+              padding: "9px 14px",
+              border: "2px solid #1E3A8A",
+              borderRadius: 10,
+              fontSize: 14,
+              color: "#1E3A8A",
+              fontWeight: 600,
+              outline: "none",
+              background: "white",
+            }}
+          />
+        </div>
       </div>
 
       {/* Metric cards */}
@@ -235,8 +259,6 @@ export function HalfMonthReportClient({ report, today }: Props) {
     </DashboardShell>
   );
 }
-
-import Link from "next/link";
 
 function PayrollRow({ w, periodStart, periodEnd }: { w: WorkerPayrollRow; periodStart: string; periodEnd: string }) {
   return (

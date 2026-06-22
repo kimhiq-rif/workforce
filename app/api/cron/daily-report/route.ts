@@ -152,7 +152,7 @@ export async function GET(req: NextRequest) {
       continue;
     }
 
-    const pdf = generateDailyReportPdf(report);
+    const pdf = await generateDailyReportPdf(report);
     const pdfUpload = await uploadDailyReportPdf(supabase, ownerId, today, pdf);
     if (pdfUpload.error) {
       log.push(`owner ${ownerId} pdf upload error: ${pdfUpload.error}`);

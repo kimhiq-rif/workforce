@@ -40,12 +40,17 @@ type Supplier = {
 
 type ReceiptRow = {
   id: string;
-  amount: number;
+  site_id: string | null;
+  supplier_id: string | null;
+  receipt_number: string | null;
+  amount: number | null;
   status: string;
   category: string | null;
   description: string | null;
+  notes: string | null;
   photo_url: string | null;
   payment_type: string | null;
+  paid_from_driver_cash: boolean | null;
   gps_lat: number | null;
   gps_lng: number | null;
   submitted_by: string | null;
@@ -93,6 +98,58 @@ const RECEIPT_TABS = [
   { key: "disputed", th: "มีปัญหา",    en: "Disputed" },
 ];
 
+const RECEIPT_CONFIRMED_STATUSES = new Set(["approved", "paid"]);
+const RECEIPT_PENDING_STATUSES = new Set(["pending", "pending_qr", "pending_payment", "pending_sorting", "paid_pending_sorting", "waiting_owner_payment"]);
+const RECEIPT_PROBLEM_STATUSES = new Set(["needs_review", "disputed"]);
+
+type ReceiptClosingIssueType = "missing_supplier" | "missing_amount" | "missing_site" | "pending_action" | "problem_status";
+type ReceiptClosingIssue = { type: ReceiptClosingIssueType; label: string };
+
+function receiptAmount(receipt: ReceiptRow): number | null {
+  if (receipt.amount === null || receipt.amount === undefined) return null;
+  const amount = Number(receipt.amount);
+  return Number.isFinite(amount) ? amount : null;
+}
+
+function money(amount: number | null | undefined): string {
+  return `฿${formatCurrency(Number(amount ?? 0))}`;
+}
+
+function getReceiptClosingIssues(receipt: ReceiptRow): ReceiptClosingIssue[] {
+  const issues: ReceiptClosingIssue[] = [];
+  const amount = receiptAmount(receipt);
+
+  if (!receipt.supplier_id && !receipt.supplier?.id) issues.push({ type: "missing_supplier", label: "Missing supplier" });
+  if (amount === null) issues.push({ type: "missing_amount", label: "Missing amount" });
+  if (!receipt.site_id && !receipt.site?.id) issues.push({ type: "missing_site", label: "Missing site" });
+  if (RECEIPT_PENDING_STATUSES.has(receipt.status)) issues.push({ type: "pending_action", label: `Pending action (${receipt.status})` });
+  if (RECEIPT_PROBLEM_STATUSES.has(receipt.status)) issues.push({ type: "problem_status", label: `Problem status (${receipt.status})` });
+
+  return issues;
+}
+
+function buildClosingStats(receipts: ReceiptRow[]) {
+  const blockingReceipts = receipts.filter((receipt) => getReceiptClosingIssues(receipt).length > 0);
+  const approvedTotal = receipts
+    .filter((receipt) => RECEIPT_CONFIRMED_STATUSES.has(receipt.status))
+    .reduce((sum, receipt) => sum + (receiptAmount(receipt) ?? 0), 0);
+  const pendingWithAmountTotal = receipts
+    .filter((receipt) => RECEIPT_PENDING_STATUSES.has(receipt.status) && receiptAmount(receipt) !== null)
+    .reduce((sum, receipt) => sum + (receiptAmount(receipt) ?? 0), 0);
+
+  return {
+    blockingReceipts,
+    approvedCount: receipts.filter((receipt) => RECEIPT_CONFIRMED_STATUSES.has(receipt.status)).length,
+    approvedTotal,
+    pendingWithAmountCount: receipts.filter((receipt) => RECEIPT_PENDING_STATUSES.has(receipt.status) && receiptAmount(receipt) !== null).length,
+    pendingWithAmountTotal,
+    pendingWithoutAmountCount: receipts.filter((receipt) => RECEIPT_PENDING_STATUSES.has(receipt.status) && receiptAmount(receipt) === null).length,
+    problemCount: receipts.filter((receipt) => RECEIPT_PROBLEM_STATUSES.has(receipt.status)).length,
+    driverCashUsed: receipts.filter((receipt) => receipt.paid_from_driver_cash).reduce((sum, receipt) => sum + (receiptAmount(receipt) ?? 0), 0),
+    potentialTotal: approvedTotal + pendingWithAmountTotal,
+  };
+}
+
 export function SuppliersClient({
   suppliers: initSuppliers, receipts: initReceipts, sites, ownerId, today, userId,
   driverCashData, myBalance, pendingQrReceipts: initPendingQr,
@@ -112,6 +169,7 @@ export function SuppliersClient({
   const [giveCashDriver, setGiveCashDriver] = useState<DriverCashSummary | null>(null);
   const [pendingQr, setPendingQr] = useState(initPendingQr);
   const [openQrReceipt, setOpenQrReceipt] = useState<PendingQrReceipt | null>(null);
+  const [closingReceipt, setClosingReceipt] = useState<ReceiptRow | null>(null);
 
   function showToast(msg: string) {
     setToast(msg);
@@ -136,6 +194,8 @@ export function SuppliersClient({
     disputed:    receipts.filter((r) => r.status === "disputed").length,
   }), [receipts]);
 
+  const closingStats = useMemo(() => buildClosingStats(receipts), [receipts]);
+
   async function handleMarkPaid(id: string) {
     const receipt = receipts.find((r) => r.id === id);
     const { error } = await supabase.from("receipts").update({ status: "paid" }).eq("id", id);
@@ -149,7 +209,7 @@ export function SuppliersClient({
           body: JSON.stringify({
             user_id: receipt.submitted_by,
             title: "✅ ใบเสร็จชำระแล้ว · Receipt Paid",
-            body: `฿${formatCurrency(receipt.amount)}${receipt.site?.name_th ? ` · ${receipt.site.name_th}` : ""} · เจ้าของชำระแล้ว`,
+            body: `${money(receipt.amount)}${receipt.site?.name_th ? ` · ${receipt.site.name_th}` : ""} · เจ้าของชำระแล้ว`,
             url: "/suppliers", tag: "receipt_paid",
           }),
         }).catch(() => {});
@@ -190,6 +250,42 @@ export function SuppliersClient({
   }
 
   // ── Right panel ─────────────────────────────────────────────────────────────
+  async function handleSaveReceiptClosing(receiptId: string, patch: Partial<ReceiptRow>) {
+    const amount = patch.amount === null || patch.amount === undefined ? null : Number(patch.amount);
+    const payload = {
+      supplier_id: patch.supplier_id || null,
+      site_id: patch.site_id || null,
+      amount,
+      status: patch.status,
+      notes: patch.notes || null,
+    };
+
+    const { data, error } = await supabase
+      .from("receipts")
+      .update(payload)
+      .eq("id", receiptId)
+      .select("*, site:site_id(id, name_th, name_en), supplier:supplier_id(id, name_th, name_en)")
+      .single();
+
+    if (error) {
+      showToast(`Receipt update failed: ${error.message}`);
+      return false;
+    }
+
+    const normalized = {
+      ...(data as ReceiptRow),
+      site: Array.isArray((data as any).site) ? (data as any).site[0] ?? null : (data as any).site,
+      supplier: Array.isArray((data as any).supplier) ? (data as any).supplier[0] ?? null : (data as any).supplier,
+    };
+
+    setReceipts((prev) => prev.map((receipt) => receipt.id === receiptId ? normalized : receipt));
+    setSelectedReceipt((prev) => prev?.id === receiptId ? normalized : prev);
+    setPendingQr((prev) => prev.filter((receipt) => receipt.id !== receiptId || normalized.status === "pending_qr"));
+    setClosingReceipt(null);
+    showToast("Receipt closing updated");
+    return true;
+  }
+
   const rightPanel = (
     <>
       {pendingQr.length > 0 && !isDriverManager && (
@@ -213,7 +309,7 @@ export function SuppliersClient({
                     </div>
                   </div>
                   <div style={{ textAlign: "right", flexShrink: 0 }}>
-                    <div style={{ fontSize: 16, fontWeight: 700, color: "#C2410C" }}>฿{formatCurrency(r.amount)}</div>
+                    <div style={{ fontSize: 16, fontWeight: 700, color: "#C2410C" }}>{money(r.amount)}</div>
                     <div style={{ fontSize: 11, color: "#F97316", marginTop: 2 }}>แตะเพื่อชำระ ▸</div>
                   </div>
                 </div>
@@ -221,6 +317,13 @@ export function SuppliersClient({
             ))}
           </div>
         </section>
+      )}
+
+      {!isDriverManager && (
+        <ReceiptClosingPanel
+          stats={closingStats}
+          onOpenReceipt={setClosingReceipt}
+        />
       )}
 
       <section className="attention-card">
@@ -296,7 +399,7 @@ export function SuppliersClient({
           <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 8 }}>
             {[
               { th: "ซัพพลายเออร์", val: selectedReceipt.supplier?.name_th ?? "-" },
-              { th: "ยอด Amount",   val: `฿${formatCurrency(selectedReceipt.amount)}` },
+              { th: "ยอด Amount",   val: money(selectedReceipt.amount) },
             ].map((row) => (
               <div key={row.th} style={{ display: "flex", justifyContent: "space-between", fontSize: 14 }}>
                 <span style={{ color: "var(--text-muted)" }}>{row.th}</span>
@@ -416,7 +519,7 @@ export function SuppliersClient({
                     <span className="cell-en">{r.site?.name_en ?? ""}</span>
                   </span>
                   <span style={{ fontSize: 12, color: "var(--text-muted)" }}>{r.category ?? "-"}</span>
-                  <span style={{ fontSize: 16, fontWeight: 700 }}>฿{formatCurrency(r.amount)}</span>
+                  <span style={{ fontSize: 16, fontWeight: 700 }}>{money(r.amount)}</span>
                   <span style={{ fontSize: 11, fontWeight: 600, color: r.payment_type === "qr" ? "#1D4ED8" : "#15803D" }}>
                     {r.payment_type === "qr" ? "🔷 QR" : "💵 Cash"}
                   </span>
@@ -442,6 +545,13 @@ export function SuppliersClient({
               {pendingQr.length > 0 && (
                 <PendingQrMobile pendingQr={pendingQr} onOpen={setOpenQrReceipt} />
               )}
+              <div style={{ padding: "0 16px 12px" }}>
+                <ReceiptClosingPanel
+                  stats={closingStats}
+                  onOpenReceipt={setClosingReceipt}
+                  compact
+                />
+              </div>
               <MobileSuppliers
                 suppliers={suppliers}
                 receipts={filteredReceipts}
@@ -478,7 +588,17 @@ export function SuppliersClient({
           sites={sites}
           defaultSiteId={assignedSiteId ?? undefined}
           onClose={() => setShowAddReceipt(false)}
-          onAdded={(r) => { setReceipts((prev) => [r, ...prev]); setShowAddReceipt(false); showToast(`เพิ่มใบเสร็จ ฿${formatCurrency(r.amount)} แล้ว`); }}
+          onAdded={(r) => { setReceipts((prev) => [r, ...prev]); setShowAddReceipt(false); showToast(`เพิ่มใบเสร็จ ${money(r.amount)} แล้ว`); }}
+        />
+      )}
+
+      {closingReceipt && (
+        <ReceiptClosingModal
+          receipt={closingReceipt}
+          suppliers={suppliers}
+          sites={sites}
+          onClose={() => setClosingReceipt(null)}
+          onSave={handleSaveReceiptClosing}
         />
       )}
 
@@ -541,6 +661,195 @@ function ReceiptStatusBadge({ status }: { status: string }) {
 }
 
 // ── Photo preview screen (full-screen, after capture) ─────────────────────────
+
+function ReceiptClosingPanel({
+  stats,
+  onOpenReceipt,
+  compact = false,
+}: {
+  stats: ReturnType<typeof buildClosingStats>;
+  onOpenReceipt: (receipt: ReceiptRow) => void;
+  compact?: boolean;
+}) {
+  const hasIssues = stats.blockingReceipts.length > 0;
+  const visibleReceipts = stats.blockingReceipts.slice(0, compact ? 3 : 6);
+
+  return (
+    <section className="attention-card" style={{ borderLeft: hasIssues ? "3px solid #EF4444" : "3px solid #22C55E", margin: compact ? 0 : undefined }}>
+      <h2 style={{ color: hasIssues ? "#B91C1C" : "#15803D" }}>
+        <Receipt size={16} style={{ display: "inline", marginRight: 4 }} />
+        Receipt closing <span>{hasIssues ? `${stats.blockingReceipts.length} blocking` : "Ready"}</span>
+      </h2>
+
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginTop: 10 }}>
+        <ClosingMetric label="Approved" value={`${stats.approvedCount} / ${money(stats.approvedTotal)}`} />
+        <ClosingMetric label="Potential" value={money(stats.potentialTotal)} accent="#F97316" />
+        <ClosingMetric label="Pending amount" value={`${stats.pendingWithAmountCount} / ${money(stats.pendingWithAmountTotal)}`} />
+        <ClosingMetric label="No amount" value={String(stats.pendingWithoutAmountCount)} accent={stats.pendingWithoutAmountCount ? "#B91C1C" : undefined} />
+      </div>
+
+      <div style={{ marginTop: 10, paddingTop: 10, borderTop: "1px solid var(--border)", display: "flex", justifyContent: "space-between", fontSize: 13 }}>
+        <span style={{ color: "var(--text-muted)" }}>Driver cash used</span>
+        <strong>{money(stats.driverCashUsed)}</strong>
+      </div>
+
+      {hasIssues ? (
+        <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 12 }}>
+          {visibleReceipts.map((receipt) => {
+            const issues = getReceiptClosingIssues(receipt);
+            return (
+              <button
+                key={receipt.id}
+                onClick={() => onOpenReceipt(receipt)}
+                style={{
+                  width: "100%",
+                  minHeight: 52,
+                  padding: "10px 12px",
+                  border: "1px solid #FECACA",
+                  borderRadius: 8,
+                  background: "#FEF2F2",
+                  textAlign: "left",
+                  cursor: "pointer",
+                  display: "flex",
+                  justifyContent: "space-between",
+                  gap: 10,
+                }}
+              >
+                <span style={{ minWidth: 0 }}>
+                  <span style={{ display: "block", fontSize: 13, fontWeight: 700, color: "#7F1D1D" }}>
+                    {receipt.supplier?.name_th ?? receipt.receipt_number ?? "Receipt"}
+                  </span>
+                  <span style={{ display: "block", fontSize: 11, color: "#991B1B", marginTop: 2 }}>
+                    {issues.slice(0, 2).map((issue) => issue.label).join(" / ")}
+                  </span>
+                </span>
+                <span style={{ flexShrink: 0, fontSize: 13, fontWeight: 700, color: "#7F1D1D" }}>
+                  {receiptAmount(receipt) === null ? "No amount" : money(receiptAmount(receipt))}
+                </span>
+              </button>
+            );
+          })}
+          {stats.blockingReceipts.length > visibleReceipts.length && (
+            <div style={{ fontSize: 12, color: "var(--text-muted)", textAlign: "center" }}>
+              {stats.blockingReceipts.length - visibleReceipts.length} more receipts need closing
+            </div>
+          )}
+        </div>
+      ) : (
+        <div style={{ marginTop: 12, padding: "10px 12px", borderRadius: 8, background: "#F0FDF4", color: "#15803D", fontSize: 13, fontWeight: 700 }}>
+          Daily report receipts are closed.
+        </div>
+      )}
+    </section>
+  );
+}
+
+function ClosingMetric({ label, value, accent }: { label: string; value: string; accent?: string }) {
+  return (
+    <div style={{ border: "1px solid var(--border)", borderRadius: 8, padding: "8px 10px", background: "white", minWidth: 0 }}>
+      <div style={{ fontSize: 11, color: "var(--text-muted)", whiteSpace: "nowrap" }}>{label}</div>
+      <div style={{ fontSize: 13, fontWeight: 800, color: accent ?? "var(--text-primary)", marginTop: 2 }}>{value}</div>
+    </div>
+  );
+}
+
+function ReceiptClosingModal({
+  receipt,
+  suppliers,
+  sites,
+  onClose,
+  onSave,
+}: {
+  receipt: ReceiptRow;
+  suppliers: Supplier[];
+  sites: { id: string; name_th: string; name_en: string }[];
+  onClose: () => void;
+  onSave: (receiptId: string, patch: Partial<ReceiptRow>) => Promise<boolean>;
+}) {
+  const [form, setForm] = useState({
+    supplier_id: receipt.supplier_id ?? receipt.supplier?.id ?? "",
+    site_id: receipt.site_id ?? receipt.site?.id ?? "",
+    amount: receiptAmount(receipt)?.toString() ?? "",
+    status: receipt.status,
+    notes: receipt.notes ?? "",
+  });
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const issues = getReceiptClosingIssues(receipt);
+
+  async function handleSave() {
+    const amount = form.amount.trim() === "" ? null : Number(form.amount);
+    if (amount !== null && (!Number.isFinite(amount) || amount < 0)) {
+      setError("Enter a valid amount.");
+      return;
+    }
+    setSaving(true);
+    const ok = await onSave(receipt.id, {
+      supplier_id: form.supplier_id || null,
+      site_id: form.site_id || null,
+      amount,
+      status: form.status,
+      notes: form.notes || null,
+    });
+    setSaving(false);
+    if (!ok) setError("Could not update receipt.");
+  }
+
+  return (
+    <ModalWrapper title="Receipt closing" subtitle={receipt.receipt_number ?? receipt.id.slice(0, 8)} onClose={onClose}>
+      {error && <ErrorBox msg={error} />}
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+        {issues.map((issue) => (
+          <span key={issue.type} style={{ borderRadius: 999, background: "#FEF2F2", color: "#B91C1C", padding: "5px 9px", fontSize: 12, fontWeight: 700 }}>
+            {issue.label}
+          </span>
+        ))}
+      </div>
+
+      <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+        <span style={{ fontSize: 13, fontWeight: 600 }}>Supplier</span>
+        <select value={form.supplier_id} onChange={(e) => setForm((prev) => ({ ...prev, supplier_id: e.target.value }))} style={{ minHeight: 44, padding: "9px 12px", border: "1px solid var(--border)", borderRadius: 8, fontSize: 14 }}>
+          <option value="">None</option>
+          {suppliers.map((supplier) => <option key={supplier.id} value={supplier.id}>{supplier.name_th}</option>)}
+        </select>
+      </label>
+
+      <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+        <span style={{ fontSize: 13, fontWeight: 600 }}>Site</span>
+        <select value={form.site_id} onChange={(e) => setForm((prev) => ({ ...prev, site_id: e.target.value }))} style={{ minHeight: 44, padding: "9px 12px", border: "1px solid var(--border)", borderRadius: 8, fontSize: 14 }}>
+          <option value="">None</option>
+          {sites.map((site) => <option key={site.id} value={site.id}>{site.name_th}</option>)}
+        </select>
+      </label>
+
+      <FormField label="Amount THB" value={form.amount} onChange={(value) => setForm((prev) => ({ ...prev, amount: value }))} type="number" placeholder="0" />
+
+      <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+        <span style={{ fontSize: 13, fontWeight: 600 }}>Status</span>
+        <select value={form.status} onChange={(e) => setForm((prev) => ({ ...prev, status: e.target.value }))} style={{ minHeight: 44, padding: "9px 12px", border: "1px solid var(--border)", borderRadius: 8, fontSize: 14 }}>
+          <option value="approved">Approved</option>
+          <option value="paid">Paid</option>
+          <option value="pending">Pending</option>
+          <option value="pending_qr">Pending QR</option>
+          <option value="needs_review">Needs review</option>
+          <option value="disputed">Disputed</option>
+        </select>
+      </label>
+
+      <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+        <span style={{ fontSize: 13, fontWeight: 600 }}>Owner note</span>
+        <textarea
+          value={form.notes}
+          onChange={(e) => setForm((prev) => ({ ...prev, notes: e.target.value }))}
+          placeholder="What was fixed or why this receipt stays pending"
+          style={{ minHeight: 74, padding: "9px 12px", border: "1px solid var(--border)", borderRadius: 8, fontSize: 14, resize: "vertical" }}
+        />
+      </label>
+
+      <ModalActions onCancel={onClose} onSave={handleSave} saving={saving} saveLabel="Save receipt closing" />
+    </ModalWrapper>
+  );
+}
 
 interface OcrResult { amount: number; description: string; merchant: string; confidence: number; }
 
@@ -813,7 +1122,7 @@ function DriverManagerMobile({ receipts, onAddReceipt, myBalance, today }: {
                     )}
                   </div>
                   <div style={{ textAlign: "right", flexShrink: 0, marginLeft: 12 }}>
-                    <strong style={{ fontSize: 16 }}>฿{formatCurrency(r.amount)}</strong>
+                    <strong style={{ fontSize: 16 }}>{money(r.amount)}</strong>
                     <div style={{ marginTop: 4 }}><ReceiptStatusBadge status={r.status} /></div>
                   </div>
                 </div>
@@ -852,7 +1161,7 @@ function PendingQrMobile({ pendingQr, onOpen }: { pendingQr: PendingQrReceipt[];
                 </div>
               </div>
               <div style={{ textAlign: "right", flexShrink: 0 }}>
-                <div style={{ fontSize: 16, fontWeight: 700, color: "#C2410C" }}>฿{formatCurrency(r.amount)}</div>
+                <div style={{ fontSize: 16, fontWeight: 700, color: "#C2410C" }}>{money(r.amount)}</div>
                 <div style={{ fontSize: 11, color: "#F97316", marginTop: 2 }}>แตะเพื่อชำระ ▸</div>
               </div>
             </div>
@@ -1037,7 +1346,7 @@ function MobileSuppliers({ suppliers, receipts, stats, tab, setTab, search, setS
                   )}
                 </div>
                 <div style={{ textAlign: "right" }}>
-                  <strong style={{ fontSize: 16 }}>฿{formatCurrency(r.amount)}</strong>
+                  <strong style={{ fontSize: 16 }}>{money(r.amount)}</strong>
                   <div style={{ marginTop: 2 }}><ReceiptStatusBadge status={r.status} /></div>
                 </div>
               </div>

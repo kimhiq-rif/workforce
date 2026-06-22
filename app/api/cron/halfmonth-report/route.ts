@@ -1,11 +1,7 @@
-// Cron: 03:00 UTC = 10:00 Bangkok.
-// Runs on the 15th and last day of each month.
-// Generates half-month payroll report, saves snapshot, sends push to owner.
-
 import { NextRequest, NextResponse } from "next/server";
-import { createServiceClient } from "@/lib/supabase/server";
-import { buildHalfMonthReport, getHalfMonthPeriod } from "@/lib/halfmonth-report";
 import webpush from "web-push";
+import { buildHalfMonthReport, getHalfMonthPeriod } from "@/lib/halfmonth-report";
+import { createServiceClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
 
@@ -14,9 +10,9 @@ function todayBangkok(): string {
 }
 
 function isPayrollDay(dateStr: string): boolean {
-  const [y, m, d] = dateStr.split("-").map(Number);
-  const lastDay = new Date(y, m, 0).getDate();
-  return d === 15 || d === lastDay;
+  const [year, month, day] = dateStr.split("-").map(Number);
+  const lastDay = new Date(year, month, 0).getDate();
+  return day === 15 || day === lastDay;
 }
 
 async function sendPush(
@@ -26,16 +22,21 @@ async function sendPush(
   body: string,
   url = "/"
 ) {
-  const { data: subs } = await supabase
+  const { data: subscriptions } = await supabase
     .from("push_subscriptions")
     .select("endpoint, p256dh, auth")
     .eq("owner_id", ownerId);
-  if (!subs?.length) return;
+
+  if (!subscriptions?.length) return;
+
   const payload = JSON.stringify({ title, body, url });
   await Promise.allSettled(
-    subs.map((s) =>
+    subscriptions.map((subscription) =>
       webpush.sendNotification(
-        { endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } },
+        {
+          endpoint: subscription.endpoint,
+          keys: { p256dh: subscription.p256dh, auth: subscription.auth },
+        },
         payload
       )
     )
@@ -44,8 +45,13 @@ async function sendPush(
 
 export async function GET(req: NextRequest) {
   if (process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
-    webpush.setVapidDetails("mailto:admin@workforce.app", process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY, process.env.VAPID_PRIVATE_KEY);
+    webpush.setVapidDetails(
+      "mailto:admin@workforce.app",
+      process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY,
+      process.env.VAPID_PRIVATE_KEY
+    );
   }
+
   const authHeader = req.headers.get("authorization");
   if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -70,18 +76,16 @@ export async function GET(req: NextRequest) {
 
   for (const owner of owners) {
     const ownerId = owner.id;
-
     const report = await buildHalfMonthReport(supabase, ownerId, today);
 
-    // Save snapshot
     await supabase
       .from("halfmonth_report_snapshots")
       .upsert({
-        owner_id:      ownerId,
-        period_start:  start,
-        period_end:    end,
-        data:          report,
-        generated_at:  report.generatedAt,
+        owner_id: ownerId,
+        period_start: start,
+        period_end: end,
+        data: report,
+        generated_at: report.generatedAt,
         total_net_pay: report.totals.totalNetPay,
         total_workers: report.totals.totalWorkers,
       });
@@ -91,14 +95,14 @@ export async function GET(req: NextRequest) {
     await sendPush(
       supabase,
       ownerId,
-      `💰 เงินเดือนครึ่งเดือน · Payroll ${report.periodLabel}`,
-      `${totals.totalWorkers} คน · รวม ฿${totals.totalNetPay.toLocaleString()} สุทธิ · หัก ฿${totals.totalAdvances.toLocaleString()} มัดจำ`,
+      `Half-month payroll / รายงานเงินเดือนครึ่งเดือน ${report.periodLabel}`,
+      `${totals.totalWorkers} workers / พนักงาน · Net THB ${totals.totalNetPay.toLocaleString()} · Advances THB ${totals.totalAdvances.toLocaleString()}`,
       `/reports/halfmonth?date=${today}`
     );
 
     log.push(
       `owner ${ownerId}: ${totals.totalWorkers} workers, ` +
-      `gross ฿${totals.totalGross}, advances ฿${totals.totalAdvances}, net ฿${totals.totalNetPay}`
+      `gross THB ${totals.totalGross}, advances THB ${totals.totalAdvances}, net THB ${totals.totalNetPay}`
     );
   }
 

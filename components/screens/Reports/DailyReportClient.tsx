@@ -43,6 +43,7 @@ export function DailyReportClient({ report, today }: Props) {
   }
 
   const { totals, sites, expenseCategories, corrections, blockReasons, isBlocked, date } = report;
+  const receiptClosing = report.receiptClosing;
 
   // ── Right panel ──────────────────────────────────────────────────────────────
   const rightPanel = (
@@ -60,6 +61,24 @@ export function DailyReportClient({ report, today }: Props) {
           </div>
         ))}
       </section>
+
+      {receiptClosing && (
+        <section className="attention-card">
+          <h2>Receipt closing <span>Cash close</span></h2>
+          {[
+            { label: "Approved receipts", value: `${receiptClosing.approvedCount} · ฿${formatCurrency(receiptClosing.approvedTotal)}` },
+            { label: "Pending with amount", value: `${receiptClosing.pendingWithAmountCount} · ฿${formatCurrency(receiptClosing.pendingWithAmountTotal)}` },
+            { label: "Pending without amount", value: receiptClosing.pendingWithoutAmountCount },
+            { label: "Driver cash used", value: `฿${formatCurrency(receiptClosing.driverCashUsed)}` },
+            { label: "Potential total", value: `฿${formatCurrency(totals.potentialTotalExpenses)}` },
+          ].map(({ label, value }) => (
+            <div key={label} style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: "1px solid var(--border)", fontSize: 14 }}>
+              <span style={{ color: "var(--text-muted)" }}>{label}</span>
+              <strong style={{ color: label === "Potential total" ? "#F97316" : "var(--text-primary)" }}>{value}</strong>
+            </div>
+          ))}
+        </section>
+      )}
 
       {expenseCategories.length > 0 && (
         <section className="attention-card">

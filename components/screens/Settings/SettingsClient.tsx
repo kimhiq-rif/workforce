@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { DashboardShell } from "@/components/layout/DashboardShell";
 import { getBilingualLabel, useLangMode } from "@/components/layout/useLangMode";
-import { Clock, Shield, Phone, Users, Languages, ChevronDown, Check, LogOut, Eye, EyeOff, UserCog, Copy, KeyRound } from "lucide-react";
+import { Clock, Shield, Phone, Users, Languages, ChevronDown, Check, LogOut, Eye, EyeOff, UserCog, Copy, KeyRound, Building2, Image as ImageIcon, Trash2, Upload } from "lucide-react";
 import { formatCurrency } from "@/lib/format";
 
 interface SettingsClientProps {
@@ -50,6 +50,13 @@ export function SettingsClient({ profile, workdaySettings, teamMembers, workers,
   const [engineRoomCode, setEngineRoomCode] = useState("");
   const [engineRoomOpen, setEngineRoomOpen] = useState(false);
   const [engineRoomError, setEngineRoomError] = useState("");
+  const [hostedCompany, setHostedCompany] = useState({
+    name: workdaySettings?.hosted_company_name ?? "",
+    logoUrl: workdaySettings?.hosted_company_logo_url ?? "",
+  });
+  const [hostedLogoFile, setHostedLogoFile] = useState<File | null>(null);
+  const [hostedLogoPreview, setHostedLogoPreview] = useState<string | null>(workdaySettings?.hosted_company_logo_url ?? null);
+  const [hostedBrandSaving, setHostedBrandSaving] = useState(false);
 
   // Change password state
   const [pwNew, setPwNew] = useState("");
@@ -150,6 +157,73 @@ export function SettingsClient({ profile, workdaySettings, teamMembers, workers,
     setNewCode("");
     setConfirmCode("");
     showToast("เปลี่ยนรหัสผู้ดูแลแล้ว · Admin code changed");
+  }
+
+  async function saveHostedCompanyBrand(next?: { name?: string; logoUrl?: string | null }) {
+    const name = next?.name ?? hostedCompany.name;
+    let logoUrl = next?.logoUrl ?? hostedCompany.logoUrl;
+
+    setHostedBrandSaving(true);
+    if (hostedLogoFile && next?.logoUrl === undefined) {
+      if (!["image/jpeg", "image/png", "image/webp"].includes(hostedLogoFile.type)) {
+        setHostedBrandSaving(false);
+        showToast("Use PNG, JPG, or WebP only · รองรับ PNG, JPG, WebP");
+        return;
+      }
+
+      const ext = hostedLogoFile.type === "image/png"
+          ? "png"
+          : hostedLogoFile.type === "image/webp"
+            ? "webp"
+            : "jpg";
+      const fileName = `hosted-company/${ownerId}/${Date.now()}.${ext}`;
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from("report-assets")
+        .upload(fileName, hostedLogoFile, { contentType: hostedLogoFile.type || "image/png", upsert: false });
+
+      if (uploadError || !uploadData) {
+        setHostedBrandSaving(false);
+        showToast("Logo upload failed · อัปโหลดโลโก้ไม่สำเร็จ");
+        return;
+      }
+
+      logoUrl = supabase.storage.from("report-assets").getPublicUrl(fileName).data.publicUrl;
+    }
+
+    const { error } = await supabase
+      .from("workday_settings")
+      .upsert({
+        owner_id: ownerId,
+        hosted_company_name: name || null,
+        hosted_company_logo_url: logoUrl || null,
+      });
+
+    setHostedBrandSaving(false);
+    if (error) {
+      showToast("เกิดข้อผิดพลาด · " + error.message);
+      return;
+    }
+
+    setHostedCompany({ name, logoUrl: logoUrl ?? "" });
+    setHostedLogoFile(null);
+    setHostedLogoPreview(logoUrl || null);
+    showToast("Hosted logo saved · บันทึกโลโก้รายงานแล้ว");
+  }
+
+  function handleHostedLogoFile(file: File | null) {
+    setHostedLogoFile(file);
+    if (!file) {
+      setHostedLogoPreview(hostedCompany.logoUrl || null);
+      return;
+    }
+    setHostedLogoPreview(URL.createObjectURL(file));
+  }
+
+  async function removeHostedCompanyLogo() {
+    if (!hostedCompany.logoUrl && !hostedLogoFile) return;
+    if (!confirm("Remove hosted company logo from future reports?")) return;
+    setHostedLogoFile(null);
+    await saveHostedCompanyBrand({ logoUrl: null });
   }
 
   async function handleSignOut() {
@@ -261,6 +335,99 @@ export function SettingsClient({ profile, workdaySettings, teamMembers, workers,
               <p style={{ fontSize: 13, color: "#15803D", fontWeight: 600 }}>✓ เข้าถึงห้องเครื่องแล้ว · Engine room access granted</p>
               <button onClick={() => { setEngineRoomOpen(false); setEngineRoomCode(""); }} style={{ background: "transparent", border: "none", cursor: "pointer", color: "var(--text-muted)", fontSize: 13 }}>ออก · Exit</button>
             </div>
+
+            <div style={{ border: "1px solid #BFDBFE", borderRadius: 12, background: "#F8FAFF", padding: 16 }}>
+              <div style={{ display: "flex", alignItems: "flex-start", gap: 12, marginBottom: 14 }}>
+                <span style={{ width: 40, height: 40, borderRadius: 10, background: "#EFF6FF", color: "var(--brand-primary)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                  <Building2 size={22} />
+                </span>
+                <div style={{ flex: 1 }}>
+                  <h3 style={{ fontSize: 16, fontWeight: 700, margin: 0, color: "var(--brand-primary)" }}>
+                    โลโก้บริษัทในรายงาน · Hosted company logo
+                  </h3>
+                  <p style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 3, lineHeight: 1.45 }}>
+                    Appears under Workforce branding in every generated report.
+                  </p>
+                </div>
+              </div>
+
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))", gap: 14, alignItems: "stretch" }}>
+                <div style={{ minHeight: 118, border: "1px solid var(--border)", borderRadius: 10, background: "white", padding: 12, display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", gap: 8 }}>
+                  {hostedLogoPreview ? (
+                    <img
+                      src={hostedLogoPreview}
+                      alt="Hosted company logo preview"
+                      style={{ maxWidth: "100%", maxHeight: 66, objectFit: "contain", display: "block" }}
+                    />
+                  ) : (
+                    <>
+                      <ImageIcon size={28} color="var(--text-muted)" />
+                      <span style={{ fontSize: 12, color: "var(--text-muted)", textAlign: "center" }}>No logo selected</span>
+                    </>
+                  )}
+                  <strong style={{ fontSize: 12, color: "var(--brand-primary)", textAlign: "center" }}>
+                    {hostedCompany.name || "Client company"}
+                  </strong>
+                </div>
+
+                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                  <label style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+                    <span style={{ fontSize: 13, fontWeight: 700 }}>Company name · ชื่อบริษัท</span>
+                    <input
+                      value={hostedCompany.name}
+                      onChange={(e) => setHostedCompany((current) => ({ ...current, name: e.target.value }))}
+                      placeholder="Example: ABC Construction"
+                      style={{ minHeight: 44, padding: "10px 12px", border: "1px solid var(--border)", borderRadius: 8, fontSize: 15 }}
+                    />
+                  </label>
+
+                  <label style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+                    <span style={{ fontSize: 13, fontWeight: 700 }}>Logo file · ไฟล์โลโก้</span>
+                    <input
+                      type="file"
+                      accept="image/png,image/jpeg,image/webp"
+                      onChange={(e) => handleHostedLogoFile(e.target.files?.[0] ?? null)}
+                      style={{ minHeight: 44, padding: "9px 10px", border: "1px solid var(--border)", borderRadius: 8, background: "white", fontSize: 13 }}
+                    />
+                  </label>
+
+                  {hostedCompany.logoUrl && (
+                    <label style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+                      <span style={{ fontSize: 13, fontWeight: 700 }}>Logo URL · URL โลโก้</span>
+                      <input
+                        value={hostedCompany.logoUrl}
+                        onChange={(e) => {
+                          setHostedCompany((current) => ({ ...current, logoUrl: e.target.value }));
+                          setHostedLogoPreview(e.target.value || null);
+                        }}
+                        style={{ minHeight: 44, padding: "10px 12px", border: "1px solid var(--border)", borderRadius: 8, fontSize: 13 }}
+                      />
+                    </label>
+                  )}
+
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                    <button
+                      onClick={() => saveHostedCompanyBrand()}
+                      disabled={hostedBrandSaving}
+                      className="btn-primary"
+                      style={{ minHeight: 44 }}
+                    >
+                      <Upload size={16} />
+                      {hostedBrandSaving ? "Saving…" : "Save hosted logo"}
+                    </button>
+                    <button
+                      onClick={removeHostedCompanyLogo}
+                      disabled={hostedBrandSaving || (!hostedCompany.logoUrl && !hostedLogoFile)}
+                      style={{ minHeight: 44, display: "flex", alignItems: "center", gap: 8, padding: "10px 14px", background: "#FEF2F2", border: "1px solid #FECACA", borderRadius: 8, color: "#B91C1C", cursor: "pointer", fontSize: 14, fontWeight: 700 }}
+                    >
+                      <Trash2 size={16} />
+                      Remove logo
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
             {[
               { icon: "🖥️", th: "System status", en: "System health & uptime" },
               { icon: "👥", th: "Users & sessions", en: "Active sessions, force logout" },
