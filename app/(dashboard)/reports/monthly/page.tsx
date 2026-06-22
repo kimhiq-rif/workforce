@@ -79,11 +79,29 @@ export default async function MonthlyReportPage({ searchParams }: Props) {
         .eq("is_active", true)
     : { data: [] };
 
+  // Overdue projects: current stage whose target_end_date is in the past
+  const { data: overdueStagesRaw } = await supabase
+    .from("site_stages")
+    .select("site_id, target_end_date, site:site_id(name_th)")
+    .eq("owner_id", ownerId)
+    .eq("is_current", true)
+    .not("target_end_date", "is", null)
+    .lt("target_end_date", today);
+
+  const overdueProjects = (overdueStagesRaw ?? []).map((s: any) => {
+    const site = Array.isArray(s.site) ? s.site[0] : s.site;
+    const daysOverdue = Math.floor(
+      (Date.now() - new Date(s.target_end_date).getTime()) / 86_400_000
+    );
+    return { siteId: s.site_id, siteName: site?.name_th ?? "—", targetDate: s.target_end_date, daysOverdue };
+  });
+
   return (
     <MonthlyReportClient
       sites={sites ?? []}
       attendance={attendance ?? []}
       receipts={receipts ?? []}
+      overdueProjects={overdueProjects}
       workers={workers ?? []}
       targetMonth={targetMonth}
       monthStart={monthStart}
