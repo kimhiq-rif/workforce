@@ -15,6 +15,14 @@
     {
       "path": "/api/cron/daily-reset",
       "schedule": "0 17 * * *"
+    },
+    {
+      "path": "/api/cron/stage-target-reminder",
+      "schedule": "0 1 * * *"
+    },
+    {
+      "path": "/api/cron/stage-target-reminder",
+      "schedule": "30 9 * * *"
     }
   ]
 }
