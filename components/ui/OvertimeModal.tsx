@@ -76,15 +76,19 @@ export function OvertimeModal({
     });
   }
 
-  async function handleSave() {
+  // remindLater = save the session now but leave amounts empty; the owner gets
+  // an 08:30 reminder and completes the cost later from Needs Attention.
+  async function submit(remindLater: boolean) {
     setError("");
     if (selectedList.length === 0) { setError("เลือกอย่างน้อย 1 คน · Select at least 1 worker"); return; }
     if (hours <= 0) { setError("เวลาสิ้นสุดต้องหลัง 17:00 · End time must be after 17:00"); return; }
 
-    const missingAmount = selectedList.find((w) => !parseFloat(amounts[w.id]));
-    if (missingAmount) {
-      setError(`กรุณากรอกจำนวนเงินของ ${missingAmount.name_th} · Enter amount for ${missingAmount.name_en}`);
-      return;
+    if (!remindLater) {
+      const missingAmount = selectedList.find((w) => !parseFloat(amounts[w.id]));
+      if (missingAmount) {
+        setError(`กรุณากรอกจำนวนเงินของ ${missingAmount.name_th} · Enter amount for ${missingAmount.name_en}`);
+        return;
+      }
     }
 
     setSaving(true);
@@ -98,7 +102,7 @@ export function OvertimeModal({
           overtimeEndTime: endTime,
           entries: selectedList.map((w) => ({
             workerId: w.id,
-            amount: parseFloat(amounts[w.id]),
+            amount: remindLater ? null : parseFloat(amounts[w.id]),
           })),
         }),
       });
@@ -283,7 +287,7 @@ export function OvertimeModal({
               ยกเลิก · Cancel
             </button>
             <button
-              onClick={handleSave}
+              onClick={() => submit(false)}
               disabled={saving || selectedList.length === 0}
               style={{
                 flex: 2, padding: "12px", borderRadius: 10, border: "none",
@@ -296,6 +300,20 @@ export function OvertimeModal({
               {saving ? "กำลังบันทึก…" : "ยืนยัน · Confirm Overtime"}
             </button>
           </div>
+
+          {/* Remind me later — saves the session without amounts */}
+          <button
+            onClick={() => submit(true)}
+            disabled={saving || selectedList.length === 0}
+            style={{
+              width: "100%", marginTop: 8, padding: "10px", borderRadius: 10,
+              border: "1px dashed #FDBA74", background: "#FFF7ED",
+              color: "#9A3412", fontSize: 13, fontWeight: 700,
+              cursor: saving || selectedList.length === 0 ? "not-allowed" : "pointer",
+            }}
+          >
+            ⏰ ยังไม่ทราบจำนวนเงิน · เตือนฉันพรุ่งนี้ · I don't know the amount — remind me tomorrow
+          </button>
         </div>
       </div>
     </div>

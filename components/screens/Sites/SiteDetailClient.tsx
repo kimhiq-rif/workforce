@@ -8,6 +8,7 @@ import { createClient } from "@/lib/supabase/client";
 import { DashboardShell } from "@/components/layout/DashboardShell";
 import { SiteDailyNote } from "@/components/screens/Sites/SiteDailyNote";
 import { StageTargetBadge } from "@/components/screens/Sites/StageTargetBadge";
+import { OvertimeModal } from "@/components/ui/OvertimeModal";
 import { SiteStatusBadge, siteStatusColor } from "@/components/ui/SiteStatusBadge";
 import {
   ChevronLeft, ChevronRight, Camera, MapPin, CloudRain,
@@ -99,6 +100,21 @@ export function SiteDetailClient({
   } | null>(null);
 
   const currentStage = stages.find((s) => s.is_current) ?? null;
+  const [showOvertime, setShowOvertime] = useState(false);
+
+  // Workers reported present today — the candidates for overtime.
+  const overtimeWorkers = Array.from(
+    new Map(
+      attendanceEvents
+        .filter((e) => e.worker && e.status !== "missing")
+        .map((e) => [e.worker!.id, {
+          id: e.worker!.id,
+          name_th: e.worker!.name_th,
+          name_en: e.worker!.name_en,
+          daily_wage: e.worker!.daily_wage,
+        }])
+    ).values()
+  );
   const isLongProject = (site as any).project_type === "long";
 
   async function handleMoveStage() {
@@ -201,6 +217,38 @@ export function SiteDetailClient({
   const late = attendanceEvents.filter((e) => e.is_late).length;
   const totalWage = attendanceEvents.reduce((sum, e) => sum + (e.wage_amount ?? 0), 0);
 
+  function getReportedElsewhereSiteId(workerId: string) {
+    return allTodayAttendance.find((a) => a.worker_id === workerId && a.site_id !== site.id)?.site_id ?? null;
+  }
+
+  async function recordSameDayTransfer(worker: SiteWorker, fromSiteId: string | null, transferTime: string) {
+    if (!fromSiteId || fromSiteId === site.id) return;
+
+    const fromSite = otherSites.find((s) => s.id === fromSiteId);
+
+    await supabase.from("site_transfer_events").insert({
+      owner_id: site.owner_id,
+      worker_id: worker.id,
+      from_site_id: fromSiteId,
+      to_site_id: site.id,
+      event_date: today,
+      transfer_time: transferTime,
+      source: "photo_transfer",
+      performed_by: userId ?? null,
+    });
+
+    fetch("/api/push/transfer", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        workerNameTh: worker.name_th,
+        fromSiteNameTh: fromSite?.name_th ?? "ไซต์อื่น",
+        toSiteNameTh: site.name_th,
+        ownerId: site.owner_id,
+      }),
+    }).catch(() => {});
+  }
+
   // ── Transfer worker to another site (owner only) ───────────────────────────
   async function handleTransfer(worker: SiteWorker, targetSiteId: string) {
     setTransferring(true);
@@ -298,6 +346,8 @@ export function SiteDetailClient({
     const workdayStart = "08:00";
     const isLate = bangkokTime > workdayStart;
 
+    const fromSiteId = getReportedElsewhereSiteId(selectedWorker.id);
+
     // Save attendance event
     const { error: dbError } = await supabase
       .from("attendance_events")
@@ -317,7 +367,7 @@ export function SiteDetailClient({
           wage_reason: wageReason,
           wage_amount: wageAmount,
         },
-        { onConflict: "worker_id,event_date,site_id" }
+        { onConflict: "owner_id,worker_id,event_date,site_id" }
       );
 
     setCapturing(false);
@@ -327,6 +377,8 @@ export function SiteDetailClient({
       showToast("เกิดข้อผิดพลาด · Error saving attendance");
       return;
     }
+
+    await recordSameDayTransfer(selectedWorker, fromSiteId, bangkokTime);
 
     // Auto-assign worker to this site (photo = assignment)
     await supabase
@@ -517,6 +569,16 @@ export function SiteDetailClient({
             >
               <Zap size={18} />
               ย้ายขั้นตอน · Move Stage
+            </button>
+          )}
+          {userRole === "owner" && overtimeWorkers.length > 0 && (
+            <button
+              className="btn-primary"
+              style={{ background: "#EA580C" }}
+              onClick={() => setShowOvertime(true)}
+            >
+              <Clock size={18} />
+              ล่วงเวลา · Overtime
             </button>
           )}
         </div>
@@ -714,6 +776,7 @@ export function SiteDetailClient({
             onTransfer={(w) => setTransferModal({ worker: w })}
             onUpdateSitePhoto={openSitePhotoCamera}
             onMoveStage={() => { setMoveStageNote(""); setMoveStageModal(true); }}
+            onOvertime={overtimeWorkers.length > 0 ? () => setShowOvertime(true) : undefined}
             currentStage={currentStage}
             rainStatus={rainStatus}
             today={today}
@@ -721,6 +784,17 @@ export function SiteDetailClient({
           />
         </div>
       </DashboardShell>
+
+      {showOvertime && (
+        <OvertimeModal
+          siteId={site.id}
+          siteName={site.name_th}
+          eventDate={today}
+          reportedWorkers={overtimeWorkers}
+          onClose={() => setShowOvertime(false)}
+          onSaved={() => { setShowOvertime(false); router.refresh(); }}
+        />
+      )}
 
       {/* Mobile attendance report flow overlay */}
       {showReportFlow && (
@@ -1234,7 +1308,7 @@ function AttendanceStatusBadge({ status, isLate }: { status: string; isLate: boo
 function MobileSiteDetail({
   site, workers, attendanceEvents, reported, totalWage, late,
   onCheckIn, onStartReport, onRain, onTransfer, onUpdateSitePhoto, onMoveStage,
-  currentStage, rainStatus, today, userRole,
+  currentStage, rainStatus, today, userRole, onOvertime,
 }: {
   site: Site;
   workers: SiteWorker[];
@@ -1248,6 +1322,7 @@ function MobileSiteDetail({
   onTransfer: (w: SiteWorker) => void;
   onUpdateSitePhoto: () => void;
   onMoveStage: () => void;
+  onOvertime?: () => void;
   currentStage: SiteStage | null;
   rainStatus: string;
   today: string;
@@ -1284,6 +1359,14 @@ function MobileSiteDetail({
             className="mobile-topbar-action" style={{ padding: "6px 10px", background: "#6C5CE7" }}
           >
             <Zap size={16} />
+          </button>
+        )}
+        {userRole === "owner" && onOvertime && (
+          <button
+            onClick={onOvertime}
+            className="mobile-topbar-action" style={{ padding: "6px 10px", background: "#EA580C" }}
+          >
+            <Clock size={16} />
           </button>
         )}
       </div>
@@ -1423,6 +1506,35 @@ function AttendanceReportFlow({
       .map((a) => [a.worker_id, a.site_id] as [string, string])
   );
 
+  async function recordMobileTransfer(worker: SiteWorker, transferTime: string) {
+    const fromSiteId = reportedElsewhere.get(worker.id);
+    if (!fromSiteId) return;
+
+    const fromSite = otherSites.find((s) => s.id === fromSiteId);
+
+    await supabase.from("site_transfer_events").insert({
+      owner_id: site.owner_id,
+      worker_id: worker.id,
+      from_site_id: fromSiteId,
+      to_site_id: site.id,
+      event_date: today,
+      transfer_time: transferTime,
+      source: "photo_transfer",
+      performed_by: userId ?? null,
+    });
+
+    fetch("/api/push/transfer", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        workerNameTh: worker.name_th,
+        fromSiteNameTh: fromSite?.name_th ?? "ไซต์อื่น",
+        toSiteNameTh: site.name_th,
+        ownerId: site.owner_id,
+      }),
+    }).catch(() => {});
+  }
+
   const yesterdaySet = new Set(yesterdayWorkerIds);
 
   // Pending queue: exclude already-reported (from DB or this session)
@@ -1519,8 +1631,6 @@ function AttendanceReportFlow({
       wage_amount: wageAmount,
     });
 
-    await supabase.from("workers").update({ assigned_site_id: site.id }).eq("id", worker.id);
-
     if (alreadyReportedHere.size === 0 && reportedIds.size === 0) {
       await supabase.from("site_day_status_events").upsert(
         {
@@ -1546,8 +1656,11 @@ function AttendanceReportFlow({
       return;
     }
 
+    await supabase.from("workers").update({ assigned_site_id: site.id }).eq("id", worker.id);
+    await recordMobileTransfer(worker, bangkokTime);
+
     setReportedIds((prev) => { const s = new Set(Array.from(prev)); s.add(worker.id); return s; });
-    showToast(`✓ ${worker.name_th} · ${bangkokTime}${isLate ? " (สาย)" : ""}`);
+    showToast(`✓ ${worker.name_th} · ${bangkokTime}${isLate ? " (สาย)" : ""}${reportedElsewhere.has(worker.id) ? " · Transfer" : ""}`);
   }
 
   function closeCamera() {
@@ -1632,8 +1745,6 @@ function AttendanceReportFlow({
       wage_amount: wageAmount,
     });
 
-    await supabase.from("workers").update({ assigned_site_id: site.id }).eq("id", cameraWorker.id);
-
     // First check-in → site goes live
     if (alreadyReportedHere.size === 0 && reportedIds.size === 0) {
       await supabase.from("site_day_status_events").upsert(
@@ -1662,8 +1773,11 @@ function AttendanceReportFlow({
       return;
     }
 
+    await supabase.from("workers").update({ assigned_site_id: site.id }).eq("id", cameraWorker.id);
+    await recordMobileTransfer(cameraWorker, bangkokTime);
+
     setReportedIds((prev) => { const s = new Set(Array.from(prev)); s.add(cameraWorker.id); return s; });
-    showToast(`✓ ${cameraWorker.name_th} · ${bangkokTime}${isLate ? " (สาย)" : ""}`);
+    showToast(`✓ ${cameraWorker.name_th} · ${bangkokTime}${isLate ? " (สาย)" : ""}${reportedElsewhere.has(cameraWorker.id) ? " · Transfer" : ""}`);
 
     // Push to owner (non-blocking)
     fetch("/api/push", {
@@ -1770,7 +1884,6 @@ function AttendanceReportFlow({
             {queue.map((worker, idx) => {
               const isYesterday = yesterdaySet.has(worker.id);
               const elsewhereId = reportedElsewhere.get(worker.id);
-              const isDisabled = !!elsewhereId;
               const elsewhereSite = elsewhereId ? otherSites.find((s) => s.id === elsewhereId) : null;
               const prevWorker = idx > 0 ? queue[idx - 1] : null;
               const showOtherHeader = !isYesterday && !!prevWorker && yesterdaySet.has(prevWorker.id);
@@ -1783,8 +1896,7 @@ function AttendanceReportFlow({
                     </div>
                   )}
                   <button
-                    onClick={() => !isDisabled && openCamera(worker)}
-                    disabled={isDisabled}
+                    onClick={() => openCamera(worker)}
                     style={{
                       width: "100%",
                       display: "flex",
@@ -1792,11 +1904,10 @@ function AttendanceReportFlow({
                       gap: 12,
                       padding: "13px 12px",
                       borderRadius: 12,
-                      border: `1px solid ${isYesterday && !isDisabled ? "var(--brand-primary)" : "var(--border)"}`,
-                      background: isDisabled ? "#F9FAFB" : isYesterday ? "#EFF6FF" : "white",
-                      cursor: isDisabled ? "default" : "pointer",
+                      border: `1px solid ${elsewhereId ? "#FDBA74" : isYesterday ? "var(--brand-primary)" : "var(--border)"}`,
+                      background: elsewhereId ? "#FFF7ED" : isYesterday ? "#EFF6FF" : "white",
+                      cursor: "pointer",
                       marginBottom: 8,
-                      opacity: isDisabled ? 0.55 : 1,
                       textAlign: "left",
                     }}
                   >
@@ -1810,27 +1921,23 @@ function AttendanceReportFlow({
                       {worker.name_th[0]}
                     </div>
                     <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: 16, fontWeight: 600, color: isDisabled ? "var(--text-muted)" : "var(--text-primary)" }}>
+                      <div style={{ fontSize: 16, fontWeight: 600, color: "var(--text-primary)" }}>
                         {worker.name_th}
                       </div>
                       <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 1 }}>
                         {elsewhereSite ? (
                           <span style={{ color: "#F97316" }}>
-                            ที่ {elsewhereSite.name_th} · At {elsewhereSite.name_en ?? "another site"}
+                            ย้ายจาก {elsewhereSite.name_th} · Transfer from {elsewhereSite.name_en ?? "another site"}
                           </span>
                         ) : (
                           worker.name_en
                         )}
                       </div>
                     </div>
-                    {isDisabled ? (
-                      <span style={{ width: 10, height: 10, borderRadius: "50%", background: getSiteColor(elsewhereId!), flexShrink: 0, display: "inline-block" }} />
-                    ) : (
-                      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2, color: "var(--brand-primary)" }}>
-                        <Camera size={20} />
-                        <span style={{ fontSize: 10, fontWeight: 600 }}>ถ่ายภาพ</span>
-                      </div>
-                    )}
+                    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2, color: elsewhereId ? getSiteColor(elsewhereId) : "var(--brand-primary)" }}>
+                      <Camera size={20} />
+                      <span style={{ fontSize: 10, fontWeight: 600 }}>{elsewhereId ? "ย้าย" : "ถ่ายภาพ"}</span>
+                    </div>
                   </button>
                 </div>
               );
