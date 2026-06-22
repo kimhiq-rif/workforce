@@ -1,6 +1,7 @@
 // Copyright © 2026 Workforce. All rights reserved.
 import { getAppUserContext } from "@/lib/auth-context";
 import { DashboardClient } from "@/components/screens/Dashboard/DashboardClient";
+import { sitesMissingStageTarget, daysSince } from "@/lib/stage-targets";
 import { redirect } from "next/navigation";
 
 export const dynamic = "force-dynamic";
@@ -68,8 +69,22 @@ export default async function DashboardPage() {
     worker: Array.isArray(a.worker) ? (a.worker[0] ?? null) : a.worker,
   }));
 
+  // Owner soft-block: current stages with no target for > 7 days.
+  const stageSoftBlock =
+    profile.role === "owner"
+      ? (await sitesMissingStageTarget(supabase, ownerId))
+          .map((s) => ({
+            siteId: s.siteId,
+            siteNameTh: s.siteNameTh,
+            siteNameEn: s.siteNameEn,
+            days: daysSince(s.stageSince),
+          }))
+          .filter((s) => s.days >= 7)
+      : [];
+
   return (
     <DashboardClient
+      stageSoftBlock={stageSoftBlock}
       sites={dashboardSites}
       attendanceCounts={normalizedAttendance}
       openReceiptsCount={openReceipts?.length ?? 0}

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ChevronRight, FileText, QrCode, AlertCircle, Users, Wrench, Building2 } from "lucide-react";
 import { DashboardShell } from "@/components/layout/DashboardShell";
 import { SiteStatusBadge, siteStatusColor } from "@/components/ui/SiteStatusBadge";
+import { StageTargetSoftBlock, type SoftBlockSite } from "@/components/screens/Dashboard/StageTargetSoftBlock";
 import type { Site, ProjectType } from "@/types/database";
 
 type DashboardSite = Pick<
@@ -23,6 +24,7 @@ interface AttendanceCount {
 }
 
 interface DashboardClientProps {
+  stageSoftBlock?: SoftBlockSite[];
   sites: DashboardSite[];
   attendanceCounts: AttendanceCount[];
   openReceiptsCount: number;
@@ -33,6 +35,7 @@ interface DashboardClientProps {
 }
 
 export function DashboardClient({
+  stageSoftBlock = [],
   sites,
   attendanceCounts,
   openReceiptsCount,
@@ -183,6 +186,7 @@ export function DashboardClient({
       userInitials={initials}
       userName={userProfile?.name_th ?? "เจ้าของ"}
     >
+      <StageTargetSoftBlock sites={stageSoftBlock} />
       <div className="desktop-only">{mainContent}</div>
       <div className="mobile-only">
         <MobileDashboard
