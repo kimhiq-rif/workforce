@@ -6,7 +6,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
 import { buildDailyReport } from "@/lib/daily-report";
 import { generateDailyReportPdf } from "@/lib/daily-report-pdf";
-import webpush from "web-push";
+import { sendOneSignalPush } from "@/lib/send-push";
 
 export const dynamic = "force-dynamic";
 
@@ -14,29 +14,15 @@ function todayBangkok(): string {
   return new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Bangkok" });
 }
 
+// owner's external_id == their users.id == ownerId.
 async function sendPushToOwner(
-  supabase: ReturnType<typeof createServiceClient>,
+  _supabase: ReturnType<typeof createServiceClient>,
   ownerId: string,
   title: string,
   body: string,
   url = "/"
 ) {
-  const { data: subs } = await supabase
-    .from("push_subscriptions")
-    .select("endpoint, p256dh, auth")
-    .eq("owner_id", ownerId);
-
-  if (!subs?.length) return;
-
-  const payload = JSON.stringify({ title, body, url });
-  await Promise.allSettled(
-    subs.map((sub) =>
-      webpush.sendNotification(
-        { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
-        payload
-      )
-    )
-  );
+  await sendOneSignalPush({ externalIds: [ownerId], title, body, url });
 }
 
 async function uploadDailyReportPdf(
@@ -118,9 +104,6 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  if (process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
-    webpush.setVapidDetails("mailto:admin@workforce.app", process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY, process.env.VAPID_PRIVATE_KEY);
-  }
 
   const supabase = createServiceClient();
   const today = todayBangkok();

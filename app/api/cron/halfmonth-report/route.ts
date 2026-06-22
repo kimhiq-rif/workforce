@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import webpush from "web-push";
 import { buildHalfMonthReport, getHalfMonthPeriod } from "@/lib/halfmonth-report";
 import { createServiceClient } from "@/lib/supabase/server";
+import { sendOneSignalPush } from "@/lib/send-push";
 
 export const dynamic = "force-dynamic";
 
@@ -15,43 +15,18 @@ function isPayrollDay(dateStr: string): boolean {
   return day === 15 || day === lastDay;
 }
 
+// owner's external_id == their users.id == ownerId.
 async function sendPush(
-  supabase: ReturnType<typeof createServiceClient>,
+  _supabase: ReturnType<typeof createServiceClient>,
   ownerId: string,
   title: string,
   body: string,
   url = "/"
 ) {
-  const { data: subscriptions } = await supabase
-    .from("push_subscriptions")
-    .select("endpoint, p256dh, auth")
-    .eq("owner_id", ownerId);
-
-  if (!subscriptions?.length) return;
-
-  const payload = JSON.stringify({ title, body, url });
-  await Promise.allSettled(
-    subscriptions.map((subscription) =>
-      webpush.sendNotification(
-        {
-          endpoint: subscription.endpoint,
-          keys: { p256dh: subscription.p256dh, auth: subscription.auth },
-        },
-        payload
-      )
-    )
-  );
+  await sendOneSignalPush({ externalIds: [ownerId], title, body, url });
 }
 
 export async function GET(req: NextRequest) {
-  if (process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
-    webpush.setVapidDetails(
-      "mailto:admin@workforce.app",
-      process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY,
-      process.env.VAPID_PRIVATE_KEY
-    );
-  }
-
   const authHeader = req.headers.get("authorization");
   if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
