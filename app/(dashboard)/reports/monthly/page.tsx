@@ -93,6 +93,25 @@ export default async function MonthlyReportPage({ searchParams }: Props) {
     driver: Array.isArray(d.driver) ? (d.driver[0] ?? null) : d.driver,
   }));
 
+  // Stage transitions this month (a stage_report is generated on each Move Stage)
+  const { data: stageTransRaw } = await supabase
+    .from("stage_reports")
+    .select("site_id, stage_name_th, stage_name_en, stage_color, generated_at, site:site_id(name_th)")
+    .eq("owner_id", ownerId)
+    .gte("generated_at", `${monthStart}T00:00:00+07:00`)
+    .lte("generated_at", `${monthEnd}T23:59:59+07:00`)
+    .order("generated_at", { ascending: true });
+
+  const stageTransitions = (stageTransRaw ?? []).map((s: any) => {
+    const site = Array.isArray(s.site) ? s.site[0] : s.site;
+    return {
+      siteName: site?.name_th ?? "—",
+      stageName: s.stage_name_th || s.stage_name_en || "—",
+      color: s.stage_color ?? "#6366F1",
+      date: s.generated_at,
+    };
+  });
+
   // Overdue projects: current stage whose target_end_date is in the past
   const { data: overdueStagesRaw } = await supabase
     .from("site_stages")
@@ -117,6 +136,7 @@ export default async function MonthlyReportPage({ searchParams }: Props) {
       receipts={receipts ?? []}
       overdueProjects={overdueProjects}
       driverCash={driverCash}
+      stageTransitions={stageTransitions}
       workers={workers ?? []}
       targetMonth={targetMonth}
       monthStart={monthStart}

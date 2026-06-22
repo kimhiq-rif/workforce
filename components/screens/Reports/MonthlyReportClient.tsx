@@ -10,6 +10,7 @@ import { formatCurrency } from "@/lib/format";
 import { MonthlySuppliersSection } from "@/components/screens/Reports/MonthlySuppliersSection";
 import { MonthlyNeedsAttention, type OverdueProject } from "@/components/screens/Reports/MonthlyNeedsAttention";
 import { MonthlyDriverCash } from "@/components/screens/Reports/MonthlyDriverCash";
+import { MonthlyStageTransitions } from "@/components/screens/Reports/MonthlyStageTransitions";
 
 interface Props {
   sites: { id: string; name_th: string; name_en: string; status: string }[];
@@ -17,6 +18,7 @@ interface Props {
   receipts: { site_id: string | null; supplier_id: string | null; amount: number | null; status: string; supplier: { name_th: string; name_en: string } | null }[];
   overdueProjects: OverdueProject[];
   driverCash: { driverId: string; amount: number | null; driver: { name_th: string; name_en: string } | null }[];
+  stageTransitions: { siteName: string; stageName: string; color: string; date: string }[];
   workers: { id: string; name_th: string; name_en: string; assigned_site_id: string | null; daily_wage: number }[];
   targetMonth: string;
   monthStart: string;
@@ -46,7 +48,7 @@ function nextMonth(ym: string): string {
 }
 
 export function MonthlyReportClient({
-  sites, attendance, receipts, overdueProjects, driverCash, workers, targetMonth, monthStart, monthEnd, today,
+  sites, attendance, receipts, overdueProjects, driverCash, stageTransitions, workers, targetMonth, monthStart, monthEnd, today,
 }: Props) {
   const router = useRouter();
   const [selectedSite, setSelectedSite] = useState<string | null>(null);
@@ -375,6 +377,9 @@ export function MonthlyReportClient({
 
         {/* Driver cash */}
         <MonthlyDriverCash entries={driverCash} />
+
+        {/* Stage transitions */}
+        <MonthlyStageTransitions transitions={stageTransitions} />
       </div>
 
       {/* Mobile */}
@@ -391,6 +396,7 @@ export function MonthlyReportClient({
           sites={sites}
           overdueProjects={overdueProjects}
           driverCash={driverCash}
+          stageTransitions={stageTransitions}
           onPrev={() => router.push(`/reports/monthly?month=${prevMonth(targetMonth)}`)}
           onNext={() => router.push(`/reports/monthly?month=${nextMonth(targetMonth)}`)}
         />
@@ -399,7 +405,7 @@ export function MonthlyReportClient({
   );
 }
 
-function MobileMonthly({ targetMonth, siteData, totals, monthStart, monthEnd, isCurrentMonth, isFutureMonth, receipts, sites, overdueProjects, driverCash, onPrev, onNext }: any) {
+function MobileMonthly({ targetMonth, siteData, totals, monthStart, monthEnd, isCurrentMonth, isFutureMonth, receipts, sites, overdueProjects, driverCash, stageTransitions, onPrev, onNext }: any) {
   return (
     <div>
       <div className="mobile-topbar">
@@ -484,6 +490,8 @@ function MobileMonthly({ targetMonth, siteData, totals, monthStart, monthEnd, is
         <MonthlySuppliersSection receipts={receipts} sites={sites} />
 
         <MonthlyDriverCash entries={driverCash} />
+
+        <MonthlyStageTransitions transitions={stageTransitions} />
       </div>
     </div>
   );
