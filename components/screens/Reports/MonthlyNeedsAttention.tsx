@@ -7,7 +7,7 @@
 // TODO (data model pending): cash differences, edited entries, overtime missing cost.
 
 import Link from "next/link";
-import { AlertTriangle, Clock, Receipt } from "lucide-react";
+import { AlertTriangle, Clock, Receipt, Wallet, Pencil, Timer } from "lucide-react";
 import { formatCurrency } from "@/lib/format";
 
 export interface OverdueProject {
@@ -22,14 +22,26 @@ interface PendingReceipt {
   amount: number | null;
 }
 
+export interface CashDifference {
+  name: string;
+  given: number;
+  used: number;
+}
+
 const PENDING = new Set(["pending_qr", "pending", "pending_sorting", "paid_pending_sorting"]);
 
 export function MonthlyNeedsAttention({
   overdueProjects,
   receipts,
+  cashDifferences = [],
+  editedCount = 0,
+  overtimeMissingCost = 0,
 }: {
   overdueProjects: OverdueProject[];
   receipts: PendingReceipt[];
+  cashDifferences?: CashDifference[];
+  editedCount?: number;
+  overtimeMissingCost?: number;
 }) {
   const pending = receipts.filter((r) => PENDING.has(r.status));
   const pendingTotal = pending.reduce((s, r) => s + (r.amount ?? 0), 0);
@@ -55,6 +67,39 @@ export function MonthlyNeedsAttention({
       detail: `฿${formatCurrency(pendingTotal)} รอการอนุมัติ/จัดประเภท`,
       href: "/suppliers",
       severity: pendingTotal,
+    });
+  }
+
+  for (const c of cashDifferences) {
+    items.push({
+      key: `cash-${c.name}`,
+      icon: <Wallet size={16} color="#B91C1C" />,
+      title: `${c.name} — เงินสดติดลบ · Cash overspent`,
+      detail: `ใช้ ฿${formatCurrency(c.used)} / รับ ฿${formatCurrency(c.given)} (ขาด ฿${formatCurrency(c.used - c.given)})`,
+      href: "/suppliers",
+      severity: 2000 + (c.used - c.given), // cash anomalies rank highest
+    });
+  }
+
+  if (overtimeMissingCost > 0) {
+    items.push({
+      key: "overtime-missing",
+      icon: <Timer size={16} color="#B45309" />,
+      title: `${overtimeMissingCost} รายการ OT ไม่มีค่าจ้าง · Overtime missing cost`,
+      detail: "กรอกค่าล่วงเวลาที่ค้างอยู่",
+      href: "/sites",
+      severity: 1500,
+    });
+  }
+
+  if (editedCount > 0) {
+    items.push({
+      key: "edited-entries",
+      icon: <Pencil size={16} color="#7C3AED" />,
+      title: `${editedCount} รายการถูกแก้ไข · Edited entries`,
+      detail: "มีการแก้ไขย้อนหลังในเดือนนี้",
+      href: "/reports/monthly",
+      severity: 1, // informational — lowest
     });
   }
 

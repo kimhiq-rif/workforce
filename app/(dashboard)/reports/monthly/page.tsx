@@ -93,6 +93,54 @@ export default async function MonthlyReportPage({ searchParams }: Props) {
     driver: Array.isArray(d.driver) ? (d.driver[0] ?? null) : d.driver,
   }));
 
+  // Cash differences: per driver, cash given vs cash used (receipts paid from
+  // driver cash). A negative remaining (used > given) is the critical anomaly.
+  const { data: cashUsedRaw } = await supabase
+    .from("receipts")
+    .select("submitted_by, amount")
+    .eq("owner_id", ownerId)
+    .eq("paid_from_driver_cash", true)
+    .gte("created_at", `${monthStart}T00:00:00+07:00`)
+    .lte("created_at", `${monthEnd}T23:59:59+07:00`);
+
+  const givenByDriver = new Map<string, { name: string; given: number }>();
+  for (const d of driverCash) {
+    const e = givenByDriver.get(d.driverId) ?? { name: d.driver?.name_th ?? "—", given: 0 };
+    e.given += d.amount ?? 0;
+    givenByDriver.set(d.driverId, e);
+  }
+  const usedByDriver = new Map<string, number>();
+  for (const r of cashUsedRaw ?? []) {
+    if (!r.submitted_by) continue;
+    usedByDriver.set(r.submitted_by, (usedByDriver.get(r.submitted_by) ?? 0) + (r.amount ?? 0));
+  }
+  const cashDifferences: { name: string; given: number; used: number }[] = [];
+  for (const [driverId, used] of Array.from(usedByDriver.entries())) {
+    const given = givenByDriver.get(driverId)?.given ?? 0;
+    if (used > given) {
+      cashDifferences.push({ name: givenByDriver.get(driverId)?.name ?? "—", given, used });
+    }
+  }
+
+  // Edited entries (corrections) this month
+  const { data: correctionsRows } = await supabase
+    .from("corrections")
+    .select("id")
+    .eq("owner_id", ownerId)
+    .gte("corrected_at", `${monthStart}T00:00:00+07:00`)
+    .lte("corrected_at", `${monthEnd}T23:59:59+07:00`);
+  const editedCount = correctionsRows?.length ?? 0;
+
+  // Overtime entries still missing a cost ("remind me later")
+  const { data: otMissingRows } = await supabase
+    .from("overtime_events")
+    .select("id")
+    .eq("owner_id", ownerId)
+    .is("amount", null)
+    .gte("event_date", monthStart)
+    .lte("event_date", monthEnd);
+  const overtimeMissingCost = otMissingRows?.length ?? 0;
+
   // Stage transitions this month (a stage_report is generated on each Move Stage)
   const { data: stageTransRaw } = await supabase
     .from("stage_reports")
@@ -137,6 +185,9 @@ export default async function MonthlyReportPage({ searchParams }: Props) {
       overdueProjects={overdueProjects}
       driverCash={driverCash}
       stageTransitions={stageTransitions}
+      cashDifferences={cashDifferences}
+      editedCount={editedCount}
+      overtimeMissingCost={overtimeMissingCost}
       workers={workers ?? []}
       targetMonth={targetMonth}
       monthStart={monthStart}

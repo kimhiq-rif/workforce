@@ -8,7 +8,7 @@ import { DashboardShell } from "@/components/layout/DashboardShell";
 import { ChevronLeft, ChevronRight, TrendingUp, Users, FileText, AlertTriangle } from "lucide-react";
 import { formatCurrency } from "@/lib/format";
 import { MonthlySuppliersSection } from "@/components/screens/Reports/MonthlySuppliersSection";
-import { MonthlyNeedsAttention, type OverdueProject } from "@/components/screens/Reports/MonthlyNeedsAttention";
+import { MonthlyNeedsAttention, type OverdueProject, type CashDifference } from "@/components/screens/Reports/MonthlyNeedsAttention";
 import { MonthlyDriverCash } from "@/components/screens/Reports/MonthlyDriverCash";
 import { MonthlyStageTransitions } from "@/components/screens/Reports/MonthlyStageTransitions";
 
@@ -19,6 +19,9 @@ interface Props {
   overdueProjects: OverdueProject[];
   driverCash: { driverId: string; amount: number | null; driver: { name_th: string; name_en: string } | null }[];
   stageTransitions: { siteName: string; stageName: string; color: string; date: string }[];
+  cashDifferences: CashDifference[];
+  editedCount: number;
+  overtimeMissingCost: number;
   workers: { id: string; name_th: string; name_en: string; assigned_site_id: string | null; daily_wage: number }[];
   targetMonth: string;
   monthStart: string;
@@ -48,7 +51,8 @@ function nextMonth(ym: string): string {
 }
 
 export function MonthlyReportClient({
-  sites, attendance, receipts, overdueProjects, driverCash, stageTransitions, workers, targetMonth, monthStart, monthEnd, today,
+  sites, attendance, receipts, overdueProjects, driverCash, stageTransitions,
+  cashDifferences, editedCount, overtimeMissingCost, workers, targetMonth, monthStart, monthEnd, today,
 }: Props) {
   const router = useRouter();
   const [selectedSite, setSelectedSite] = useState<string | null>(null);
@@ -218,7 +222,7 @@ export function MonthlyReportClient({
         </div>
 
         {/* Needs attention */}
-        <MonthlyNeedsAttention overdueProjects={overdueProjects} receipts={receipts} />
+        <MonthlyNeedsAttention overdueProjects={overdueProjects} receipts={receipts} cashDifferences={cashDifferences} editedCount={editedCount} overtimeMissingCost={overtimeMissingCost} />
 
         {/* Summary metrics */}
         <div className="metric-grid" style={{ gridTemplateColumns: "repeat(4, 1fr)", marginBottom: 24 }}>
@@ -397,6 +401,9 @@ export function MonthlyReportClient({
           overdueProjects={overdueProjects}
           driverCash={driverCash}
           stageTransitions={stageTransitions}
+          cashDifferences={cashDifferences}
+          editedCount={editedCount}
+          overtimeMissingCost={overtimeMissingCost}
           onPrev={() => router.push(`/reports/monthly?month=${prevMonth(targetMonth)}`)}
           onNext={() => router.push(`/reports/monthly?month=${nextMonth(targetMonth)}`)}
         />
@@ -405,7 +412,7 @@ export function MonthlyReportClient({
   );
 }
 
-function MobileMonthly({ targetMonth, siteData, totals, monthStart, monthEnd, isCurrentMonth, isFutureMonth, receipts, sites, overdueProjects, driverCash, stageTransitions, onPrev, onNext }: any) {
+function MobileMonthly({ targetMonth, siteData, totals, monthStart, monthEnd, isCurrentMonth, isFutureMonth, receipts, sites, overdueProjects, driverCash, stageTransitions, cashDifferences, editedCount, overtimeMissingCost, onPrev, onNext }: any) {
   return (
     <div>
       <div className="mobile-topbar">
@@ -436,7 +443,7 @@ function MobileMonthly({ targetMonth, siteData, totals, monthStart, monthEnd, is
         </div>
 
         {/* Needs attention */}
-        <MonthlyNeedsAttention overdueProjects={overdueProjects} receipts={receipts} />
+        <MonthlyNeedsAttention overdueProjects={overdueProjects} receipts={receipts} cashDifferences={cashDifferences} editedCount={editedCount} overtimeMissingCost={overtimeMissingCost} />
 
         {/* Summary card */}
         <div style={{ background: "#1E3A8A", borderRadius: 14, padding: "16px" }}>
