@@ -36,6 +36,13 @@ export function OneSignalInit({
       try {
         await OneSignal.login(userId);
         if (ownerId) await OneSignal.User.addTag("owner_id", ownerId);
+        // In SDK v16, requestPermission() only grants browser-level permission.
+        // optIn() creates the actual PushManager subscription. Call it on every
+        // init so returning users who already approved get their push token
+        // registered even if they never clicked the Enable Push button again.
+        if (OneSignal.Notifications.permission) {
+          await OneSignal.User.PushSubscription.optIn();
+        }
       } catch {
         /* non-fatal — subscription still works, just untargeted */
       }
