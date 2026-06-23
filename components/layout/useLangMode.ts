@@ -2,14 +2,16 @@
 
 import { useEffect, useState } from "react";
 
-export type LangMode = "th-primary" | "en-primary" | "th-only";
+export type LangMode = "th-primary" | "en-primary";
 
 const LANG_MODE_KEY = "wf_lang_mode";
 
 function readLangMode(): LangMode {
   if (typeof window === "undefined") return "th-primary";
   const value = window.localStorage.getItem(LANG_MODE_KEY);
-  if (value === "en-primary" || value === "th-only") return value;
+  if (value === "en-primary") return value;
+  // "th-only" is no longer supported — treat as th-primary so English stays
+  // visible. Any devices that had th-only stored will silently upgrade.
   return "th-primary";
 }
 
@@ -44,10 +46,5 @@ export function getBilingualLabel(langMode: LangMode, th: string, en: string) {
   if (langMode === "en-primary") {
     return { primary: en, secondary: th };
   }
-
-  if (langMode === "th-only") {
-    return { primary: th, secondary: "" };
-  }
-
   return { primary: th, secondary: en };
 }

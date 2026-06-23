@@ -444,12 +444,14 @@ export async function buildDailyReport(
   const allReceipts = receipts ?? [];
   const receiptClosing = buildReceiptClosingSummary(allReceipts);
 
+  // Only truly-pending receipts block report generation. Data-quality issues
+  // (missing supplier / amount / site, disputed status) are surfaced in the
+  // receiptClosing summary but do NOT prevent the report from being produced.
   for (const issue of receiptClosing.issues) {
+    if (issue.issueType !== "pending_action") continue;
     const type = issue.status.includes("qr") || issue.status === "waiting_owner_payment"
       ? "pending_qr" as const
-      : issue.issueType === "pending_action"
-        ? "pending_receipt" as const
-        : "receipt_closing" as const;
+      : "pending_receipt" as const;
     blockReasons.push({
       type,
       messageTh: issue.messageTh,
@@ -459,19 +461,6 @@ export async function buildDailyReport(
   }
 
   // ── 8. Check blocking conditions ────────────────────────────────────────────
-  const pendingReceipts: any[] = [];
-  for (const r of pendingReceipts) {
-    const type = r.status.includes("qr") || r.status === "waiting_owner_payment"
-      ? "pending_qr" as const
-      : "pending_receipt" as const;
-    blockReasons.push({
-      type,
-      messageTh: `ใบเสร็จรอการจัดการ (${r.status})`,
-      messageEn: `Receipt pending action: ${r.status}`,
-      receiptId: r.id,
-    });
-  }
-
   const pendingWage = (dayStatuses ?? []).filter((d) => d.wage_decision === "pending");
   for (const d of pendingWage) {
     const site = (sites ?? []).find((s) => s.id === d.site_id);

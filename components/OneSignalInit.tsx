@@ -24,10 +24,12 @@ export function OneSignalInit({
         initialized = true;
         await OneSignal.init({
           appId: ONESIGNAL_APP_ID,
-          // Reuse the service worker that next-pwa already registers at "/".
-          // worker/index.js importScripts the OneSignal SW SDK into it.
-          serviceWorkerParam: { scope: "/" },
-          serviceWorkerPath: "sw.js",
+          // Use a dedicated OneSignal service worker (public/OneSignalSDKWorker.js)
+          // registered at a sub-scope so it doesn't conflict with next-pwa's sw.js
+          // at scope "/". Push events are delivered to the subscribing SW regardless
+          // of scope, so push works even though this SW doesn't control app pages.
+          serviceWorkerPath: "OneSignalSDKWorker.js",
+          serviceWorkerParam: { scope: "/onesignal-sw/" },
           allowLocalhostAsSecureOrigin: true,
         });
       }
@@ -36,6 +38,13 @@ export function OneSignalInit({
       try {
         await OneSignal.login(userId);
         if (ownerId) await OneSignal.User.addTag("owner_id", ownerId);
+        // In SDK v16, requestPermission() only grants browser-level permission.
+        // optIn() creates the actual PushManager subscription. Call it on every
+        // init so returning users who already approved get their push token
+        // registered even if they never clicked the Enable Push button again.
+        if (OneSignal.Notifications.permission) {
+          await OneSignal.User.PushSubscription.optIn();
+        }
       } catch {
         /* non-fatal — subscription still works, just untargeted */
       }
