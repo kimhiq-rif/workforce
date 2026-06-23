@@ -24,10 +24,12 @@ export function OneSignalInit({
         initialized = true;
         await OneSignal.init({
           appId: ONESIGNAL_APP_ID,
-          // Reuse the service worker that next-pwa already registers at "/".
-          // worker/index.js importScripts the OneSignal SW SDK into it.
-          serviceWorkerParam: { scope: "/" },
-          serviceWorkerPath: "sw.js",
+          // Use a dedicated OneSignal service worker (public/OneSignalSDKWorker.js)
+          // registered at a sub-scope so it doesn't conflict with next-pwa's sw.js
+          // at scope "/". Push events are delivered to the subscribing SW regardless
+          // of scope, so push works even though this SW doesn't control app pages.
+          serviceWorkerPath: "OneSignalSDKWorker.js",
+          serviceWorkerParam: { scope: "/onesignal-sw/" },
           allowLocalhostAsSecureOrigin: true,
         });
       }
