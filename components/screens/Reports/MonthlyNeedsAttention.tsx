@@ -36,12 +36,14 @@ export function MonthlyNeedsAttention({
   cashDifferences = [],
   editedCount = 0,
   overtimeMissingCost = 0,
+  targetMonth,
 }: {
   overdueProjects: OverdueProject[];
   receipts: PendingReceipt[];
   cashDifferences?: CashDifference[];
   editedCount?: number;
   overtimeMissingCost?: number;
+  targetMonth?: string;
 }) {
   const pending = receipts.filter((r) => PENDING.has(r.status));
   const pendingTotal = pending.reduce((s, r) => s + (r.amount ?? 0), 0);
@@ -87,7 +89,7 @@ export function MonthlyNeedsAttention({
       icon: <Timer size={16} color="#B45309" />,
       title: `${overtimeMissingCost} รายการ OT ไม่มีค่าจ้าง · Overtime missing cost`,
       detail: "กรอกค่าล่วงเวลาที่ค้างอยู่",
-      href: "/sites",
+      href: targetMonth ? `/reports/monthly/overtime?month=${targetMonth}` : "/reports/monthly/overtime",
       severity: 1500,
     });
   }

@@ -2,7 +2,22 @@
 // Copyright © 2026 Workforce. All rights reserved.
 
 import Link from "next/link";
-import { ChevronRight, FileText, QrCode, AlertCircle, Users, Wrench, Building2 } from "lucide-react";
+import {
+  Activity,
+  AlertCircle,
+  AlertTriangle,
+  Bell,
+  Building2,
+  CheckCircle2,
+  ChevronRight,
+  Clock3,
+  CloudRain,
+  FileText,
+  MapPin,
+  QrCode,
+  Users,
+  Wrench,
+} from "lucide-react";
 import { DashboardShell } from "@/components/layout/DashboardShell";
 import { SiteStatusBadge, siteStatusColor } from "@/components/ui/SiteStatusBadge";
 import { StageTargetSoftBlock, type SoftBlockSite } from "@/components/screens/Dashboard/StageTargetSoftBlock";
@@ -199,6 +214,233 @@ export function DashboardClient({
         />
       </div>
     </DashboardShell>
+  );
+}
+
+function MobileDashboard({
+  sites,
+  openReceiptsCount,
+  pendingWageDecisions,
+  liveSites,
+  totalReported,
+  totalExpected,
+}: {
+  sites: (DashboardSite & { reported: number; total: number; hasPendingWage: boolean; todayWorkers: AttendanceCount[] })[];
+  openReceiptsCount: number;
+  pendingWageDecisions: number;
+  liveSites: number;
+  totalReported: number;
+  totalExpected: number;
+}) {
+  const completedSites = sites.filter((site) => site.total > 0 && site.reported >= site.total).length;
+  const rainSites = sites.filter((site) => site.status === "rain" || site.status === "day_off").length;
+  const reviewSites = sites.filter((site) => site.status === "review" || site.hasPendingWage).length;
+  const waitingSites = sites.filter((site) => site.status === "waiting").length;
+  const criticalItems = pendingWageDecisions;
+  const totalAlerts = openReceiptsCount + reviewSites + waitingSites + criticalItems;
+  const recentUpdates = sites
+    .flatMap((site) =>
+      site.todayWorkers
+        .filter((worker) => worker.arrival_time)
+        .map((worker) => ({
+          site,
+          workerName: worker.worker?.name_th ?? "Worker",
+          time: worker.arrival_time?.slice(0, 5) ?? "--:--",
+        })),
+    )
+    .sort((a, b) => b.time.localeCompare(a.time))
+    .slice(0, 4);
+
+  return (
+    <div className="mobile-dashboard-v2">
+      <header className="mobile-command-header">
+        <div className="mobile-brand-lockup">
+          <span className="mobile-brand-mark">W</span>
+          <div>
+            <strong>Workforce</strong>
+            <small>Driven by Proof</small>
+          </div>
+        </div>
+        <div className="mobile-header-actions">
+          <span className="mobile-time-chip"><Clock3 size={13} /> Bangkok</span>
+          <button className="mobile-icon-button" aria-label="Notifications">
+            <Bell size={18} />
+            {totalAlerts > 0 && <span>{Math.min(totalAlerts, 9)}</span>}
+          </button>
+        </div>
+      </header>
+
+      <main className="mobile-command-content">
+        <section className="mobile-today-panel">
+          <div className="mobile-section-heading">
+            <div>
+              <h1>Today command</h1>
+              <p>
+                <span className="live-dot" />
+                {liveSites} live sites · {totalReported}/{totalExpected} reported
+              </p>
+            </div>
+            <Link href="/sites" className="mobile-text-link">
+              Sites <ChevronRight size={14} />
+            </Link>
+          </div>
+
+          <div className="mobile-metric-grid">
+            <MobileMetricTile value={sites.length} label="Sites" subLabel="All work" icon={<MapPin size={17} />} color="#1E3A8A" />
+            <MobileMetricTile value={totalReported} label="Workers" subLabel={`of ${totalExpected}`} icon={<Users size={17} />} color="#06B6D4" />
+            <MobileMetricTile value={completedSites} label="Complete" subLabel="Sites done" icon={<CheckCircle2 size={17} />} color="#22C55E" />
+            <MobileMetricTile value={totalAlerts} label="Alerts" subLabel="Need action" icon={<AlertCircle size={17} />} color="#FF6A00" />
+          </div>
+        </section>
+
+        <section className="mobile-action-strip" aria-label="Quick actions">
+          <Link href="/suppliers">
+            <QrCode size={18} />
+            <span>Scan</span>
+          </Link>
+          <Link href="/sites">
+            <MapPin size={18} />
+            <span>Sites</span>
+          </Link>
+          <Link href="/workers">
+            <Users size={18} />
+            <span>Workers</span>
+          </Link>
+          <Link href="/reports">
+            <FileText size={18} />
+            <span>Reports</span>
+          </Link>
+        </section>
+
+        <section className="mobile-signal-section">
+          <div className="mobile-section-title">
+            <strong>Status signals</strong>
+            <small>Color-as-signal</small>
+          </div>
+          <div className="mobile-signal-grid">
+            <MobileSignalCard icon={<Activity size={18} />} title="Live now" detail={`${liveSites} active`} color="#06B6D4" />
+            <MobileSignalCard icon={<CheckCircle2 size={18} />} title="Complete" detail={`${completedSites} sites`} color="#22C55E" />
+            <MobileSignalCard icon={<CloudRain size={18} />} title="Rain / off" detail={`${rainSites} sites`} color="#3B82F6" />
+            <MobileSignalCard icon={<AlertCircle size={18} />} title="Needs check" detail={`${reviewSites + waitingSites} items`} color="#FF6A00" />
+            <MobileSignalCard icon={<AlertTriangle size={18} />} title="Critical" detail={`${criticalItems} actions`} color="#FF4444" />
+            <MobileSignalCard icon={<FileText size={18} />} title="Receipts" detail={`${openReceiptsCount} open`} color="#8B5CF6" />
+          </div>
+        </section>
+
+        <section className="mobile-panel">
+          <div className="mobile-section-title">
+            <strong>Live updates</strong>
+            <small>Today</small>
+          </div>
+          <div className="mobile-update-list">
+            {recentUpdates.length > 0 ? (
+              recentUpdates.map((update, index) => (
+                <div className="mobile-update-row" key={`${update.site.id}-${update.time}-${index}`}>
+                  <span className="mobile-update-time">{update.time}</span>
+                  <span className="mobile-update-body">
+                    <strong>{update.workerName}</strong>
+                    <small>{update.site.name_en ?? update.site.name_th}</small>
+                  </span>
+                  <span className="mobile-update-status" style={{ color: siteStatusColor(update.site.status) }}>
+                    <Activity size={16} />
+                  </span>
+                </div>
+              ))
+            ) : (
+              <div className="mobile-empty-row">No live updates yet</div>
+            )}
+          </div>
+        </section>
+
+        <section className="mobile-panel">
+          <div className="mobile-section-title">
+            <strong>Sites progress</strong>
+            <small>{sites.length} total</small>
+          </div>
+          <div className="mobile-site-progress-list">
+            {sites.slice(0, 6).map((site) => (
+              <MobileSiteProgressRow key={site.id} site={site} />
+            ))}
+          </div>
+        </section>
+      </main>
+    </div>
+  );
+}
+
+function MobileMetricTile({
+  value,
+  label,
+  subLabel,
+  icon,
+  color,
+}: {
+  value: number | string;
+  label: string;
+  subLabel: string;
+  icon: React.ReactNode;
+  color: string;
+}) {
+  return (
+    <div className="mobile-metric-tile">
+      <span className="mobile-metric-icon" style={{ color, background: `${color}14` }}>
+        {icon}
+      </span>
+      <strong>{value}</strong>
+      <span>{label}</span>
+      <small>{subLabel}</small>
+    </div>
+  );
+}
+
+function MobileSignalCard({
+  icon,
+  title,
+  detail,
+  color,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  detail: string;
+  color: string;
+}) {
+  return (
+    <div className="mobile-signal-card" style={{ borderLeftColor: color }}>
+      <span className="mobile-signal-icon" style={{ color, background: `${color}14` }}>
+        {icon}
+      </span>
+      <span>
+        <strong>{title}</strong>
+        <small>{detail}</small>
+      </span>
+    </div>
+  );
+}
+
+function MobileSiteProgressRow({
+  site,
+}: {
+  site: DashboardSite & { reported: number; total: number; hasPendingWage: boolean; todayWorkers: AttendanceCount[] };
+}) {
+  const color = siteStatusColor(site.status);
+  const progress = site.total > 0 ? Math.min(100, Math.round((site.reported / site.total) * 100)) : 0;
+
+  return (
+    <Link href={`/sites/${site.id}`} className="mobile-site-progress-row" style={{ borderLeftColor: color }}>
+      <div className="mobile-site-progress-main">
+        <strong>{site.name_th}</strong>
+        <small>{site.name_en}{site.location_en ? ` · ${site.location_en}` : ""}</small>
+        <div className="mobile-progress-track">
+          <span style={{ width: `${progress}%`, background: color }} />
+        </div>
+      </div>
+      <div className="mobile-site-progress-side">
+        <SiteStatusBadge status={site.status} small />
+        <strong>{progress}%</strong>
+        <small>{site.reported}/{site.total}</small>
+      </div>
+      <ChevronRight size={17} />
+    </Link>
   );
 }
 
@@ -423,7 +665,7 @@ function SiteCard({
 }
 
 // ── Mobile dashboard ──────────────────────────────────────────────────────────
-function MobileDashboard({
+function MobileDashboardLegacy({
   sites,
   openReceiptsCount,
   pendingWageDecisions,

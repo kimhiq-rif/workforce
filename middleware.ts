@@ -36,7 +36,15 @@ export async function middleware(request: NextRequest) {
 
   const pathname = request.nextUrl.pathname;
   const isAuthPage = pathname.startsWith("/login");
-  const isPublicPath = pathname.startsWith("/_next") || pathname.startsWith("/api") || pathname.startsWith("/icons") || pathname === "/manifest.json" || pathname === "/sw.js";
+  const isPwaAsset =
+    pathname === "/manifest.json" ||
+    pathname === "/sw.js" ||
+    /^\/(?:worker|workbox)-.*\.js$/.test(pathname);
+  const isPublicPath =
+    pathname.startsWith("/_next") ||
+    pathname.startsWith("/api") ||
+    pathname.startsWith("/icons") ||
+    isPwaAsset;
 
   if (isPublicPath) return supabaseResponse;
 

@@ -41,11 +41,11 @@ export default async function MonthlyReportPage({ searchParams }: Props) {
 
   const siteIds = (sites ?? []).map((s) => s.id);
 
-  // Attendance for the month
+  // Attendance for the month (photo_lat/lng included for the GPS-issues section)
   const { data: attendance } = siteIds.length
     ? await supabase
         .from("attendance_events")
-        .select("site_id, worker_id, event_date, wage_amount, status, is_late")
+        .select("id, site_id, worker_id, event_date, wage_amount, status, is_late, photo_lat, photo_lng")
         .in("site_id", siteIds)
         .gte("event_date", monthStart)
         .lte("event_date", monthEnd)
@@ -70,11 +70,11 @@ export default async function MonthlyReportPage({ searchParams }: Props) {
     supplier: Array.isArray(r.supplier) ? (r.supplier[0] ?? null) : r.supplier,
   }));
 
-  // Workers
+  // Workers (is_temporary drives the temp-workers M5 section)
   const { data: workers } = siteIds.length
     ? await supabase
         .from("workers")
-        .select("id, name_th, name_en, assigned_site_id, daily_wage")
+        .select("id, name_th, name_en, assigned_site_id, daily_wage, is_temporary")
         .eq("owner_id", ownerId)
         .eq("is_active", true)
     : { data: [] };
@@ -122,14 +122,83 @@ export default async function MonthlyReportPage({ searchParams }: Props) {
     }
   }
 
-  // Edited entries (corrections) this month
+  // Edited entries (corrections) this month — full rows for the M5 list + drawer
   const { data: correctionsRows } = await supabase
     .from("corrections")
-    .select("id")
+    .select("id, entity_type, entity_id, field_name, original_value, corrected_value, reason, corrected_by, corrected_at")
     .eq("owner_id", ownerId)
     .gte("corrected_at", `${monthStart}T00:00:00+07:00`)
-    .lte("corrected_at", `${monthEnd}T23:59:59+07:00`);
+    .lte("corrected_at", `${monthEnd}T23:59:59+07:00`)
+    .order("corrected_at", { ascending: false });
   const editedCount = correctionsRows?.length ?? 0;
+
+  // Advances given this month (operational `advances` table — not payroll deductions)
+  const { data: advancesRows } = await supabase
+    .from("advances")
+    .select("id, worker_id, site_id, amount, notes, created_by, created_at")
+    .eq("owner_id", ownerId)
+    .gte("created_at", `${monthStart}T00:00:00+07:00`)
+    .lte("created_at", `${monthEnd}T23:59:59+07:00`)
+    .order("created_at", { ascending: false });
+
+  // Team members, to resolve "performed by" names in correction/advance drawers
+  const { data: teamRows } = await supabase
+    .from("users")
+    .select("id, name_th, name_en")
+    .or(`id.eq.${ownerId},owner_id.eq.${ownerId}`);
+  const userName = new Map<string, string>();
+  for (const u of teamRows ?? []) userName.set(u.id, u.name_th || u.name_en || "—");
+
+  const workerName = new Map<string, string>();
+  for (const w of workers ?? []) workerName.set(w.id, w.name_th || w.name_en || "—");
+  const siteName = new Map<string, string>();
+  for (const s of sites ?? []) siteName.set(s.id, s.name_th || s.name_en || "—");
+
+  // M5 — Advances list
+  const advances = (advancesRows ?? []).map((a: any) => ({
+    id: a.id,
+    workerName: workerName.get(a.worker_id) ?? "—",
+    siteName: a.site_id ? (siteName.get(a.site_id) ?? "—") : "—",
+    amount: Number(a.amount ?? 0),
+    notes: a.notes ?? "",
+    by: a.created_by ? (userName.get(a.created_by) ?? "—") : "—",
+    date: a.created_at,
+  }));
+
+  // M5 — Corrections list
+  const corrections = (correctionsRows ?? []).map((c: any) => ({
+    id: c.id,
+    entityType: c.entity_type ?? "—",
+    fieldName: c.field_name ?? "—",
+    originalValue: c.original_value ?? "",
+    correctedValue: c.corrected_value ?? "",
+    reason: c.reason ?? "",
+    by: c.corrected_by ? (userName.get(c.corrected_by) ?? "—") : "—",
+    date: c.corrected_at,
+  }));
+
+  // M5 — Temporary workers: aggregate this month's attendance cost + days
+  const tempIds = new Set((workers ?? []).filter((w: any) => w.is_temporary).map((w: any) => w.id));
+  const tempAgg = new Map<string, { id: string; name: string; days: number; cost: number }>();
+  for (const a of attendance ?? []) {
+    if (!tempIds.has(a.worker_id)) continue;
+    const isWorkDay = !["missing", "day_off", "rain"].includes(String(a.status ?? ""));
+    const e = tempAgg.get(a.worker_id) ?? { id: a.worker_id, name: workerName.get(a.worker_id) ?? "—", days: 0, cost: 0 };
+    if (isWorkDay) e.days += 1;
+    e.cost += Number(a.wage_amount ?? 0);
+    tempAgg.set(a.worker_id, e);
+  }
+  const tempWorkers = Array.from(tempAgg.values()).sort((a, b) => b.cost - a.cost);
+
+  // M5 — GPS issues: attendance events this month with no photo coordinates
+  const gpsIssues = (attendance ?? [])
+    .filter((a: any) => a.photo_lat == null || a.photo_lng == null)
+    .map((a: any) => ({
+      id: a.id,
+      workerName: workerName.get(a.worker_id) ?? "—",
+      siteName: siteName.get(a.site_id) ?? "—",
+      date: a.event_date,
+    }));
 
   // Overtime entries still missing a cost ("remind me later")
   const { data: otMissingRows } = await supabase
@@ -189,6 +258,10 @@ export default async function MonthlyReportPage({ searchParams }: Props) {
       editedCount={editedCount}
       overtimeMissingCost={overtimeMissingCost}
       workers={workers ?? []}
+      advances={advances}
+      corrections={corrections}
+      tempWorkers={tempWorkers}
+      gpsIssues={gpsIssues}
       targetMonth={targetMonth}
       monthStart={monthStart}
       monthEnd={monthEnd}

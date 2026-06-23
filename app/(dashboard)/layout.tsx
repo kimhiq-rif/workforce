@@ -12,7 +12,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
     <>
       <NavigationProgress />
       <OneSignalInit userId={profile.id} ownerId={ownerId} />
-      <EnablePushPrompt />
+      <EnablePushPrompt userId={profile.id} ownerId={ownerId} />
       {children}
     </>
   );

@@ -226,7 +226,7 @@ export function SiteDetailClient({
 
     const fromSite = otherSites.find((s) => s.id === fromSiteId);
 
-    await supabase.from("site_transfer_events").insert({
+    const payload = {
       owner_id: site.owner_id,
       worker_id: worker.id,
       from_site_id: fromSiteId,
@@ -235,7 +235,26 @@ export function SiteDetailClient({
       transfer_time: transferTime,
       source: "photo_transfer",
       performed_by: userId ?? null,
-    });
+    };
+
+    const { data: existingTransfer } = await supabase
+      .from("site_transfer_events")
+      .select("id")
+      .eq("owner_id", site.owner_id)
+      .eq("worker_id", worker.id)
+      .eq("from_site_id", fromSiteId)
+      .eq("to_site_id", site.id)
+      .eq("event_date", today)
+      .maybeSingle();
+
+    const { error } = existingTransfer?.id
+      ? await supabase.from("site_transfer_events").update(payload).eq("id", existingTransfer.id)
+      : await supabase.from("site_transfer_events").insert(payload);
+
+    if (error) {
+      console.error("[transfer] site_transfer_events error", error);
+      return;
+    }
 
     fetch("/api/push/transfer", {
       method: "POST",
@@ -343,10 +362,10 @@ export function SiteDetailClient({
       ? computeWageAmount(selectedWorker.daily_wage, wageReason)
       : 0;
 
-    const workdayStart = "08:00";
-    const isLate = bangkokTime > workdayStart;
-
     const fromSiteId = getReportedElsewhereSiteId(selectedWorker.id);
+    const isTransfer = !!fromSiteId && fromSiteId !== site.id;
+    const workdayStart = "08:00";
+    const isLate = !isTransfer && bangkokTime > workdayStart;
 
     // Save attendance event
     const { error: dbError } = await supabase
@@ -541,6 +560,16 @@ export function SiteDetailClient({
         </div>
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
           <SiteStatusBadge status={site.status as any} />
+          {(site as any).closed_at && (
+            <Link
+              href={`/reports/project-final/${site.id}`}
+              className="btn-primary"
+              style={{ background: "#22C55E", textDecoration: "none" }}
+            >
+              <FileText size={18} />
+              รายงานสรุปโครงการ · Project final report
+            </Link>
+          )}
           {(userRole === "owner" || userRole === "field_manager" || userRole === "technical_admin") && (
             <button
               className="btn-primary"
@@ -1400,6 +1429,16 @@ function MobileSiteDetail({
         </div>
 
         {/* Start report button — primary CTA */}
+        {(site as any).closed_at && (
+          <Link
+            href={`/reports/project-final/${site.id}`}
+            className="btn-primary"
+            style={{ width: "100%", justifyContent: "center", padding: "14px", borderRadius: 14, gap: 10, background: "#22C55E", textDecoration: "none" }}
+          >
+            <FileText size={20} />
+            รายงานสรุปโครงการ · Project final report
+          </Link>
+        )}
         <button
           className="btn-primary"
           style={{ width: "100%", justifyContent: "center", padding: "16px", fontSize: 17, borderRadius: 14, gap: 10 }}
@@ -1508,11 +1547,11 @@ function AttendanceReportFlow({
 
   async function recordMobileTransfer(worker: SiteWorker, transferTime: string) {
     const fromSiteId = reportedElsewhere.get(worker.id);
-    if (!fromSiteId) return;
+    if (!fromSiteId || fromSiteId === site.id) return;
 
     const fromSite = otherSites.find((s) => s.id === fromSiteId);
 
-    await supabase.from("site_transfer_events").insert({
+    const payload = {
       owner_id: site.owner_id,
       worker_id: worker.id,
       from_site_id: fromSiteId,
@@ -1521,7 +1560,26 @@ function AttendanceReportFlow({
       transfer_time: transferTime,
       source: "photo_transfer",
       performed_by: userId ?? null,
-    });
+    };
+
+    const { data: existingTransfer } = await supabase
+      .from("site_transfer_events")
+      .select("id")
+      .eq("owner_id", site.owner_id)
+      .eq("worker_id", worker.id)
+      .eq("from_site_id", fromSiteId)
+      .eq("to_site_id", site.id)
+      .eq("event_date", today)
+      .maybeSingle();
+
+    const { error } = existingTransfer?.id
+      ? await supabase.from("site_transfer_events").update(payload).eq("id", existingTransfer.id)
+      : await supabase.from("site_transfer_events").insert(payload);
+
+    if (error) {
+      console.error("[transfer] site_transfer_events error", error);
+      return;
+    }
 
     fetch("/api/push/transfer", {
       method: "POST",
@@ -1611,11 +1669,12 @@ function AttendanceReportFlow({
       minute: "2-digit",
       hour12: false,
     });
-    const isLate = bangkokTime > "08:00";
+    const isTransfer = reportedElsewhere.has(worker.id);
+    const isLate = !isTransfer && bangkokTime > "08:00";
     const wageReason = computeAttendanceWageReason(bangkokTime, site.status as any);
     const wageAmount = wageReason ? computeWageAmount(worker.daily_wage, wageReason) : 0;
 
-    const { error: dbError } = await supabase.from("attendance_events").insert({
+    const { error: dbError } = await supabase.from("attendance_events").upsert({
       owner_id: site.owner_id,
       site_id: site.id,
       worker_id: worker.id,
@@ -1629,7 +1688,7 @@ function AttendanceReportFlow({
       is_late: isLate,
       wage_reason: wageReason,
       wage_amount: wageAmount,
-    });
+    }, { onConflict: "owner_id,worker_id,event_date,site_id" });
 
     if (alreadyReportedHere.size === 0 && reportedIds.size === 0) {
       await supabase.from("site_day_status_events").upsert(
@@ -1725,11 +1784,12 @@ function AttendanceReportFlow({
       minute: "2-digit",
       hour12: false,
     });
-    const isLate = bangkokTime > "08:00";
+    const isTransfer = reportedElsewhere.has(cameraWorker.id);
+    const isLate = !isTransfer && bangkokTime > "08:00";
     const wageReason = computeAttendanceWageReason(bangkokTime, site.status as any);
     const wageAmount = wageReason ? computeWageAmount(cameraWorker.daily_wage, wageReason) : 0;
 
-    const { error: dbError } = await supabase.from("attendance_events").insert({
+    const { error: dbError } = await supabase.from("attendance_events").upsert({
       owner_id: site.owner_id,
       site_id: site.id,
       worker_id: cameraWorker.id,
@@ -1743,7 +1803,7 @@ function AttendanceReportFlow({
       is_late: isLate,
       wage_reason: wageReason,
       wage_amount: wageAmount,
-    });
+    }, { onConflict: "owner_id,worker_id,event_date,site_id" });
 
     // First check-in → site goes live
     if (alreadyReportedHere.size === 0 && reportedIds.size === 0) {

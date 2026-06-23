@@ -64,7 +64,7 @@ export async function POST(req: NextRequest) {
       wage_reason: wageReason,
       wage_amount: wageAmount,
       late_deduction_baht: lateDeductionBaht,
-    }, { onConflict: "worker_id,event_date,site_id" })
+    }, { onConflict: "owner_id,worker_id,event_date,site_id" })
     .select()
     .single();
 

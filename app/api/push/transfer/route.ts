@@ -1,44 +1,30 @@
-// Copyright © 2026 Workforce. All rights reserved.
 import { NextRequest, NextResponse } from "next/server";
-import webpush from "web-push";
-import { createServiceClient } from "@/lib/supabase/server";
+import { sendOneSignalPush } from "@/lib/send-push";
+
+export const dynamic = "force-dynamic";
 
 export async function POST(req: NextRequest) {
-  if (process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
-    webpush.setVapidDetails("mailto:admin@workforce.app", process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY, process.env.VAPID_PRIVATE_KEY);
-  }
   const { workerNameTh, fromSiteNameTh, toSiteNameTh, ownerId } = await req.json();
 
   if (!ownerId || !workerNameTh) {
     return NextResponse.json({ error: "missing fields" }, { status: 400 });
   }
 
-  const supabase = createServiceClient();
-  const { data: subs } = await supabase
-    .from("push_subscriptions")
-    .select("endpoint, p256dh, auth")
-    .eq("owner_id", ownerId);
+  const result = await sendOneSignalPush({
+    externalIds: [ownerId],
+    title: `${workerNameTh} transferred / ย้ายไซต์`,
+    body: `${fromSiteNameTh ?? "-"} -> ${toSiteNameTh ?? "-"}`,
+    url: "/sites",
+    tag: "site_transfer",
+  });
 
-  if (!subs || subs.length === 0) {
-    return NextResponse.json({ sent: 0 });
+  if (!result.ok && result.error === "not configured") {
+    return NextResponse.json({ error: "Push notifications not configured" }, { status: 503 });
   }
 
-  const title = `🔄 ${workerNameTh} ย้ายไซต์`;
-  const body = `จาก ${fromSiteNameTh} → ${toSiteNameTh}`;
-  const payload = JSON.stringify({ title, body, url: "/sites" });
+  if (!result.ok) {
+    return NextResponse.json({ error: result.error, sent: 0 }, { status: 502 });
+  }
 
-  let sent = 0;
-  await Promise.allSettled(
-    subs.map(async (sub) => {
-      try {
-        await webpush.sendNotification(
-          { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
-          payload
-        );
-        sent++;
-      } catch {}
-    })
-  );
-
-  return NextResponse.json({ sent });
+  return NextResponse.json({ sent: result.sent });
 }

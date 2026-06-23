@@ -93,10 +93,22 @@ export async function POST(req: NextRequest) {
   if (!workerId || !date || !reason)
     return NextResponse.json({ error: "Missing fields" }, { status: 400 });
 
+  const { data: worker } = await supabase
+    .from("workers")
+    .select("assigned_site_id")
+    .eq("id", workerId)
+    .eq("owner_id", actor.id)
+    .single();
+
+  if (!worker?.assigned_site_id) {
+    return NextResponse.json({ error: "Worker has no assigned site" }, { status: 400 });
+  }
+
   // Upsert an attendance event with status=missing + absence_reason
   const { error } = await supabase.from("attendance_events").upsert(
     {
       owner_id: actor.id,
+      site_id: worker.assigned_site_id,
       worker_id: workerId,
       event_date: date,
       status: "missing",
@@ -108,7 +120,7 @@ export async function POST(req: NextRequest) {
       wage_reason: null,
       source: "owner_manual",
     },
-    { onConflict: "worker_id,event_date,owner_id" }
+    { onConflict: "owner_id,worker_id,event_date,site_id" }
   );
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });

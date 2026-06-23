@@ -60,22 +60,7 @@ async function uploadDailyReportPdf(
   return { url: data.signedUrl, error: null };
 }
 
-async function sendLineDailyReport(message: string): Promise<{ sent: boolean; error?: string }> {
-  const notifyToken = process.env.LINE_DAILY_REPORT_NOTIFY_TOKEN || process.env.LINE_NOTIFY_TOKEN;
-  if (notifyToken) {
-    const form = new FormData();
-    form.set("message", message);
-
-    const res = await fetch("https://notify-api.line.me/api/notify", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${notifyToken}` },
-      body: form,
-    });
-
-    if (!res.ok) return { sent: false, error: `LINE Notify ${res.status}: ${await res.text()}` };
-    return { sent: true };
-  }
-
+async function sendLineMessagingDailyReport(message: string): Promise<{ sent: boolean; error?: string }> {
   const channelToken = process.env.LINE_MESSAGING_CHANNEL_ACCESS_TOKEN;
   const to = process.env.LINE_DAILY_REPORT_TO || process.env.LINE_OWNER_USER_ID;
   if (channelToken && to) {
@@ -95,7 +80,7 @@ async function sendLineDailyReport(message: string): Promise<{ sent: boolean; er
     return { sent: true };
   }
 
-  return { sent: false, error: "LINE env vars not configured" };
+  return { sent: false, error: "LINE Messaging env vars not configured" };
 }
 
 export async function GET(req: NextRequest) {
@@ -167,9 +152,9 @@ export async function GET(req: NextRequest) {
       `Labor: THB ${totals.totalLaborCost.toLocaleString()} | Receipts: THB ${totals.totalReceiptAmount.toLocaleString()}\n` +
       `Total: THB ${totals.totalExpenses.toLocaleString()}` +
       (pdfUpload.url ? `\nPDF: ${pdfUpload.url}` : "");
-    const lineResult = await sendLineDailyReport(lineMessage);
+    const lineResult = await sendLineMessagingDailyReport(lineMessage);
     if (!lineResult.sent) {
-      log.push(`owner ${ownerId} LINE skipped/error: ${lineResult.error}`);
+      log.push(`owner ${ownerId} LINE Messaging skipped/error: ${lineResult.error}`);
     }
 
     await sendPushToOwner(

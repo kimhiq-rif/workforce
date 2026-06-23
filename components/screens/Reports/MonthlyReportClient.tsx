@@ -11,6 +11,7 @@ import { MonthlySuppliersSection } from "@/components/screens/Reports/MonthlySup
 import { MonthlyNeedsAttention, type OverdueProject, type CashDifference } from "@/components/screens/Reports/MonthlyNeedsAttention";
 import { MonthlyDriverCash } from "@/components/screens/Reports/MonthlyDriverCash";
 import { MonthlyStageTransitions } from "@/components/screens/Reports/MonthlyStageTransitions";
+import { MonthlyM5, type MonthlyAdvance, type MonthlyCorrection, type MonthlyTempWorker, type MonthlyGpsIssue } from "@/components/screens/Reports/MonthlyM5";
 
 interface Props {
   sites: { id: string; name_th: string; name_en: string; status: string }[];
@@ -23,6 +24,10 @@ interface Props {
   editedCount: number;
   overtimeMissingCost: number;
   workers: { id: string; name_th: string; name_en: string; assigned_site_id: string | null; daily_wage: number }[];
+  advances: MonthlyAdvance[];
+  corrections: MonthlyCorrection[];
+  tempWorkers: MonthlyTempWorker[];
+  gpsIssues: MonthlyGpsIssue[];
   targetMonth: string;
   monthStart: string;
   monthEnd: string;
@@ -52,7 +57,7 @@ function nextMonth(ym: string): string {
 
 export function MonthlyReportClient({
   sites, attendance, receipts, overdueProjects, driverCash, stageTransitions,
-  cashDifferences, editedCount, overtimeMissingCost, workers, targetMonth, monthStart, monthEnd, today,
+  cashDifferences, editedCount, overtimeMissingCost, workers, advances, corrections, tempWorkers, gpsIssues, targetMonth, monthStart, monthEnd, today,
 }: Props) {
   const router = useRouter();
   const [selectedSite, setSelectedSite] = useState<string | null>(null);
@@ -222,7 +227,7 @@ export function MonthlyReportClient({
         </div>
 
         {/* Needs attention */}
-        <MonthlyNeedsAttention overdueProjects={overdueProjects} receipts={receipts} cashDifferences={cashDifferences} editedCount={editedCount} overtimeMissingCost={overtimeMissingCost} />
+        <MonthlyNeedsAttention overdueProjects={overdueProjects} receipts={receipts} cashDifferences={cashDifferences} editedCount={editedCount} overtimeMissingCost={overtimeMissingCost} targetMonth={targetMonth} />
 
         {/* Summary metrics */}
         <div className="metric-grid" style={{ gridTemplateColumns: "repeat(4, 1fr)", marginBottom: 24 }}>
@@ -384,6 +389,9 @@ export function MonthlyReportClient({
 
         {/* Stage transitions */}
         <MonthlyStageTransitions transitions={stageTransitions} />
+
+        {/* M5 detail sections + drawers */}
+        <MonthlyM5 advances={advances} corrections={corrections} tempWorkers={tempWorkers} gpsIssues={gpsIssues} />
       </div>
 
       {/* Mobile */}
@@ -404,6 +412,10 @@ export function MonthlyReportClient({
           cashDifferences={cashDifferences}
           editedCount={editedCount}
           overtimeMissingCost={overtimeMissingCost}
+          advances={advances}
+          corrections={corrections}
+          tempWorkers={tempWorkers}
+          gpsIssues={gpsIssues}
           onPrev={() => router.push(`/reports/monthly?month=${prevMonth(targetMonth)}`)}
           onNext={() => router.push(`/reports/monthly?month=${nextMonth(targetMonth)}`)}
         />
@@ -412,7 +424,7 @@ export function MonthlyReportClient({
   );
 }
 
-function MobileMonthly({ targetMonth, siteData, totals, monthStart, monthEnd, isCurrentMonth, isFutureMonth, receipts, sites, overdueProjects, driverCash, stageTransitions, cashDifferences, editedCount, overtimeMissingCost, onPrev, onNext }: any) {
+function MobileMonthly({ targetMonth, siteData, totals, monthStart, monthEnd, isCurrentMonth, isFutureMonth, receipts, sites, overdueProjects, driverCash, stageTransitions, cashDifferences, editedCount, overtimeMissingCost, advances, corrections, tempWorkers, gpsIssues, onPrev, onNext }: any) {
   return (
     <div>
       <div className="mobile-topbar">
@@ -443,7 +455,7 @@ function MobileMonthly({ targetMonth, siteData, totals, monthStart, monthEnd, is
         </div>
 
         {/* Needs attention */}
-        <MonthlyNeedsAttention overdueProjects={overdueProjects} receipts={receipts} cashDifferences={cashDifferences} editedCount={editedCount} overtimeMissingCost={overtimeMissingCost} />
+        <MonthlyNeedsAttention overdueProjects={overdueProjects} receipts={receipts} cashDifferences={cashDifferences} editedCount={editedCount} overtimeMissingCost={overtimeMissingCost} targetMonth={targetMonth} />
 
         {/* Summary card */}
         <div style={{ background: "#1E3A8A", borderRadius: 14, padding: "16px" }}>
@@ -499,6 +511,8 @@ function MobileMonthly({ targetMonth, siteData, totals, monthStart, monthEnd, is
         <MonthlyDriverCash entries={driverCash} />
 
         <MonthlyStageTransitions transitions={stageTransitions} />
+
+        <MonthlyM5 advances={advances} corrections={corrections} tempWorkers={tempWorkers} gpsIssues={gpsIssues} />
       </div>
     </div>
   );

@@ -1,29 +1,32 @@
 "use client";
-// Copyright © 2026 Workforce. All rights reserved.
-// Shows a dismissible banner prompting the user to enable notifications.
-// The permission request runs from this button's click — required by iOS, which
-// only allows the prompt from a user gesture inside an installed PWA.
 
 import { useEffect, useState } from "react";
 import { Bell, X } from "lucide-react";
-import { oneSignal, enablePush, ONESIGNAL_APP_ID } from "@/lib/onesignal";
+import { enablePush, oneSignal, ONESIGNAL_APP_ID, syncOneSignalUser } from "@/lib/onesignal";
 
-export function EnablePushPrompt() {
+export function EnablePushPrompt({
+  userId,
+  ownerId,
+}: {
+  userId: string;
+  ownerId: string | null;
+}) {
   const [show, setShow] = useState(false);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     if (!ONESIGNAL_APP_ID) return;
+
     oneSignal((OneSignal: any) => {
       try {
-        const granted = OneSignal.Notifications.permission; // boolean
+        const granted = OneSignal.Notifications.permission;
         const supported = OneSignal.Notifications.isPushSupported?.() ?? true;
         if (supported && !granted) setShow(true);
-        OneSignal.Notifications.addEventListener("permissionChange", (perm: boolean) => {
-          setShow(!perm);
+        OneSignal.Notifications.addEventListener("permissionChange", (permission: boolean) => {
+          setShow(!permission);
         });
       } catch {
-        /* SDK not ready / unsupported — keep hidden */
+        // SDK not ready or unsupported.
       }
     });
   }, []);
@@ -33,15 +36,28 @@ export function EnablePushPrompt() {
   async function onEnable() {
     setBusy(true);
     const result = await enablePush();
+
+    if (result === "granted") {
+      await new Promise<void>((resolve) => {
+        oneSignal(async (OneSignal: any) => {
+          try {
+            await syncOneSignalUser(OneSignal, userId, ownerId);
+          } finally {
+            resolve();
+          }
+        });
+      });
+      setShow(false);
+    }
+
     setBusy(false);
-    if (result === "granted") setShow(false);
   }
 
   return (
     <div
       style={{
         position: "fixed",
-        bottom: 80, // above the bottom nav
+        bottom: 80,
         left: "50%",
         transform: "translateX(-50%)",
         width: "min(92vw, 440px)",
@@ -63,7 +79,7 @@ export function EnablePushPrompt() {
           เปิดการแจ้งเตือน · Enable notifications
         </div>
         <div style={{ fontSize: 12, color: "rgba(255,255,255,0.88)", marginTop: 3, lineHeight: 1.4 }}>
-          รับแจ้งเตือนการเข้างานและใบเสร็จ · Get attendance &amp; receipt alerts
+          รับแจ้งเตือนการเข้างานและใบเสร็จ · Get attendance and receipt alerts
         </div>
       </div>
       <div style={{ display: "flex", flexDirection: "column", gap: 5, flexShrink: 0 }}>

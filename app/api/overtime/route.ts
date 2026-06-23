@@ -75,3 +75,60 @@ export async function POST(req: NextRequest) {
 
   return NextResponse.json({ ok: true, count: data?.length ?? 0, sessionId });
 }
+
+export async function PATCH(req: NextRequest) {
+  const sessionClient = getSessionClient();
+  const { data: { user } } = await sessionClient.auth.getUser();
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const supabase = createServiceClient();
+
+  const { data: actor } = await supabase
+    .from("users")
+    .select("id, role")
+    .eq("auth_id", user.id)
+    .single();
+
+  if (!actor || actor.role !== "owner") {
+    return NextResponse.json({ error: "Owner only" }, { status: 403 });
+  }
+
+  const body = await req.json();
+  const { entries } = body as {
+    entries: { id: string; amount: number }[];
+  };
+
+  if (!Array.isArray(entries) || entries.length === 0) {
+    return NextResponse.json({ error: "entries required" }, { status: 400 });
+  }
+
+  const cleanEntries = entries
+    .map((entry) => ({
+      id: entry.id,
+      amount: Number(entry.amount),
+    }))
+    .filter((entry) => entry.id && Number.isFinite(entry.amount) && entry.amount >= 0);
+
+  if (cleanEntries.length !== entries.length) {
+    return NextResponse.json({ error: "Invalid overtime amounts" }, { status: 400 });
+  }
+
+  let updated = 0;
+  for (const entry of cleanEntries) {
+    const { error } = await supabase
+      .from("overtime_events")
+      .update({ amount: entry.amount, approved_by: actor.id })
+      .eq("id", entry.id)
+      .eq("owner_id", actor.id)
+      .is("amount", null);
+
+    if (error) {
+      console.error("overtime update error", error);
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+
+    updated += 1;
+  }
+
+  return NextResponse.json({ ok: true, updated });
+}

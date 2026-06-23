@@ -53,6 +53,10 @@ export type AnnualReportRankedItem = {
 
 export type AnnualReportData = {
   generatedAt: string;
+  hostCompany: {
+    name: string | null;
+    logoUrl: string | null;
+  };
   period: AnnualReportPeriod;
   totals: {
     totalCost: number;
@@ -228,6 +232,12 @@ export async function buildAnnualReport(
   const period = getAnnualReportPeriod(params);
   const generatedAt = new Date().toISOString();
   const sourceNotes: string[] = [];
+
+  const { data: reportSettings } = await supabase
+    .from("workday_settings")
+    .select("hosted_company_name, hosted_company_logo_url")
+    .eq("owner_id", ownerId)
+    .maybeSingle();
 
   const periodStartIso = `${period.start}T00:00:00+07:00`;
   const periodEndIso = `${period.end}T23:59:59+07:00`;
@@ -494,6 +504,10 @@ export async function buildAnnualReport(
 
   return {
     generatedAt,
+    hostCompany: {
+      name: reportSettings?.hosted_company_name ?? null,
+      logoUrl: reportSettings?.hosted_company_logo_url ?? null,
+    },
     period,
     totals: {
       totalCost,

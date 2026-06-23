@@ -114,6 +114,53 @@ export function AttendanceReportFlow({
     setTimeout(() => setToast(""), 3500);
   }
 
+  async function recordTransfer(worker: WorkerInQueue, transferTime: string) {
+    if (!worker.isOtherSite || !worker.fromSiteId || worker.fromSiteId === site.id) return;
+
+    const payload = {
+      owner_id: site.owner_id,
+      worker_id: worker.id,
+      from_site_id: worker.fromSiteId,
+      to_site_id: site.id,
+      event_date: today,
+      transfer_time: transferTime,
+      source: "photo_transfer",
+      performed_by: userId,
+    };
+
+    const { data: existingTransfer } = await supabase
+      .from("site_transfer_events")
+      .select("id")
+      .eq("owner_id", site.owner_id)
+      .eq("worker_id", worker.id)
+      .eq("from_site_id", worker.fromSiteId)
+      .eq("to_site_id", site.id)
+      .eq("event_date", today)
+      .maybeSingle();
+
+    const { error } = existingTransfer?.id
+      ? await supabase.from("site_transfer_events").update(payload).eq("id", existingTransfer.id)
+      : await supabase.from("site_transfer_events").insert(payload);
+
+    if (error) {
+      console.error("[transfer] site_transfer_events error", error);
+      return;
+    }
+
+    await supabase.from("workers").update({ assigned_site_id: site.id }).eq("id", worker.id);
+
+    await fetch("/api/push/transfer", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        workerNameTh: worker.name_th,
+        fromSiteNameTh: worker.fromSiteNameTh,
+        toSiteNameTh: site.name_th,
+        ownerId: site.owner_id,
+      }),
+    }).catch(() => {});
+  }
+
   // ── Queue construction ─────────────────────────────────────────────────────
 
   const alreadyReportedAtSite = useMemo(() => {
@@ -306,12 +353,13 @@ export function AttendanceReportFlow({
     }
 
     const bangkokTime = getBangkokTime();
-    const isLate = bangkokTime > "08:00";
+    const isTransfer = selectedWorker.isOtherSite && !!selectedWorker.fromSiteId && selectedWorker.fromSiteId !== site.id;
+    const isLate = !isTransfer && bangkokTime > "08:00";
     const wageReason = computeAttendanceWageReason(bangkokTime, site.status as any);
     const wageAmount = computeWageAmount(selectedWorker.daily_wage, wageReason);
 
     // Save attendance event
-    const { error: dbError } = await supabase.from("attendance_events").insert({
+    const { error: dbError } = await supabase.from("attendance_events").upsert({
       owner_id: site.owner_id,
       site_id: site.id,
       worker_id: selectedWorker.id,
@@ -325,7 +373,7 @@ export function AttendanceReportFlow({
       is_late: isLate,
       wage_reason: wageReason,
       wage_amount: wageAmount,
-    });
+    }, { onConflict: "owner_id,worker_id,event_date,site_id" });
 
     if (dbError) {
       showToast("เกิดข้อผิดพลาด · Error saving · " + dbError.message);
@@ -346,31 +394,7 @@ export function AttendanceReportFlow({
       }),
     }).catch(() => {});
 
-    // If transfer: create SiteTransferEvent + push to owner
-    if (selectedWorker.isOtherSite && selectedWorker.fromSiteId) {
-      await supabase.from("site_transfer_events").insert({
-        owner_id: site.owner_id,
-        worker_id: selectedWorker.id,
-        from_site_id: selectedWorker.fromSiteId,
-        to_site_id: site.id,
-        event_date: today,
-        transfer_time: bangkokTime,
-        source: "photo_transfer",
-        performed_by: userId,
-      });
-
-      // Push notification to owner about transfer
-      await fetch("/api/push/transfer", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          workerNameTh: selectedWorker.name_th,
-          fromSiteNameTh: selectedWorker.fromSiteNameTh,
-          toSiteNameTh: site.name_th,
-          ownerId: site.owner_id,
-        }),
-      }).catch(() => {}); // non-blocking
-    }
+    await recordTransfer(selectedWorker, bangkokTime);
 
     // Auto-set site to "live" on first check-in
     if (reportedCount === 0) {
@@ -411,7 +435,7 @@ export function AttendanceReportFlow({
 
       const status = reason === "day_off" ? "day_off" : "missing";
 
-      await supabase.from("attendance_events").insert({
+      await supabase.from("attendance_events").upsert({
         owner_id: site.owner_id,
         site_id: site.id,
         worker_id: workerId,
@@ -423,7 +447,7 @@ export function AttendanceReportFlow({
         wage_reason: "no_pay_day_off",
         wage_amount: 0,
         notes: reason,
-      });
+      }, { onConflict: "owner_id,worker_id,event_date,site_id" });
     }
 
     setSaving(false);

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
@@ -11,6 +11,7 @@ import {
   FileDown,
   FileText,
   Layers,
+  Lock,
   Receipt,
   TrendingUp,
   Users,
@@ -41,6 +42,24 @@ function pct(value: number, total: number) {
 export function AnnualReportClient({ report }: Props) {
   const router = useRouter();
   const { period, totals } = report;
+
+  const periodQuery = `mode=${period.mode}&year=${period.year}${period.mode === "half-year" ? `&half=${period.half}` : ""}`;
+  const [freezing, setFreezing] = useState(false);
+  const [freezeMsg, setFreezeMsg] = useState("");
+
+  async function freezeReport() {
+    setFreezeMsg("");
+    setFreezing(true);
+    try {
+      const res = await fetch(`/api/reports/annual?${periodQuery}`, { method: "POST" });
+      const json = await res.json();
+      setFreezeMsg(res.ok ? `✓ บันทึกถาวรแล้ว · Frozen: ${json.frozen}` : `⚠ ${json.error || "Error"}`);
+    } catch {
+      setFreezeMsg("⚠ Network error");
+    } finally {
+      setFreezing(false);
+    }
+  }
 
   const yearOptions = useMemo(() => {
     const current = new Date().getFullYear();
@@ -125,11 +144,26 @@ export function AnnualReportClient({ report }: Props) {
                   <option value="2">H2</option>
                 </select>
               )}
-              <button onClick={() => window.print()} className="btn-secondary" style={{ minHeight: 42 }}>
-                <FileDown size={16} /> Print / PDF
-              </button>
+              <a
+                href={`/api/reports/annual/pdf?${periodQuery}`}
+                className="btn-secondary"
+                style={{ minHeight: 42, display: "inline-flex", alignItems: "center", gap: 6, textDecoration: "none" }}
+              >
+                <FileDown size={16} /> PDF
+              </a>
+              {!period.isPreview && (
+                <button onClick={freezeReport} disabled={freezing} className="btn-primary" style={{ minHeight: 42 }}>
+                  <Lock size={16} /> {freezing ? "กำลังบันทึก…" : "บันทึกถาวร · Freeze"}
+                </button>
+              )}
             </div>
           </div>
+
+          {freezeMsg && (
+            <div style={{ marginTop: 10, fontSize: 13, fontWeight: 600, color: freezeMsg.startsWith("✓") ? "#166534" : "#B91C1C" }}>
+              {freezeMsg}
+            </div>
+          )}
 
           {period.isPreview && (
             <div style={{ marginTop: 14, border: "1px solid #FDE68A", background: "#FFFBEB", color: "#92400E", borderRadius: 10, padding: "10px 12px", display: "flex", gap: 8, alignItems: "flex-start", fontSize: 13 }}>
