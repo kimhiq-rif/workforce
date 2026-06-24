@@ -256,10 +256,8 @@ export default function LoginPage() {
         setLoading(false);
         return;
       }
-    } catch (err: any) {
-      setLoading(false);
-      setError(err.message ?? "Could not verify login lockout");
-      return;
+    } catch {
+      // Lockout service unavailable — allow login to proceed
     }
 
     const supabase = createClient();

@@ -66,9 +66,11 @@ export async function middleware(request: NextRequest) {
 
     if (profile) {
       const timeoutHours = profile.role === "owner" ? 1 : 8;
-      const lastSeen = profile.last_seen_at ?? user.last_sign_in_at;
-      const inactiveHours = lastSeen
-        ? (Date.now() - new Date(lastSeen).getTime()) / (1000 * 3600)
+      const lastSeenMs = profile.last_seen_at ? new Date(profile.last_seen_at).getTime() : 0;
+      const lastSignInMs = user.last_sign_in_at ? new Date(user.last_sign_in_at).getTime() : 0;
+      const lastActivity = Math.max(lastSeenMs, lastSignInMs);
+      const inactiveHours = lastActivity > 0
+        ? (Date.now() - lastActivity) / (1000 * 3600)
         : 0;
 
       if (inactiveHours > timeoutHours) {
