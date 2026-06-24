@@ -25,11 +25,11 @@ jobs:
           sudo apt-get install -y postgresql-client-17
 
       - name: Verify pg_dump version
-        run: pg_dump --version
+        run: /usr/lib/postgresql/17/bin/pg_dump --version
 
       - name: Run pg_dump
         run: |
-          pg_dump "$DB_URL" \
+          /usr/lib/postgresql/17/bin/pg_dump "$DB_URL" \
             --no-owner --no-acl --format=plain \
             --file=backup-$(date +%Y-%m-%d).sql
 
