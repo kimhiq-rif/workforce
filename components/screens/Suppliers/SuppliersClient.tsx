@@ -1563,7 +1563,7 @@ function GiveCashModal({ driver, ownerId, userId, onClose, onDone }: {
           )}
           <button
             onClick={() => { setPhotoUrl(null); setPhotoBlob(null); if (fileRef.current) fileRef.current.value = ""; }}
-            style={{ position: "absolute", top: 6, right: 6, background: "rgba(0,0,0,0.55)", border: "none", borderRadius: "50%", width: 28, height: 28, color: "white", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
+            style={{ position: "absolute", top: 6, right: 6, background: "rgba(0,0,0,0.55)", border: "none", borderRadius: "50%", width: 44, height: 44, color: "white", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
           >
             <X size={14} />
           </button>

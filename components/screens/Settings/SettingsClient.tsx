@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { DashboardShell } from "@/components/layout/DashboardShell";
 import { getBilingualLabel, useLangMode } from "@/components/layout/useLangMode";
-import { Clock, Shield, Phone, Users, Languages, ChevronDown, Check, LogOut, Eye, EyeOff, UserCog, Copy, KeyRound, Building2, Image as ImageIcon, Trash2, Upload } from "lucide-react";
+import { Clock, Shield, Phone, Users, Languages, ChevronDown, ChevronLeft, ChevronRight, Check, LogOut, Eye, EyeOff, UserCog, Copy, KeyRound, Building2, Image as ImageIcon, Trash2, Upload } from "lucide-react";
 import { formatCurrency } from "@/lib/format";
 
 interface SettingsClientProps {
@@ -834,6 +834,35 @@ function MobileSettings({ sections, sectionContent, profile, onSignOut }: any) {
   const langMode = useLangMode();
   const title = getBilingualLabel(langMode, "การตั้งค่า", "Settings");
   const signOut = getBilingualLabel(langMode, "ออกจากระบบ", "Sign out");
+  const activeSection = open ? sections.find((s: any) => s.key === open) : null;
+
+  if (open && activeSection) {
+    const Icon = activeSection.icon;
+    const label = getBilingualLabel(langMode, activeSection.th, activeSection.en);
+    return (
+      <div>
+        <div className="mobile-topbar">
+          <button
+            onClick={() => setOpen(null)}
+            style={{ background: "rgba(255,255,255,0.15)", border: "none", borderRadius: 8, width: 36, height: 36, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0 }}
+            aria-label="Back to settings"
+          >
+            <ChevronLeft size={20} color="white" />
+          </button>
+          <div style={{ flex: 1, marginLeft: 10 }}>
+            <h1 style={{ color: "white" }}>{label.primary}</h1>
+            {label.secondary && <p style={{ color: "rgba(255,255,255,0.75)" }}>{label.secondary}</p>}
+          </div>
+          <span style={{ width: 36, height: 36, borderRadius: 8, background: "rgba(255,255,255,0.15)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <Icon size={18} color="white" />
+          </span>
+        </div>
+        <div style={{ padding: "16px" }}>
+          {sectionContent[open]}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div>
@@ -854,15 +883,14 @@ function MobileSettings({ sections, sectionContent, profile, onSignOut }: any) {
           </div>
         </div>
 
-        {/* Accordion sections */}
+        {/* Section list — navigation tiles */}
         {sections.map((s: any) => {
           const Icon = s.icon;
-          const isOpen = open === s.key;
           const label = getBilingualLabel(langMode, s.th, s.en);
           return (
             <div key={s.key} style={{ background: "white", borderRadius: 12, border: "1px solid var(--border)", overflow: "hidden" }}>
               <button
-                onClick={() => setOpen(isOpen ? null : s.key)}
+                onClick={() => setOpen(s.key)}
                 style={{
                   width: "100%", display: "flex", alignItems: "center", gap: 12,
                   padding: "14px 16px", border: "none", background: "transparent",
@@ -876,14 +904,8 @@ function MobileSettings({ sections, sectionContent, profile, onSignOut }: any) {
                   <strong style={{ display: "block", fontSize: 15 }}>{label.primary}</strong>
                   {label.secondary && <small style={{ color: "var(--text-muted)", fontSize: 12 }}>{label.secondary}</small>}
                 </span>
-                <ChevronDown size={20} color="var(--text-muted)" style={{ transition: "transform 0.2s", transform: isOpen ? "rotate(180deg)" : "none" }} />
+                <ChevronRight size={20} color="var(--text-muted)" />
               </button>
-
-              {isOpen && (
-                <div style={{ padding: "0 16px 16px", borderTop: "1px solid var(--border)" }}>
-                  <div style={{ paddingTop: 16 }}>{sectionContent[s.key]}</div>
-                </div>
-              )}
             </div>
           );
         })}

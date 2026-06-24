@@ -35,6 +35,10 @@ export async function POST(req: NextRequest) {
 
   if (!site) return NextResponse.json({ error: "Site not found" }, { status: 404 });
 
+  if (worker.owner_id !== site.owner_id) {
+    return NextResponse.json({ error: "Worker and site belong to different accounts" }, { status: 403 });
+  }
+
   const today       = todayBangkok();
   const arrivalTime = nowBangkok();
 

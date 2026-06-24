@@ -340,7 +340,7 @@ export function WorkersClient({ workers: initialWorkers, todayAttendance, sites,
                           e.stopPropagation();
                           router.push(`/workers/${worker.id}`);
                         }}
-                        style={{ width: 34, height: 34, border: "1px solid #D9CCFD", borderRadius: 8, background: "#F2F4FF", color: "#6C5CE7", cursor: "pointer", display: "grid", placeItems: "center" }}
+                        style={{ width: 44, height: 44, border: "1px solid #D9CCFD", borderRadius: 8, background: "#F2F4FF", color: "#6C5CE7", cursor: "pointer", display: "grid", placeItems: "center" }}
                       >
                         <UserCheck size={16} />
                       </button>
@@ -351,7 +351,7 @@ export function WorkersClient({ workers: initialWorkers, todayAttendance, sites,
                           e.stopPropagation();
                           window.open(`/workers/${worker.id}/report`, "_blank");
                         }}
-                        style={{ width: 34, height: 34, border: "1px solid #BFDBFE", borderRadius: 8, background: "#EFF6FF", color: "#1D4ED8", cursor: "pointer", display: "grid", placeItems: "center" }}
+                        style={{ width: 44, height: 44, border: "1px solid #BFDBFE", borderRadius: 8, background: "#EFF6FF", color: "#1D4ED8", cursor: "pointer", display: "grid", placeItems: "center" }}
                       >
                         <Printer size={16} />
                       </button>
@@ -363,7 +363,7 @@ export function WorkersClient({ workers: initialWorkers, todayAttendance, sites,
                             e.stopPropagation();
                             handleArchiveWorker(worker);
                           }}
-                          style={{ width: 34, height: 34, border: "1px solid #FECACA", borderRadius: 8, background: "#FEF2F2", color: "#B91C1C", cursor: "pointer", display: "grid", placeItems: "center" }}
+                          style={{ width: 44, height: 44, border: "1px solid #FECACA", borderRadius: 8, background: "#FEF2F2", color: "#B91C1C", cursor: "pointer", display: "grid", placeItems: "center" }}
                         >
                           <Trash2 size={16} />
                         </button>
@@ -566,7 +566,7 @@ function MobileWorkers({
                     type="button"
                     aria-label={`Open ${worker.name_en} profile`}
                     onClick={() => window.location.assign(`/workers/${worker.id}`)}
-                    style={{ width: 34, height: 34, border: "1px solid #D9CCFD", borderRadius: 8, background: "#F2F4FF", color: "#6C5CE7", cursor: "pointer", display: "grid", placeItems: "center" }}
+                    style={{ width: 44, height: 44, border: "1px solid #D9CCFD", borderRadius: 8, background: "#F2F4FF", color: "#6C5CE7", cursor: "pointer", display: "grid", placeItems: "center" }}
                   >
                     <UserCheck size={15} />
                   </button>
@@ -574,7 +574,7 @@ function MobileWorkers({
                     type="button"
                     aria-label={`Open ${worker.name_en} report`}
                     onClick={() => window.open(`/workers/${worker.id}/report`, "_blank")}
-                    style={{ width: 34, height: 34, border: "1px solid #BFDBFE", borderRadius: 8, background: "#EFF6FF", color: "#1D4ED8", cursor: "pointer", display: "grid", placeItems: "center" }}
+                    style={{ width: 44, height: 44, border: "1px solid #BFDBFE", borderRadius: 8, background: "#EFF6FF", color: "#1D4ED8", cursor: "pointer", display: "grid", placeItems: "center" }}
                   >
                     <Printer size={15} />
                   </button>
@@ -583,7 +583,7 @@ function MobileWorkers({
                       type="button"
                       aria-label={`Archive ${worker.name_en}`}
                       onClick={() => onArchive(worker)}
-                      style={{ width: 34, height: 34, border: "1px solid #FECACA", borderRadius: 8, background: "#FEF2F2", color: "#B91C1C", cursor: "pointer", display: "grid", placeItems: "center" }}
+                      style={{ width: 44, height: 44, border: "1px solid #FECACA", borderRadius: 8, background: "#FEF2F2", color: "#B91C1C", cursor: "pointer", display: "grid", placeItems: "center" }}
                     >
                       <Trash2 size={15} />
                     </button>

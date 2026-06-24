@@ -56,17 +56,36 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL("/", request.url));
   }
 
-  // Session timeout: sign out if session is older than 8 hours
+  // Session timeout: role-based inactivity check via last_seen_at
   if (user && !isAuthPage) {
-    const lastSignIn = user.last_sign_in_at ? new Date(user.last_sign_in_at).getTime() : 0;
-    const ageHours = (Date.now() - lastSignIn) / (1000 * 3600);
-    if (ageHours > 8) {
-      await supabase.auth.signOut();
-      const redirect = NextResponse.redirect(new URL("/login?reason=timeout", request.url));
-      supabaseResponse.cookies.getAll().forEach((c) => {
-        redirect.cookies.set(c.name, c.value);
-      });
-      return redirect;
+    const { data: profile } = await supabase
+      .from("users")
+      .select("role, last_seen_at")
+      .eq("auth_id", user.id)
+      .maybeSingle();
+
+    if (profile) {
+      const timeoutHours = profile.role === "owner" ? 1 : 8;
+      const lastSeen = profile.last_seen_at ?? user.last_sign_in_at;
+      const inactiveHours = lastSeen
+        ? (Date.now() - new Date(lastSeen).getTime()) / (1000 * 3600)
+        : 0;
+
+      if (inactiveHours > timeoutHours) {
+        await supabase.auth.signOut();
+        const redirect = NextResponse.redirect(new URL("/login?reason=timeout", request.url));
+        supabaseResponse.cookies.getAll().forEach((c) => {
+          redirect.cookies.set(c.name, c.value);
+        });
+        return redirect;
+      }
+
+      // Update last_seen_at — fire-and-forget
+      supabase
+        .from("users")
+        .update({ last_seen_at: new Date().toISOString() })
+        .eq("auth_id", user.id)
+        .then(() => {}, () => {});
     }
   }
 
