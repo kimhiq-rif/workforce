@@ -1,0 +1,15 @@
+name: "Supabase keep-alive / ป้องกัน pause"
+
+on:
+  schedule:
+    - cron: '0 0 */3 * *'
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Supabase
+        run: |
+          STATUS=$(curl --silent --output /dev/null --write-out "%{http_code}" https://keihzjpkshrucqwiwzoy.supabase.co)
+          echo "HTTP status: $STATUS"

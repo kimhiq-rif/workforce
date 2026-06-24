@@ -1,0 +1,33 @@
+# SUPABASE_DB_URL = Settings → Database → Connection string → URI
+# Add this secret: GitHub repo → Settings → Secrets → Actions → New secret
+
+name: "Daily DB backup / สำรองข้อมูล"
+
+on:
+  schedule:
+    - cron: '0 20 * * *'
+  workflow_dispatch:
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install postgres client
+        run: sudo apt-get install -y postgresql-client
+
+      - name: Run pg_dump
+        run: |
+          pg_dump "${{ secrets.SUPABASE_DB_URL }}" \
+            --no-owner --no-acl --format=plain \
+            --file=backup-$(date +%Y-%m-%d).sql
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: db-backup-${{ github.run_id }}
+          path: backup-*.sql
+          retention-days: 90
+
+      - name: Notify on failure
+        if: failure()
+        run: echo "BACKUP FAILED on $(date)" && exit 1
