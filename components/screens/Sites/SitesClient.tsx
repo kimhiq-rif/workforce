@@ -601,7 +601,7 @@ function MobileSites({
       {/* Mobile topbar */}
       <div className="mobile-topbar">
         <div style={{ flex: 1 }}>
-          <h1 style={{ color: "white" }}>ไซต์</h1>
+          <h1 style={{ color: "white" }}>Sites</h1>
           <p style={{ color: "rgba(255,255,255,0.75)" }}>Sites management</p>
         </div>
         <button
@@ -619,7 +619,7 @@ function MobileSites({
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="ค้นหาไซต์"
+            placeholder="Search sites"
           />
         </label>
 
@@ -641,7 +641,7 @@ function MobileSites({
                 fontWeight: statusFilter === opt.key ? 600 : 400,
               }}
             >
-              {opt.th}
+              {opt.en}
             </button>
           ))}
         </div>

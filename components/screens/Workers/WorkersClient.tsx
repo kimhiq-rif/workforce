@@ -418,8 +418,8 @@ function MobileWorkers({
     <div>
       <div className="mobile-topbar">
         <div style={{ flex: 1 }}>
-          <h1 style={{ color: "white" }}>พนักงาน</h1>
-          <p style={{ color: "rgba(255,255,255,0.75)" }}>Workers · {stats.total} คน</p>
+          <h1 style={{ color: "white" }}>Workers</h1>
+          <p style={{ color: "rgba(255,255,255,0.75)" }}>{stats.total} total</p>
         </div>
         {isOwner && (
           <button onClick={onAdd} style={{ background: "transparent", border: "none", color: "white", cursor: "pointer" }}>
@@ -433,17 +433,17 @@ function MobileWorkers({
         <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>
           <div className="mini-stat">
             <strong style={{ color: "#22C55E" }}>{stats.onSite}</strong>
-            <span>ทำงาน</span>
+            <span>On site</span>
             <small>On site</small>
           </div>
           <div className="mini-stat">
             <strong style={{ color: "#F97316" }}>{stats.late}</strong>
-            <span>สาย</span>
+            <span>Late</span>
             <small>Late</small>
           </div>
           <div className="mini-stat">
             <strong style={{ color: "#EF4444" }}>{stats.missing}</strong>
-            <span>ไม่รายงาน</span>
+            <span>Missing</span>
             <small>Missing</small>
           </div>
         </div>
@@ -451,7 +451,7 @@ function MobileWorkers({
         {/* Search */}
         <label className="search-box">
           <Search size={20} color="var(--text-muted)" />
-          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="ค้นหาพนักงาน" />
+          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search workers" />
         </label>
 
         {/* Tabs */}
@@ -474,8 +474,7 @@ function MobileWorkers({
                 gap: 1,
               }}
             >
-              <span style={{ fontSize: 12, fontWeight: tab === t.key ? 700 : 500, lineHeight: 1.3 }}>{t.th}</span>
-              <span style={{ fontSize: 9, opacity: 0.75, lineHeight: 1 }}>{t.en}</span>
+              <span style={{ fontSize: 12, fontWeight: tab === t.key ? 700 : 500, lineHeight: 1.3 }}>{t.en}</span>
             </button>
           ))}
         </div>

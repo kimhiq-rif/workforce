@@ -19,6 +19,17 @@ export function oneSignal(cb: OneSignalCallback) {
   window.OneSignalDeferred.push(cb);
 }
 
+// iOS only supports push in standalone (installed PWA) mode.
+export function canRequestWebPushOnThisDevice() {
+  if (typeof window === "undefined" || typeof navigator === "undefined") return false;
+  const ua = navigator.userAgent;
+  const isIos = /iPad|iPhone|iPod/.test(ua) || (ua.includes("Mac") && "ontouchend" in document);
+  const isStandalone =
+    window.matchMedia?.("(display-mode: standalone)").matches ||
+    (navigator as Navigator & { standalone?: boolean }).standalone === true;
+  return !isIos || isStandalone;
+}
+
 export type EnablePushResult = "granted" | "denied" | "unsupported";
 
 export async function syncOneSignalUser(
@@ -44,6 +55,7 @@ export async function syncOneSignalUser(
 // gesture context and causes the permission request to be silently rejected.
 export function enablePush(): Promise<EnablePushResult> {
   if (!ONESIGNAL_APP_ID) return Promise.resolve("unsupported");
+  if (!canRequestWebPushOnThisDevice()) return Promise.resolve("unsupported");
   const OS = typeof window !== "undefined" ? (window as any).OneSignal : null;
   if (OS) {
     return OS.Notifications.requestPermission()

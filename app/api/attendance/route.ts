@@ -68,6 +68,9 @@ export async function POST(req: NextRequest) {
     .select()
     .single();
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    const status = error.code === "23505" ? 409 : 500;
+    return NextResponse.json({ error: error.message, code: error.code }, { status });
+  }
   return NextResponse.json({ data });
 }

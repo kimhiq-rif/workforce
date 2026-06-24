@@ -94,17 +94,41 @@ export async function GET(req: NextRequest) {
   const today = todayBangkok();
   const log: string[] = [];
 
+  const { data: existing } = await supabase
+    .from("daily_report_snapshots")
+    .select("id")
+    .eq("report_date", today)
+    .limit(1)
+    .maybeSingle();
+
+  if (existing) {
+    return NextResponse.json({
+      ok: true,
+      skipped: true,
+      date: today,
+      reason: "already ran today",
+    });
+  }
+
   const { data: owners } = await supabase
     .from("users")
     .select("id")
     .eq("role", "owner");
 
-  if (!owners?.length) return NextResponse.json({ log, date: today });
+  console.log("[daily-report] start", today, "owners:", owners?.length ?? 0);
+
+  if (!owners?.length) {
+    console.log("[daily-report] finished", new Date().toISOString());
+    return NextResponse.json({ log, date: today });
+  }
 
   for (const owner of owners) {
-    const ownerId = owner.id;
+    try {
+      const ownerId = owner.id;
 
-    const report = await buildDailyReport(supabase, ownerId, today);
+      console.log("[daily-report] owner", ownerId, "building report...");
+      const report = await buildDailyReport(supabase, ownerId, today);
+      console.log("[daily-report] owner", ownerId, "report built, blocked:", report.isBlocked);
 
     if (report.isBlocked) {
       // Notify owner that report is blocked
@@ -117,6 +141,7 @@ export async function GET(req: NextRequest) {
         `/reports/daily`
       );
       log.push(`owner ${ownerId} report BLOCKED: ${reasons}`);
+      console.log("[daily-report] owner", ownerId, "done");
       continue;
     }
 
@@ -165,8 +190,16 @@ export async function GET(req: NextRequest) {
       `/reports/daily?date=${today}`
     );
 
-    log.push(`owner ${ownerId}: ${totals.totalPresent} workers, ฿${totals.totalLaborCost} labor, ฿${totals.totalExpenses} total`);
+      log.push(`owner ${ownerId}: ${totals.totalPresent} workers, ฿${totals.totalLaborCost} labor, ฿${totals.totalExpenses} total`);
+      console.log("[daily-report] owner", ownerId, "done");
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      log.push(`owner ${owner.id} UNCAUGHT ERROR: ${msg}`);
+      // continue to next owner
+    }
   }
+
+  console.log("[daily-report] finished", new Date().toISOString());
 
   return NextResponse.json({ ok: true, date: today, log });
 }

@@ -1264,7 +1264,7 @@ function QrPaymentModal({ receipt, userId, onClose, onPaid }: {
               disabled={saving}
               style={{ padding: "14px", borderRadius: 12, border: "none", background: saving ? "#9CA3AF" : "linear-gradient(135deg, #15803D, #16A34A)", color: "white", fontSize: 15, fontWeight: 700, cursor: saving ? "not-allowed" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}
             >
-              <Check size={20} /> {saving ? "กำลังบันทึก…" : "ชำระแล้ว · Mark Paid"}
+              <Check size={20} /> {saving ? "Saving..." : "Mark Paid"}
             </button>
           </div>
         </div>
@@ -1280,7 +1280,7 @@ function MobileSuppliers({ suppliers, receipts, stats, tab, setTab, search, setS
     <div>
       <div className="mobile-topbar">
         <div style={{ flex: 1 }}>
-          <h1 style={{ color: "white" }}>ใบเสร็จ</h1>
+          <h1 style={{ color: "white" }}>Receipts</h1>
           <p style={{ color: "rgba(255,255,255,0.75)" }}>Receipts</p>
         </div>
         <button onClick={onAddReceipt} style={{ background: "transparent", border: "none", color: "white", cursor: "pointer" }}>
@@ -1290,14 +1290,14 @@ function MobileSuppliers({ suppliers, receipts, stats, tab, setTab, search, setS
 
       <div style={{ padding: "12px 16px", display: "flex", flexDirection: "column", gap: 10 }}>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>
-          <div className="mini-stat"><strong>{stats.total}</strong><span>ใบเสร็จ</span><small>Receipts</small></div>
-          <div className="mini-stat"><strong style={{ color: "#F97316" }}>{stats.pending}</strong><span>รอตรวจ</span><small>Pending</small></div>
-          <div className="mini-stat"><strong>฿{formatCurrency(stats.totalAmount)}</strong><span>ยอดรวม</span><small>Total</small></div>
+          <div className="mini-stat"><strong>{stats.total}</strong><span>Receipts</span><small>Total</small></div>
+          <div className="mini-stat"><strong style={{ color: "#F97316" }}>{stats.pending}</strong><span>Pending</span><small>Review</small></div>
+          <div className="mini-stat"><strong>฿{formatCurrency(stats.totalAmount)}</strong><span>Total</span><small>Amount</small></div>
         </div>
 
         <label className="search-box">
           <Search size={20} color="var(--text-muted)" />
-          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="ค้นหา" />
+          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search receipts" />
         </label>
 
         <div style={{ display: "flex", gap: 6, overflowX: "auto" }}>
@@ -1314,8 +1314,7 @@ function MobileSuppliers({ suppliers, receipts, stats, tab, setTab, search, setS
                 lineHeight: 1.3, textAlign: "center",
               }}
             >
-              <div>{t.th}</div>
-              <div style={{ fontSize: 9, opacity: 0.8 }}>{t.en}</div>
+              <div>{t.en}</div>
             </button>
           ))}
         </div>
@@ -1325,7 +1324,7 @@ function MobileSuppliers({ suppliers, receipts, stats, tab, setTab, search, setS
             <div key={r.id} style={{ background: "white", borderRadius: 10, padding: "14px", border: "1px solid var(--border)" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
                 <div>
-                  <strong style={{ fontSize: 15 }}>{r.supplier?.name_th ?? "ไม่ระบุ · None"}</strong>
+                  <strong style={{ fontSize: 15 }}>{r.supplier?.name_en ?? r.supplier?.name_th ?? "None"}</strong>
                   <small style={{ display: "block", color: "var(--text-muted)", fontSize: 12 }}>
                     {r.site?.name_en ?? r.site?.name_th ?? "-"} · {formatThaiDate(r.created_at)}
                   </small>

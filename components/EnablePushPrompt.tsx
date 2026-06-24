@@ -2,7 +2,13 @@
 
 import { useEffect, useState } from "react";
 import { Bell, X } from "lucide-react";
-import { enablePush, oneSignal, ONESIGNAL_APP_ID, syncOneSignalUser } from "@/lib/onesignal";
+import {
+  canRequestWebPushOnThisDevice,
+  enablePush,
+  oneSignal,
+  ONESIGNAL_APP_ID,
+  syncOneSignalUser,
+} from "@/lib/onesignal";
 
 export function EnablePushPrompt({
   userId,
@@ -16,6 +22,7 @@ export function EnablePushPrompt({
 
   useEffect(() => {
     if (!ONESIGNAL_APP_ID) return;
+    if (!canRequestWebPushOnThisDevice()) return;
 
     oneSignal((OneSignal: any) => {
       try {
