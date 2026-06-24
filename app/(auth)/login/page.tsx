@@ -196,7 +196,6 @@ export default function LoginPage() {
   const [showPass, setShowPass]   = useState(false);
   const [error, setError]         = useState("");
   const [loading, setLoading]     = useState(false);
-  const [attempts, setAttempts]   = useState(0);
   const [locked, setLocked]       = useState(false);
   const [hasBiometric, setHasBiometric] = useState(false);
   const [showEnablePrompt, setShowEnablePrompt] = useState(false);
@@ -220,6 +219,30 @@ export default function LoginPage() {
     router.refresh();
   }
 
+  async function recordLoginAttempt(action: "check" | "failure" | "success") {
+    const res = await fetch("/api/auth/login-attempts", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, action }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (res.status === 423) {
+      const until = typeof data.locked_until === "string" ? data.locked_until : null;
+      const timeStr = until
+        ? new Date(until).toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit" })
+        : null;
+      setLocked(true);
+      setError(
+        timeStr
+          ? `ป้อนรหัสผ่านผิดเกินกำหนด · Account locked until ${timeStr}`
+          : "ป้อนรหัสผ่านผิด 3 ครั้ง · Account locked for 15 minutes",
+      );
+      return { locked: true, data };
+    }
+    if (!res.ok) throw new Error(data.error ?? "Could not verify login lockout");
+    return { locked: false, data };
+  }
+
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
     if (locked) return;
@@ -227,22 +250,39 @@ export default function LoginPage() {
     setError("");
     setLoading(true);
 
+    try {
+      const lockCheck = await recordLoginAttempt("check");
+      if (lockCheck.locked) {
+        setLoading(false);
+        return;
+      }
+    } catch (err: any) {
+      setLoading(false);
+      setError(err.message ?? "Could not verify login lockout");
+      return;
+    }
+
     const supabase = createClient();
     const { error: authError } = await supabase.auth.signInWithPassword({ email, password });
 
     if (authError) {
       setLoading(false);
-      const next = attempts + 1;
-      setAttempts(next);
-      if (next >= 3) {
-        setLocked(true);
-        setError("ป้อนรหัสผ่านผิด 3 ครั้ง · Account locked for 15 minutes");
-        setTimeout(() => { setLocked(false); setAttempts(0); setError(""); }, 15 * 60 * 1000);
-      } else {
-        setError(`รหัสผ่านไม่ถูกต้อง (${next}/3) · Invalid password (${next}/3)`);
+      try {
+        const failure = await recordLoginAttempt("failure");
+        if (failure.locked) return;
+        const remaining = failure.data?.remaining_attempts ?? 0;
+        setError(
+          remaining > 0
+            ? `รหัสผ่านไม่ถูกต้อง · Wrong password (${remaining} attempt${remaining === 1 ? "" : "s"} left)`
+            : "ป้อนรหัสผ่านผิด 3 ครั้ง · Account locked for 15 minutes",
+        );
+      } catch {
+        setError("รหัสผ่านไม่ถูกต้อง · Wrong password");
       }
       return;
     }
+
+    await recordLoginAttempt("success").catch(() => {});
 
     const bootstrapResponse = await fetch("/api/auth/bootstrap", { method: "POST" });
     if (!bootstrapResponse.ok) {
