@@ -2,6 +2,7 @@
 // Copyright © 2026 Workforce. All rights reserved.
 
 import Link from "next/link";
+import Image from "next/image";
 import {
   Activity,
   AlertCircle,
@@ -584,8 +585,7 @@ function SiteCard({
       {/* Photo header / gradient header */}
       <div className="site-card-photo-header">
         {site.photo_url ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={site.photo_url} alt={site.name_en ?? ""} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+          <Image src={site.photo_url} alt={site.name_en ?? ""} fill style={{ objectFit: "cover" }} sizes="300px" />
         ) : (
           <div className="site-card-photo-bg" style={{ background: accent.gradient }} />
         )}

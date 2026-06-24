@@ -3,6 +3,7 @@
 // Shows "Add to Home Screen" prompt after login — iOS instruction banner or Android native prompt
 
 import { useEffect, useState } from "react";
+import Image from "next/image";
 import { X, Share, Plus } from "lucide-react";
 
 const DISMISSED_KEY = "wf_install_dismissed";
@@ -109,8 +110,7 @@ export function InstallPrompt() {
         {/* App icon + name */}
         <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 16 }}>
           <div style={{ width: 52, height: 52, borderRadius: 13, overflow: "hidden", flexShrink: 0, boxShadow: "0 2px 8px rgba(30,58,138,0.25)" }}>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/api/icon/52" width={52} height={52} alt="Workforce" />
+            <Image src="/api/icon/52" width={52} height={52} alt="Workforce" />
           </div>
           <div>
             <div style={{ fontWeight: 700, fontSize: 16, color: "#111827" }}>Workforce</div>

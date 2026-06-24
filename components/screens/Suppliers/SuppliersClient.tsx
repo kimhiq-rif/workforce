@@ -3,6 +3,7 @@
 
 import { useState, useMemo, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import NextImage from "next/image";
 import { createClient } from "@/lib/supabase/client";
 import { DashboardShell } from "@/components/layout/DashboardShell";
 import { useUserRole } from "@/components/layout/UserRoleContext";
@@ -1553,8 +1554,8 @@ function GiveCashModal({ driver, ownerId, userId, onClose, onDone }: {
 
       {/* Photo preview or camera button */}
       {photoUrl ? (
-        <div style={{ position: "relative", borderRadius: 10, overflow: "hidden", border: "2px solid var(--border)" }}>
-          <img src={photoUrl} alt="proof" style={{ width: "100%", height: 160, objectFit: "cover", display: "block" }} />
+        <div style={{ position: "relative", borderRadius: 10, overflow: "hidden", border: "2px solid var(--border)", height: 160 }}>
+          <NextImage src={photoUrl} alt="proof" fill style={{ objectFit: "cover" }} unoptimized />
           {gps && (
             <div style={{ position: "absolute", bottom: 6, left: 6, background: "rgba(0,0,0,0.65)", borderRadius: 6, padding: "3px 8px", fontSize: 11, color: "white", display: "flex", alignItems: "center", gap: 4 }}>
               <MapPin size={11} /> {gps.lat.toFixed(5)}, {gps.lng.toFixed(5)}
@@ -2055,8 +2056,8 @@ function AddReceiptModal({ ownerId, userId, suppliers, sites, defaultSiteId, onC
 
         {photoUrl ? (
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            <div style={{ position: "relative", display: "inline-block" }}>
-              <img src={photoUrl} alt="receipt" style={{ width: "100%", maxWidth: 240, height: 160, objectFit: "cover", borderRadius: 8 }} />
+            <div style={{ position: "relative", display: "inline-block", width: "100%", maxWidth: 240, height: 160, borderRadius: 8, overflow: "hidden" }}>
+              <NextImage src={photoUrl} alt="receipt" fill style={{ objectFit: "cover" }} unoptimized />
               <button
                 onClick={() => { setPhotoUrl(null); setPhotoBlob(null); setOcrStatus("idle"); setOcrResult(null); setNewSupplierName(null); }}
                 style={{ position: "absolute", top: 6, right: 6, background: "#EF4444", border: "none", borderRadius: "50%", width: 24, height: 24, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}

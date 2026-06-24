@@ -28,7 +28,6 @@ body {
   background-color: var(--surface);
   color: var(--text-primary);
   -webkit-font-smoothing: antialiased;
-  overflow-x: hidden;
 }
 
 /* ─── Thai text enhancement ─────────────────────────────────────────────── */
