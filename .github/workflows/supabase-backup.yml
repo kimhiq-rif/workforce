@@ -1,4 +1,4 @@
-# SUPABASE_DB_URL = Settings → Database → Connection string → URI
+# SUPABASE_DB_URL = Supabase → Settings → Database → Connection Pooling → Session mode → URI
 # Add this secret: GitHub repo → Settings → Secrets → Actions → New secret
 
 name: "Daily DB backup / สำรองข้อมูล"
@@ -11,13 +11,16 @@ on:
 jobs:
   backup:
     runs-on: ubuntu-latest
+    env:
+      DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+      PGSSLMODE: require
     steps:
       - name: Install postgres client
         run: sudo apt-get install -y postgresql-client
 
       - name: Run pg_dump
         run: |
-          pg_dump "${{ secrets.SUPABASE_DB_URL }}" \
+          pg_dump "$DB_URL" \
             --no-owner --no-acl --format=plain \
             --file=backup-$(date +%Y-%m-%d).sql
 
