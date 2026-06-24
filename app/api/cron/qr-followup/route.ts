@@ -1,11 +1,16 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
 import { sendOneSignalPush } from "@/lib/send-push";
 
 export const dynamic = "force-dynamic";
 
 // Called 90 minutes after a QR is scanned — sends push to owner if still unpaid
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
+  const authHeader = req.headers.get("authorization");
+  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   const { receipt_id, owner_id } = await req.json();
   if (!receipt_id || !owner_id) {
     return NextResponse.json({ error: "Missing params" }, { status: 400 });

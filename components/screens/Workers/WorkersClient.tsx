@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 
 import { createClient } from "@/lib/supabase/client";
 import { DashboardShell } from "@/components/layout/DashboardShell";
+import { ConfirmModal } from "@/components/ui/ConfirmModal";
 import { Search, CirclePlus, ChevronRight, UserCheck, X, Check, Printer, Trash2, ImagePlus } from "lucide-react";
 import { formatCurrency, formatTime } from "@/lib/format";
 import type { Worker } from "@/types/database";
@@ -60,8 +61,11 @@ export function WorkersClient({ workers: initialWorkers, todayAttendance, sites,
   const [search, setSearch] = useState("");
   const [tab, setTab] = useState("all");
   const [toast, setToast] = useState("");
+  const [undoWorker, setUndoWorker] = useState<WorkerWithSite | null>(null);
+  const [undoTimer, setUndoTimer] = useState<ReturnType<typeof setTimeout> | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
   const [selectedWorker, setSelectedWorker] = useState<WorkerWithSite | null>(null);
+  const [confirmArchive, setConfirmArchive] = useState<WorkerWithSite | null>(null);
 
   const attendanceMap = useMemo(() => {
     const m = new Map<string, AttendanceRow>();
@@ -74,10 +78,13 @@ export function WorkersClient({ workers: initialWorkers, todayAttendance, sites,
     setTimeout(() => setToast(""), 4500);
   }
 
-  async function handleArchiveWorker(worker: WorkerWithSite) {
+  function handleArchiveWorker(worker: WorkerWithSite) {
     if (userRole !== "owner") return;
-    const ok = window.confirm(`Archive ${worker.name_en}? The worker will leave the active list, but history stays saved.`);
-    if (!ok) return;
+    setConfirmArchive(worker);
+  }
+
+  async function doArchive(worker: WorkerWithSite) {
+    setConfirmArchive(null);
 
     const { error } = await supabase
       .from("workers")
@@ -92,7 +99,29 @@ export function WorkersClient({ workers: initialWorkers, todayAttendance, sites,
 
     setWorkers((prev) => prev.filter((w) => w.id !== worker.id));
     if (selectedWorker?.id === worker.id) setSelectedWorker(null);
-    showToast(`เก็บ ${worker.name_th} แล้ว · Worker archived`);
+
+    // Undo: keep removed worker in state for 5 s
+    setUndoWorker(worker);
+    const t = setTimeout(() => { setUndoWorker(null); }, 5000);
+    setUndoTimer(t);
+    setToast(`เก็บ ${worker.name_th} แล้ว · Archived — Undo?`);
+  }
+
+  async function handleUndo() {
+    if (!undoWorker) return;
+    if (undoTimer) clearTimeout(undoTimer);
+    setUndoTimer(null);
+
+    await supabase
+      .from("workers")
+      .update({ is_active: true })
+      .eq("id", undoWorker.id)
+      .eq("owner_id", ownerId);
+
+    setWorkers((prev) => [undoWorker, ...prev]);
+    setUndoWorker(null);
+    setToast(`คืนค่า ${undoWorker.name_th} แล้ว · Restored`);
+    setTimeout(() => setToast(""), 3000);
   }
 
   const filtered = useMemo(() => {
@@ -363,8 +392,37 @@ export function WorkersClient({ workers: initialWorkers, todayAttendance, sites,
           />
         </div>
 
-        {toast && <div className="toast">{toast}</div>}
+        {toast && (
+          <div className="toast" style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <span style={{ flex: 1 }}>{toast}</span>
+            {undoWorker && (
+              <button
+                onClick={handleUndo}
+                style={{
+                  background: "white", color: "#0E1B3C",
+                  border: "none", borderRadius: 6, padding: "4px 10px",
+                  fontSize: 12, fontWeight: 700, cursor: "pointer", flexShrink: 0,
+                }}
+              >
+                Undo
+              </button>
+            )}
+          </div>
+        )}
       </DashboardShell>
+
+      {confirmArchive && (
+        <ConfirmModal
+          title="เก็บถาวรพนักงาน"
+          titleEn="Archive worker"
+          message={`${confirmArchive.name_th} (${confirmArchive.name_en}) จะออกจากรายการ แต่ประวัติทั้งหมดถูกเก็บไว้ · Worker will leave the active list; all history is saved.`}
+          confirmLabel="เก็บถาวร"
+          confirmLabelEn="Archive"
+          danger
+          onConfirm={() => doArchive(confirmArchive)}
+          onCancel={() => setConfirmArchive(null)}
+        />
+      )}
 
       {showAddModal && (
         <AddWorkerModal

@@ -10,21 +10,24 @@
 //               alone — NOT field managers / drivers under the same owner.
 import { NextRequest, NextResponse } from "next/server";
 import { sendOneSignalPush } from "@/lib/send-push";
+import { getAppUserContext } from "@/lib/auth-context";
 
 export const dynamic = "force-dynamic";
 
 export async function POST(req: NextRequest) {
-  const { owner_id, user_id, title, body, url, tag } = await req.json();
+  const { user: authUser, ownerId } = await getAppUserContext();
+  if (!authUser || !ownerId) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const { user_id, title, body, url, tag } = await req.json();
 
   if (!title) {
     return NextResponse.json({ error: "title required" }, { status: 400 });
   }
-  if (!owner_id && !user_id) {
-    return NextResponse.json({ error: "owner_id or user_id required" }, { status: 400 });
-  }
 
   const result = await sendOneSignalPush({
-    externalIds: [user_id ?? owner_id],
+    externalIds: [user_id ?? ownerId],
     title,
     body,
     url,

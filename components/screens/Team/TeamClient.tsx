@@ -3,6 +3,7 @@
 
 import { useState } from "react";
 import { DashboardShell } from "@/components/layout/DashboardShell";
+import { ConfirmModal } from "@/components/ui/ConfirmModal";
 import { UserPlus, Trash2, X, Eye, EyeOff, Shield, Truck, Check } from "lucide-react";
 import { formatThaiDate } from "@/lib/format";
 
@@ -59,15 +60,19 @@ export function TeamClient({ members: initialMembers, ownerName }: TeamClientPro
   const [members, setMembers] = useState(initialMembers);
   const [showAddModal, setShowAddModal] = useState(false);
   const [toast, setToast] = useState("");
+  const [confirmDelete, setConfirmDelete] = useState<Member | null>(null);
 
   function showToast(msg: string) {
     setToast(msg);
     setTimeout(() => setToast(""), 3500);
   }
 
-  async function handleDelete(member: Member) {
-    if (!confirm(`Remove ${member.name_th}?\nThey will no longer be able to log in.`)) return;
+  function handleDelete(member: Member) {
+    setConfirmDelete(member);
+  }
 
+  async function doDelete(member: Member) {
+    setConfirmDelete(null);
     const res = await fetch("/api/team", {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
@@ -182,6 +187,19 @@ export function TeamClient({ members: initialMembers, ownerName }: TeamClientPro
 
         {toast && <div className="toast">{toast}</div>}
       </DashboardShell>
+
+      {confirmDelete && (
+        <ConfirmModal
+          title="ลบสมาชิก"
+          titleEn="Remove team member"
+          message={`${confirmDelete.name_th} (${confirmDelete.name_en}) จะไม่สามารถเข้าสู่ระบบได้อีก · They will no longer be able to log in.`}
+          confirmLabel="ลบออก"
+          confirmLabelEn="Remove"
+          danger
+          onConfirm={() => doDelete(confirmDelete)}
+          onCancel={() => setConfirmDelete(null)}
+        />
+      )}
 
       {showAddModal && (
         <AddMemberModal

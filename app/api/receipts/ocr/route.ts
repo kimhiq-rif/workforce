@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { getAppUserContext } from "@/lib/auth-context";
 
 export const maxDuration = 30;
 
@@ -46,8 +47,13 @@ Respond with ONLY this JSON (no markdown, no explanation):
 export async function POST(req: NextRequest) {
   // Always return 200 — errors go in the body so client can display them
   try {
+    const { user: authUser, ownerId } = await getAppUserContext();
+    if (!authUser || !ownerId) {
+      return NextResponse.json({ amount: 0, confidence: 0, _err: "Unauthorized" });
+    }
+
     const body = await req.json().catch(() => ({}));
-    const { imageUrl, imageBase64, ownerId } = body;
+    const { imageUrl, imageBase64 } = body;
 
     if (!imageUrl && !imageBase64) {
       return NextResponse.json({ amount: 0, confidence: 0, _err: "no image provided" });

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { getAppUserContext } from "@/lib/auth-context";
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -8,8 +9,11 @@ const supabaseAdmin = createClient(
 
 export async function POST(req: NextRequest) {
   try {
-    const { ownerId, imageUrl, description, amount, merchant, date } = await req.json();
-    if (!ownerId || !amount) return NextResponse.json({ ok: false });
+    const { user: authUser, ownerId } = await getAppUserContext();
+    if (!authUser || !ownerId) return NextResponse.json({ ok: false });
+
+    const { imageUrl, description, amount, merchant, date } = await req.json();
+    if (!amount) return NextResponse.json({ ok: false });
 
     await supabaseAdmin.from("receipt_ocr_examples").insert({
       owner_id: ownerId,

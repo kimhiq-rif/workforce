@@ -1,12 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { sendOneSignalPush } from "@/lib/send-push";
+import { getAppUserContext } from "@/lib/auth-context";
 
 export const dynamic = "force-dynamic";
 
 export async function POST(req: NextRequest) {
-  const { workerNameTh, fromSiteNameTh, toSiteNameTh, ownerId } = await req.json();
+  const { user: authUser, ownerId } = await getAppUserContext();
+  if (!authUser || !ownerId) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
 
-  if (!ownerId || !workerNameTh) {
+  const { workerNameTh, fromSiteNameTh, toSiteNameTh } = await req.json();
+
+  if (!workerNameTh) {
     return NextResponse.json({ error: "missing fields" }, { status: 400 });
   }
 
