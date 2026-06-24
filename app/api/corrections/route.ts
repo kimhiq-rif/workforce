@@ -69,5 +69,15 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
+  supabase.from("audit_log").insert({
+    owner_id: profile.id,
+    actor_id: profile.id,
+    action: "correction",
+    entity_type: entityType,
+    entity_id: entityId,
+    old_value: originalValue != null ? { value: String(originalValue) } : null,
+    new_value: { field: fieldName, value: correctedValue != null ? String(correctedValue) : null, reason: reason.trim() },
+  }).then(() => {}, () => {});
+
   return NextResponse.json({ id: data.id, correctedAt: data.corrected_at });
 }

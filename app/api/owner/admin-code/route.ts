@@ -36,6 +36,15 @@ export async function POST(req: NextRequest) {
     const { error } = await supabase
       .from("users").update({ admin_code_hash: hash }).eq("id", actor.id);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+    supabase.from("audit_log").insert({
+      owner_id: actor.id,
+      actor_id: actor.id,
+      action: "admin_code_change",
+      entity_type: "user",
+      entity_id: actor.id,
+    }).then(() => {}, () => {});
+
     return NextResponse.json({ ok: true });
   }
 

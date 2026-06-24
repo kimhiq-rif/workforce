@@ -29,5 +29,15 @@ export async function POST(req: NextRequest) {
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  serviceClient.from("audit_log").insert({
+    owner_id: ownerId,
+    actor_id: ownerId,
+    action: "worker_add",
+    entity_type: "worker",
+    entity_id: data.id,
+    new_value: { name_th: data.name_th, name_en: data.name_en, daily_wage: data.daily_wage },
+  }).then(() => {}, () => {});
+
   return NextResponse.json({ data });
 }

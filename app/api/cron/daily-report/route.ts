@@ -53,7 +53,7 @@ async function uploadDailyReportPdf(
 
   const { data, error: signedUrlError } = await supabase.storage
     .from(bucket)
-    .createSignedUrl(path, 60 * 60 * 24 * 7);
+    .createSignedUrl(path, 60 * 15);
 
   if (signedUrlError) return { url: null, error: signedUrlError.message };
 

@@ -56,6 +56,20 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL("/", request.url));
   }
 
+  // Session timeout: sign out if session is older than 8 hours
+  if (user && !isAuthPage) {
+    const lastSignIn = user.last_sign_in_at ? new Date(user.last_sign_in_at).getTime() : 0;
+    const ageHours = (Date.now() - lastSignIn) / (1000 * 3600);
+    if (ageHours > 8) {
+      await supabase.auth.signOut();
+      const redirect = NextResponse.redirect(new URL("/login?reason=timeout", request.url));
+      supabaseResponse.cookies.getAll().forEach((c) => {
+        redirect.cookies.set(c.name, c.value);
+      });
+      return redirect;
+    }
+  }
+
   return supabaseResponse;
 }
 

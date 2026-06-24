@@ -77,6 +77,15 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: dbError.message }, { status: 500 });
   }
 
+  supabase.from("audit_log").insert({
+    owner_id: ownerId,
+    actor_id: profile!.id,
+    action: "team_member_add",
+    entity_type: "user",
+    entity_id: member.id,
+    new_value: { role, name_th: member.name_th, name_en: member.name_en },
+  }).then(() => {}, () => {});
+
   return NextResponse.json({ member }, { status: 201 });
 }
 
@@ -108,6 +117,14 @@ export async function DELETE(req: NextRequest) {
   if (member.auth_id) {
     await supabase.auth.admin.deleteUser(member.auth_id);
   }
+
+  supabase.from("audit_log").insert({
+    owner_id: ownerId,
+    actor_id: profile!.id,
+    action: "team_member_remove",
+    entity_type: "user",
+    entity_id: memberId,
+  }).then(() => {}, () => {});
 
   return NextResponse.json({ ok: true });
 }
