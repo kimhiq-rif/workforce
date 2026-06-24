@@ -46,37 +46,11 @@ export async function GET(req: NextRequest) {
   const tomorrow = tomorrowBangkok();
   const log: string[] = [];
 
-  // ── 1. Update assigned_site_id for each worker based on last attendance today ──
-
-  const { data: todayEvents } = await supabase
-    .from("attendance_events")
-    .select("worker_id, site_id, arrival_time")
-    .eq("event_date", today)
-    .order("arrival_time", { ascending: false });
-
-  if (todayEvents?.length) {
-    // Keep only the latest event per worker
-    const lastSitePerWorker = new Map<string, string>();
-    for (const event of todayEvents) {
-      if (!lastSitePerWorker.has(event.worker_id)) {
-        lastSitePerWorker.set(event.worker_id, event.site_id);
-      }
-    }
-
-    for (const [workerId, siteId] of Array.from(lastSitePerWorker.entries())) {
-      await supabase
-        .from("workers")
-        .update({ assigned_site_id: siteId })
-        .eq("id", workerId);
-    }
-    log.push(`assigned_site updated for ${lastSitePerWorker.size} workers`);
-  }
-
-  // ── 2. Reset active site statuses to waiting ──────────────────────────────────
+  // ── 1. Reset active site statuses to waiting (must run before worker assignments) ──
 
   const { data: activeSites } = await supabase
     .from("sites")
-    .select("id, owner_id, status")
+    .select("id")
     .in("status", ["live", "rain", "half_day", "day_off"])
     .eq("is_active", true);
 
@@ -87,6 +61,31 @@ export async function GET(req: NextRequest) {
       .update({ status: "waiting" })
       .in("id", siteIds);
     log.push(`reset ${activeSites.length} sites to waiting`);
+  }
+
+  // ── 2. Update assigned_site_id for each worker based on last attendance today ──
+
+  const { data: todayEvents } = await supabase
+    .from("attendance_events")
+    .select("worker_id, site_id, arrival_time")
+    .eq("event_date", today)
+    .order("arrival_time", { ascending: false });
+
+  if (todayEvents?.length) {
+    // Keep only the latest event per worker, then batch-update via upsert on id
+    const lastSitePerWorker = new Map<string, string>();
+    for (const event of todayEvents) {
+      if (!lastSitePerWorker.has(event.worker_id)) {
+        lastSitePerWorker.set(event.worker_id, event.site_id);
+      }
+    }
+
+    await Promise.all(
+      Array.from(lastSitePerWorker.entries()).map(([id, assigned_site_id]) =>
+        supabase.from("workers").update({ assigned_site_id }).eq("id", id)
+      )
+    );
+    log.push(`assigned_site updated for ${lastSitePerWorker.size} workers`);
   }
 
   // ── 2b. Clear stale per-site daily notes (they self-expire by note_date) ─────
