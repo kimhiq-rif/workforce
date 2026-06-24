@@ -56,7 +56,7 @@ function BiometricLoginButton({ onSuccess }: { onSuccess: () => void }) {
       const { error: authError } = await supabase.auth.verifyOtp({
         email,
         token: token_hash,
-        type: "magiclink",
+        type: "email",
       });
       if (authError) throw new Error(authError.message);
 
