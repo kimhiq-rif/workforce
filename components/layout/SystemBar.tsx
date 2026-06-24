@@ -460,6 +460,8 @@ export function SystemBar({
               top: "calc(100% + 10px)",
               right: 0,
               width: 320,
+              maxHeight: "calc(100vh - 120px)",
+              overflowY: "auto",
               background: "white",
               border: "1px solid var(--border)",
               borderRadius: 10,
@@ -468,6 +470,7 @@ export function SystemBar({
               padding: 16,
             }}
           >
+            {/* Header */}
             <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
               <div>
                 <strong style={{ display: "block", fontSize: 15 }}>Owner account</strong>
@@ -484,6 +487,7 @@ export function SystemBar({
               </button>
             </div>
 
+            {/* User info */}
             <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 14, padding: "10px 0", borderTop: "1px solid var(--border)", borderBottom: "1px solid var(--border)" }}>
               <div className="avatar" style={{ width: 36, height: 36, fontSize: 13 }}>{userInitials}</div>
               <div>
@@ -494,12 +498,38 @@ export function SystemBar({
               </div>
             </div>
 
+            {/* Sign out — placed BEFORE the connect form so it's always visible */}
+            <button
+              onClick={handleSignOut}
+              disabled={authLoading}
+              style={{
+                marginTop: 12,
+                width: "100%",
+                padding: "10px",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 8,
+                background: "#FEF2F2",
+                border: "1px solid #FECACA",
+                borderRadius: 8,
+                color: "#B91C1C",
+                cursor: "pointer",
+                fontSize: 14,
+                fontWeight: 600,
+              }}
+            >
+              <LogOut size={16} />
+              Sign out · ออกจากระบบ
+            </button>
+
             {connectedEmail && (
               <div style={{ background: "#F0FDF4", color: "#15803D", borderRadius: 8, padding: "8px 10px", fontSize: 12, marginTop: 12, fontWeight: 600 }}>
                 Connected owner session
               </div>
             )}
 
+            {/* Connect form — for switching owner accounts */}
             <form onSubmit={handleSignIn} style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 14 }}>
               <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
                 <span style={{ fontSize: 12, fontWeight: 600 }}>Owner email</span>
@@ -543,30 +573,6 @@ export function SystemBar({
                 {authLoading ? "Connecting..." : "Connect owner"}
               </button>
             </form>
-
-            <button
-              onClick={handleSignOut}
-              disabled={authLoading}
-              style={{
-                marginTop: 10,
-                width: "100%",
-                padding: "10px",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: 8,
-                background: "#FEF2F2",
-                border: "1px solid #FECACA",
-                borderRadius: 8,
-                color: "#B91C1C",
-                cursor: "pointer",
-                fontSize: 14,
-                fontWeight: 600,
-              }}
-            >
-              <LogOut size={16} />
-              Disconnect owner
-            </button>
           </div>
         )}
       </div>
