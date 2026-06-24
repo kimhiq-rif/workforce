@@ -10,6 +10,7 @@ import { useUserRole } from "@/components/layout/UserRoleContext";
 import {
   Search, CirclePlus, Camera, Check, X, Send,
   Receipt, Truck, AlertTriangle, Wallet, Plus, Clock, Download, MapPin, RefreshCw,
+  ChevronLeft, Phone, Pencil,
 } from "lucide-react";
 import { formatCurrency, formatThaiDate } from "@/lib/format";
 import { parseThaiQR } from "@/lib/qr-parser";
@@ -172,6 +173,8 @@ export function SuppliersClient({
   const [openQrReceipt, setOpenQrReceipt] = useState<PendingQrReceipt | null>(null);
   const [closingReceipt, setClosingReceipt] = useState<ReceiptRow | null>(null);
   const [editingSupplier, setEditingSupplier] = useState<Supplier | null>(null);
+  const [desktopView, setDesktopView] = useState<"receipts" | "suppliers">("receipts");
+  const [desktopSelectedSupplier, setDesktopSelectedSupplier] = useState<Supplier | null>(null);
 
   function showToast(msg: string) {
     setToast(msg);
@@ -400,6 +403,16 @@ export function SuppliersClient({
         </section>
       )}
 
+      {desktopSelectedSupplier && (
+        <DesktopSupplierDetailPanel
+          supplier={desktopSelectedSupplier}
+          receipts={receipts}
+          onEdit={() => setEditingSupplier(desktopSelectedSupplier)}
+          onAddReceipt={() => setShowAddReceipt(true)}
+          onClose={() => setDesktopSelectedSupplier(null)}
+        />
+      )}
+
       {selectedReceipt && (
         <section className="attention-card">
           <h2>ใบเสร็จที่เลือก <span>Selected receipt</span></h2>
@@ -454,88 +467,104 @@ export function SuppliersClient({
         <div className="desktop-only">
           <div className="content-header">
             <div>
-              <h1>ใบเสร็จ</h1>
-              <p>Receipts · last 30 days</p>
+              <h1>{desktopView === "suppliers" ? "ซัพพลายเออร์" : "ใบเสร็จ"}</h1>
+              <p>{desktopView === "suppliers" ? `${suppliers.length} suppliers` : "Receipts · last 30 days"}</p>
             </div>
-            <div style={{ display: "flex", gap: 10 }}>
+            <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+              {/* View toggle */}
+              <div style={{ display: "flex", background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 8, overflow: "hidden" }}>
+                {(["receipts", "suppliers"] as const).map((v) => (
+                  <button key={v} onClick={() => { setDesktopView(v); setDesktopSelectedSupplier(null); setSelectedReceipt(null); }}
+                    style={{ padding: "7px 16px", border: "none", background: desktopView === v ? "var(--brand-primary)" : "transparent",
+                      color: desktopView === v ? "white" : "var(--text-muted)", cursor: "pointer", fontSize: 13, fontWeight: desktopView === v ? 600 : 400 }}>
+                    {v === "receipts" ? "ใบเสร็จ · Receipts" : "ซัพพลายเออร์ · Suppliers"}
+                  </button>
+                ))}
+              </div>
               <button className="btn-primary" style={{ background: "var(--brand-accent, #FF6A00)", color: "white", minWidth: 160 }} onClick={() => setShowAddSupplier(true)}>
                 <Truck size={20} />
                 เพิ่มซัพพลายเออร์
                 <small>Add supplier</small>
               </button>
-              <button className="btn-primary" style={{ minWidth: 160 }} onClick={() => setShowAddReceipt(true)}>
-                <Camera size={20} />
-                ถ่ายใบเสร็จ
-                <small>Add receipt</small>
-              </button>
-            </div>
-          </div>
-
-          <div style={{ display: "flex", flexDirection: "column", gap: 12, marginBottom: 16 }}>
-            <label className="search-box" style={{ maxWidth: 400 }}>
-              <Search size={20} color="var(--text-muted)" />
-              <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="ค้นหา / Supplier or site name" />
-            </label>
-            <div style={{ display: "flex", gap: 6 }}>
-              {RECEIPT_TABS.map((t) => (
-                <button
-                  key={t.key}
-                  onClick={() => setTab(t.key)}
-                  style={{
-                    padding: "6px 14px", borderRadius: 20,
-                    border: "1px solid var(--border)",
-                    background: tab === t.key ? "var(--brand-primary)" : "white",
-                    color: tab === t.key ? "white" : "var(--text-primary)",
-                    cursor: "pointer", fontSize: 13,
-                    fontWeight: tab === t.key ? 600 : 400,
-                  }}
-                >
-                  {t.th} <small style={{ opacity: 0.75 }}>{t.en}</small>
+              {desktopView === "receipts" && (
+                <button className="btn-primary" style={{ minWidth: 160 }} onClick={() => setShowAddReceipt(true)}>
+                  <Camera size={20} />
+                  ถ่ายใบเสร็จ
+                  <small>Add receipt</small>
                 </button>
-              ))}
+              )}
             </div>
           </div>
 
-          <div className="table-card">
-            <div className="table-header" style={{ gridTemplateColumns: "1.5fr 1.2fr 80px 120px 100px 80px" }}>
-              <span>ซัพพลายเออร์ <small>Supplier</small></span>
-              <span>ไซต์ <small>Site</small></span>
-              <span>หมวดหมู่ <small>Category</small></span>
-              <span>ยอด <small>Amount</small></span>
-              <span>สถานะ <small>Status</small></span>
-              <span>วันที่ <small>Date</small></span>
-            </div>
-            {filteredReceipts.length === 0 ? (
-              <div style={{ padding: "32px", textAlign: "center", color: "var(--text-muted)", fontSize: 14 }}>
-                ไม่พบใบเสร็จ · No receipts found
-              </div>
-            ) : (
-              filteredReceipts.map((r) => (
-                <div
-                  key={r.id}
-                  className={`table-row ${selectedReceipt?.id === r.id ? "selected" : ""}`}
-                  style={{ gridTemplateColumns: "1.5fr 1.2fr 80px 120px 70px 100px 80px", display: "grid", padding: "12px 20px", gap: 12, alignItems: "center", cursor: "pointer" }}
-                  onClick={() => setSelectedReceipt(r)}
-                >
-                  <span>
-                    <span className="cell-th">{r.supplier?.name_th ?? "ไม่ระบุ · None"}</span>
-                    <span className="cell-en">{r.description ?? r.supplier?.name_en ?? ""}</span>
-                  </span>
-                  <span>
-                    <span className="cell-th" style={{ fontSize: 14 }}>{r.site?.name_th ?? "-"}</span>
-                    <span className="cell-en">{r.site?.name_en ?? ""}</span>
-                  </span>
-                  <span style={{ fontSize: 12, color: "var(--text-muted)" }}>{r.category ?? "-"}</span>
-                  <span style={{ fontSize: 16, fontWeight: 700 }}>{money(r.amount)}</span>
-                  <span style={{ fontSize: 11, fontWeight: 600, color: r.payment_type === "qr" ? "#1D4ED8" : "#15803D" }}>
-                    {r.payment_type === "qr" ? "🔷 QR" : "💵 Cash"}
-                  </span>
-                  <span><ReceiptStatusBadge status={r.status} /></span>
-                  <span style={{ fontSize: 12, color: "var(--text-muted)" }}>{formatThaiDate(r.created_at)}</span>
+          {desktopView === "receipts" ? (
+            <>
+              <div style={{ display: "flex", flexDirection: "column", gap: 12, marginBottom: 16 }}>
+                <label className="search-box" style={{ maxWidth: 400 }}>
+                  <Search size={20} color="var(--text-muted)" />
+                  <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="ค้นหา / Supplier or site name" />
+                </label>
+                <div style={{ display: "flex", gap: 6 }}>
+                  {RECEIPT_TABS.map((t) => (
+                    <button key={t.key} onClick={() => setTab(t.key)}
+                      style={{ padding: "6px 14px", borderRadius: 20, border: "1px solid var(--border)",
+                        background: tab === t.key ? "var(--brand-primary)" : "white",
+                        color: tab === t.key ? "white" : "var(--text-primary)",
+                        cursor: "pointer", fontSize: 13, fontWeight: tab === t.key ? 600 : 400 }}>
+                      {t.th} <small style={{ opacity: 0.75 }}>{t.en}</small>
+                    </button>
+                  ))}
                 </div>
-              ))
-            )}
-          </div>
+              </div>
+              <div className="table-card">
+                <div className="table-header" style={{ gridTemplateColumns: "1.5fr 1.2fr 80px 120px 100px 80px" }}>
+                  <span>ซัพพลายเออร์ <small>Supplier</small></span>
+                  <span>ไซต์ <small>Site</small></span>
+                  <span>หมวดหมู่ <small>Category</small></span>
+                  <span>ยอด <small>Amount</small></span>
+                  <span>สถานะ <small>Status</small></span>
+                  <span>วันที่ <small>Date</small></span>
+                </div>
+                {filteredReceipts.length === 0 ? (
+                  <div style={{ padding: "32px", textAlign: "center", color: "var(--text-muted)", fontSize: 14 }}>
+                    ไม่พบใบเสร็จ · No receipts found
+                  </div>
+                ) : (
+                  filteredReceipts.map((r) => (
+                    <div key={r.id}
+                      className={`table-row ${selectedReceipt?.id === r.id ? "selected" : ""}`}
+                      style={{ gridTemplateColumns: "1.5fr 1.2fr 80px 120px 70px 100px 80px", display: "grid", padding: "12px 20px", gap: 12, alignItems: "center", cursor: "pointer" }}
+                      onClick={() => setSelectedReceipt(r)}>
+                      <span>
+                        <span className="cell-th">{r.supplier?.name_th ?? "ไม่ระบุ · None"}</span>
+                        <span className="cell-en">{r.description ?? r.supplier?.name_en ?? ""}</span>
+                      </span>
+                      <span>
+                        <span className="cell-th" style={{ fontSize: 14 }}>{r.site?.name_th ?? "-"}</span>
+                        <span className="cell-en">{r.site?.name_en ?? ""}</span>
+                      </span>
+                      <span style={{ fontSize: 12, color: "var(--text-muted)" }}>{r.category ?? "-"}</span>
+                      <span style={{ fontSize: 16, fontWeight: 700 }}>{money(r.amount)}</span>
+                      <span style={{ fontSize: 11, fontWeight: 600, color: r.payment_type === "qr" ? "#1D4ED8" : "#15803D" }}>
+                        {r.payment_type === "qr" ? "🔷 QR" : "💵 Cash"}
+                      </span>
+                      <span><ReceiptStatusBadge status={r.status} /></span>
+                      <span style={{ fontSize: 12, color: "var(--text-muted)" }}>{formatThaiDate(r.created_at)}</span>
+                    </div>
+                  ))
+                )}
+              </div>
+            </>
+          ) : (
+            /* Suppliers list */
+            <DesktopSupplierList
+              suppliers={suppliers}
+              receipts={receipts}
+              selected={desktopSelectedSupplier}
+              onSelect={setDesktopSelectedSupplier}
+              onEdit={setEditingSupplier}
+              onAddReceipt={() => setShowAddReceipt(true)}
+            />
+          )}
         </div>
 
         {/* Mobile */}
@@ -562,6 +591,7 @@ export function SuppliersClient({
               <MobileSuppliers
                 suppliers={suppliers}
                 receipts={filteredReceipts}
+                allReceipts={receipts}
                 stats={stats}
                 tab={tab}
                 setTab={setTab}
@@ -569,6 +599,7 @@ export function SuppliersClient({
                 setSearch={setSearch}
                 onAddReceipt={() => setShowAddReceipt(true)}
                 onAddSupplier={() => setShowAddSupplier(true)}
+                onEdit={(s: Supplier) => setEditingSupplier(s)}
                 onMarkPaid={handleMarkPaid}
                 onDispute={handleDispute}
               />
@@ -1294,100 +1325,343 @@ function QrPaymentModal({ receipt, userId, onClose, onPaid }: {
 
 // ── Mobile suppliers (owner / field manager view) ─────────────────────────────
 
-function MobileSuppliers({ suppliers, receipts, stats, tab, setTab, search, setSearch, onAddReceipt, onAddSupplier, onMarkPaid, onDispute }: any) {
+function MobileSuppliers({ suppliers, receipts, allReceipts, stats, tab, setTab, search, setSearch, onAddReceipt, onAddSupplier, onEdit, onMarkPaid, onDispute }: any) {
+  const [mobileView, setMobileView] = useState<"receipts" | "suppliers">("receipts");
+  const [selectedSupplier, setSelectedSupplier] = useState<Supplier | null>(null);
+  const [supplierSearch, setSupplierSearch] = useState("");
+
+  const filteredSuppliers: Supplier[] = useMemo(() => {
+    const q = supplierSearch.toLowerCase();
+    return (suppliers as Supplier[])
+      .filter((s) => !q || s.name_th.toLowerCase().includes(q) || s.name_en.toLowerCase().includes(q))
+      .sort((a, b) => a.name_th.localeCompare(b.name_th));
+  }, [suppliers, supplierSearch]);
+
+  // Supplier detail view
+  if (selectedSupplier) {
+    const supplierReceipts = (allReceipts as ReceiptRow[])
+      .filter((r) => r.supplier_id === selectedSupplier.id)
+      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    const totalAmount = supplierReceipts.reduce((s, r) => s + (r.amount ?? 0), 0);
+
+    return (
+      <div>
+        <div className="mobile-topbar">
+          <button onClick={() => setSelectedSupplier(null)}
+            style={{ background: "rgba(255,255,255,0.15)", border: "none", borderRadius: 8, width: 36, height: 36, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0 }}>
+            <ChevronLeft size={20} color="white" />
+          </button>
+          <div style={{ flex: 1, marginLeft: 10 }}>
+            <h1 style={{ color: "white", fontSize: 17 }}>{selectedSupplier.name_th}</h1>
+            <p style={{ color: "rgba(255,255,255,0.75)", fontSize: 12 }}>{selectedSupplier.name_en}</p>
+          </div>
+          <button onClick={() => onEdit(selectedSupplier)}
+            style={{ background: "rgba(255,255,255,0.15)", border: "none", borderRadius: 8, width: 36, height: 36, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
+            <Pencil size={16} color="white" />
+          </button>
+        </div>
+
+        <div style={{ padding: "14px 16px", display: "flex", flexDirection: "column", gap: 12 }}>
+          {/* Info card */}
+          <div style={{ background: "white", borderRadius: 10, padding: 14, border: "1px solid var(--border)", display: "flex", flexDirection: "column", gap: 8 }}>
+            {selectedSupplier.category && (
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13 }}>
+                <span style={{ color: "var(--text-muted)" }}>Category</span>
+                <strong>{selectedSupplier.category}</strong>
+              </div>
+            )}
+            {selectedSupplier.contact_phone && (
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 13 }}>
+                <span style={{ color: "var(--text-muted)" }}>Phone</span>
+                <a href={`tel:${selectedSupplier.contact_phone}`} style={{ display: "flex", alignItems: "center", gap: 5, color: "var(--brand-primary)", fontWeight: 600, textDecoration: "none" }}>
+                  <Phone size={14} /> {selectedSupplier.contact_phone}
+                </a>
+              </div>
+            )}
+            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13 }}>
+              <span style={{ color: "var(--text-muted)" }}>Receipts</span>
+              <strong>{supplierReceipts.length} · ฿{formatCurrency(totalAmount)}</strong>
+            </div>
+          </div>
+
+          {/* Action */}
+          <button onClick={onAddReceipt} className="btn-primary" style={{ justifyContent: "center", padding: "12px" }}>
+            <Camera size={18} /> เพิ่มใบเสร็จ · Add Receipt
+          </button>
+
+          {/* Receipt history */}
+          <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-muted)", marginTop: 4 }}>
+            RECEIPT HISTORY ({supplierReceipts.length})
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {supplierReceipts.map((r) => (
+              <div key={r.id} style={{ background: "white", borderRadius: 10, padding: "12px 14px", border: "1px solid var(--border)" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: 600 }}>{r.site?.name_th ?? r.description ?? "-"}</div>
+                    <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 2 }}>{formatThaiDate(r.created_at)}</div>
+                  </div>
+                  <div style={{ textAlign: "right" }}>
+                    <div style={{ fontSize: 15, fontWeight: 700 }}>{money(r.amount)}</div>
+                    <div style={{ marginTop: 2 }}><ReceiptStatusBadge status={r.status} /></div>
+                  </div>
+                </div>
+                {r.status === "pending" && (
+                  <div style={{ display: "flex", gap: 8, marginTop: 10, paddingTop: 10, borderTop: "1px solid var(--border)" }}>
+                    <button onClick={() => onMarkPaid(r.id)} className="btn-primary" style={{ flex: 1, justifyContent: "center", fontSize: 12, padding: "7px" }}>
+                      <Check size={13} /> จ่ายแล้ว
+                    </button>
+                    <button onClick={() => onDispute(r.id)} className="btn-primary" style={{ flex: 1, justifyContent: "center", fontSize: 12, padding: "7px", background: "#EF4444" }}>
+                      <AlertTriangle size={13} /> ปัญหา
+                    </button>
+                  </div>
+                )}
+              </div>
+            ))}
+            {supplierReceipts.length === 0 && (
+              <div style={{ textAlign: "center", padding: 24, color: "var(--text-muted)", fontSize: 13 }}>
+                ไม่มีใบเสร็จ · No receipts yet
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div>
       <div className="mobile-topbar">
         <div style={{ flex: 1 }}>
-          <h1 style={{ color: "white" }}>Receipts</h1>
-          <p style={{ color: "rgba(255,255,255,0.75)" }}>Receipts</p>
+          <h1 style={{ color: "white" }}>{mobileView === "receipts" ? "ใบเสร็จ" : "ซัพพลายเออร์"}</h1>
+          <p style={{ color: "rgba(255,255,255,0.75)" }}>{mobileView === "receipts" ? "Receipts" : "Suppliers"}</p>
         </div>
-        <button onClick={onAddReceipt} style={{ background: "transparent", border: "none", color: "white", cursor: "pointer" }}>
-          <CirclePlus size={24} />
+        {mobileView === "receipts"
+          ? <button onClick={onAddReceipt} style={{ background: "transparent", border: "none", color: "white", cursor: "pointer" }}><CirclePlus size={24} /></button>
+          : <button onClick={onAddSupplier} style={{ background: "transparent", border: "none", color: "white", cursor: "pointer" }}><CirclePlus size={24} /></button>
+        }
+      </div>
+
+      {/* View toggle */}
+      <div style={{ display: "flex", margin: "0 16px 0", borderBottom: "2px solid var(--border)" }}>
+        {(["receipts", "suppliers"] as const).map((v) => (
+          <button key={v} onClick={() => setMobileView(v)}
+            style={{ flex: 1, padding: "10px 0", border: "none", background: "transparent", cursor: "pointer", fontSize: 13, fontWeight: mobileView === v ? 700 : 400,
+              color: mobileView === v ? "var(--brand-primary)" : "var(--text-muted)",
+              borderBottom: mobileView === v ? "2px solid var(--brand-primary)" : "2px solid transparent", marginBottom: -2 }}>
+            {v === "receipts" ? "ใบเสร็จ · Receipts" : "ซัพพลายเออร์ · Suppliers"}
+          </button>
+        ))}
+      </div>
+
+      {mobileView === "receipts" ? (
+        <div style={{ padding: "12px 16px", display: "flex", flexDirection: "column", gap: 10 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>
+            <div className="mini-stat"><strong>{stats.total}</strong><span>Receipts</span><small>Total</small></div>
+            <div className="mini-stat"><strong style={{ color: "#F97316" }}>{stats.pending}</strong><span>Pending</span><small>Review</small></div>
+            <div className="mini-stat"><strong>฿{formatCurrency(stats.totalAmount)}</strong><span>Total</span><small>Amount</small></div>
+          </div>
+          <label className="search-box">
+            <Search size={20} color="var(--text-muted)" />
+            <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search receipts" />
+          </label>
+          <div style={{ display: "flex", gap: 6, overflowX: "auto" }}>
+            {RECEIPT_TABS.map((t) => (
+              <button key={t.key} onClick={() => setTab(t.key)}
+                style={{ flexShrink: 0, padding: "6px 12px", borderRadius: 20, border: "1px solid var(--border)",
+                  background: tab === t.key ? "var(--brand-primary)" : "white",
+                  color: tab === t.key ? "white" : "var(--text-primary)",
+                  cursor: "pointer", fontSize: 11, fontWeight: tab === t.key ? 600 : 400, lineHeight: 1.3 }}>
+                {t.en}
+              </button>
+            ))}
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {receipts.map((r: ReceiptRow) => (
+              <div key={r.id} style={{ background: "white", borderRadius: 10, padding: "14px", border: "1px solid var(--border)" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                  <div>
+                    <strong style={{ fontSize: 15 }}>{r.supplier?.name_en ?? r.supplier?.name_th ?? "None"}</strong>
+                    <small style={{ display: "block", color: "var(--text-muted)", fontSize: 12 }}>
+                      {r.site?.name_en ?? r.site?.name_th ?? "-"} · {formatThaiDate(r.created_at)}
+                    </small>
+                    {r.payment_type && (
+                      <span style={{ display: "inline-flex", alignItems: "center", gap: 4, marginTop: 4, fontSize: 11, fontWeight: 600, padding: "2px 7px", borderRadius: 5,
+                        background: r.payment_type === "qr" ? "#EFF6FF" : "#F0FDF4", color: r.payment_type === "qr" ? "#1D4ED8" : "#15803D" }}>
+                        {r.payment_type === "qr" ? "🔷 QR" : "💵 Cash"}
+                      </span>
+                    )}
+                  </div>
+                  <div style={{ textAlign: "right" }}>
+                    <strong style={{ fontSize: 16 }}>{money(r.amount)}</strong>
+                    <div style={{ marginTop: 2 }}><ReceiptStatusBadge status={r.status} /></div>
+                  </div>
+                </div>
+                {r.status === "pending" && (
+                  <div style={{ display: "flex", gap: 8, marginTop: 10, paddingTop: 10, borderTop: "1px solid var(--border)" }}>
+                    <button onClick={() => onMarkPaid(r.id)} className="btn-primary" style={{ flex: 1, justifyContent: "center", fontSize: 13, padding: "8px" }}>
+                      <Check size={15} /> จ่ายแล้ว
+                    </button>
+                    <button onClick={() => onDispute(r.id)} className="btn-primary" style={{ flex: 1, justifyContent: "center", fontSize: 13, padding: "8px", background: "#EF4444" }}>
+                      <AlertTriangle size={15} /> ปัญหา
+                    </button>
+                  </div>
+                )}
+              </div>
+            ))}
+            {receipts.length === 0 && (
+              <div style={{ textAlign: "center", padding: "32px", color: "var(--text-muted)", fontSize: 14 }}>
+                ไม่พบใบเสร็จ · No receipts
+              </div>
+            )}
+          </div>
+        </div>
+      ) : (
+        /* Suppliers list */
+        <div style={{ padding: "12px 16px", display: "flex", flexDirection: "column", gap: 10 }}>
+          <label className="search-box">
+            <Search size={20} color="var(--text-muted)" />
+            <input value={supplierSearch} onChange={(e) => setSupplierSearch(e.target.value)} placeholder="Search suppliers" />
+          </label>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {filteredSuppliers.map((s) => {
+              const count = (allReceipts as ReceiptRow[]).filter((r) => r.supplier_id === s.id).length;
+              const total = (allReceipts as ReceiptRow[]).filter((r) => r.supplier_id === s.id).reduce((sum, r) => sum + (r.amount ?? 0), 0);
+              return (
+                <button key={s.id} onClick={() => setSelectedSupplier(s)}
+                  style={{ background: "white", borderRadius: 10, padding: "14px", border: "1px solid var(--border)", textAlign: "left", cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <div>
+                    <div style={{ fontSize: 15, fontWeight: 600 }}>{s.name_th}</div>
+                    <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 2 }}>{s.name_en}{s.category ? ` · ${s.category}` : ""}</div>
+                  </div>
+                  <div style={{ textAlign: "right", flexShrink: 0, marginLeft: 12 }}>
+                    <div style={{ fontSize: 13, fontWeight: 700 }}>{count > 0 ? money(total) : "—"}</div>
+                    <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 2 }}>{count} receipts</div>
+                  </div>
+                </button>
+              );
+            })}
+            {filteredSuppliers.length === 0 && (
+              <div style={{ textAlign: "center", padding: "32px", color: "var(--text-muted)", fontSize: 14 }}>
+                ไม่พบซัพพลายเออร์ · No suppliers
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Desktop supplier list ──────────────────────────────────────────────────────
+
+function DesktopSupplierList({ suppliers, receipts, selected, onSelect, onEdit, onAddReceipt }: {
+  suppliers: Supplier[]; receipts: ReceiptRow[]; selected: Supplier | null;
+  onSelect: (s: Supplier) => void; onEdit: (s: Supplier) => void; onAddReceipt: () => void;
+}) {
+  const [search, setSearch] = useState("");
+  const filtered = useMemo(() => {
+    const q = search.toLowerCase();
+    return suppliers
+      .filter((s) => !q || s.name_th.toLowerCase().includes(q) || s.name_en.toLowerCase().includes(q))
+      .sort((a, b) => a.name_th.localeCompare(b.name_th));
+  }, [suppliers, search]);
+
+  return (
+    <div>
+      <div style={{ marginBottom: 14, maxWidth: 400 }}>
+        <label className="search-box">
+          <Search size={20} color="var(--text-muted)" />
+          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search suppliers" />
+        </label>
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 12 }}>
+        {filtered.map((s) => {
+          const sReceipts = receipts.filter((r) => r.supplier_id === s.id);
+          const total = sReceipts.reduce((sum, r) => sum + (r.amount ?? 0), 0);
+          const isSelected = selected?.id === s.id;
+          return (
+            <button key={s.id} onClick={() => onSelect(s)}
+              style={{ background: "white", borderRadius: 10, padding: "16px", border: `1.5px solid ${isSelected ? "var(--brand-primary)" : "var(--border)"}`,
+                textAlign: "left", cursor: "pointer", display: "flex", flexDirection: "column", gap: 6 }}>
+              <div style={{ fontWeight: 700, fontSize: 15 }}>{s.name_th}</div>
+              <div style={{ fontSize: 12, color: "var(--text-muted)" }}>{s.name_en}{s.category ? ` · ${s.category}` : ""}</div>
+              <div style={{ marginTop: 4, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <span style={{ fontSize: 12, color: "var(--text-muted)" }}>{sReceipts.length} receipts</span>
+                <span style={{ fontSize: 14, fontWeight: 700 }}>{sReceipts.length > 0 ? money(total) : "—"}</span>
+              </div>
+            </button>
+          );
+        })}
+        {filtered.length === 0 && (
+          <div style={{ gridColumn: "1/-1", textAlign: "center", padding: "48px", color: "var(--text-muted)", fontSize: 14 }}>
+            ไม่พบซัพพลายเออร์ · No suppliers found
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── Desktop supplier detail panel (right panel) ────────────────────────────────
+
+function DesktopSupplierDetailPanel({ supplier, receipts, onEdit, onAddReceipt, onClose }: {
+  supplier: Supplier; receipts: ReceiptRow[];
+  onEdit: () => void; onAddReceipt: () => void; onClose: () => void;
+}) {
+  const supplierReceipts = receipts
+    .filter((r) => r.supplier_id === supplier.id)
+    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+  const total = supplierReceipts.reduce((s, r) => s + (r.amount ?? 0), 0);
+
+  return (
+    <section className="attention-card">
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 }}>
+        <div>
+          <h2 style={{ margin: 0 }}>{supplier.name_th} <span>{supplier.name_en}</span></h2>
+          {supplier.category && <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 2 }}>{supplier.category}</div>}
+        </div>
+        <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-muted)", padding: 4 }}><X size={18} /></button>
+      </div>
+
+      {supplier.contact_phone && (
+        <a href={`tel:${supplier.contact_phone}`} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, color: "var(--brand-primary)", fontWeight: 600, textDecoration: "none", marginBottom: 10 }}>
+          <Phone size={14} /> {supplier.contact_phone}
+        </a>
+      )}
+
+      <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
+        <button onClick={onEdit} className="btn-primary" style={{ flex: 1, justifyContent: "center", fontSize: 12, padding: "7px", background: "var(--surface)", color: "var(--text-primary)", border: "1px solid var(--border)" }}>
+          <Pencil size={13} /> Edit
+        </button>
+        <button onClick={onAddReceipt} className="btn-primary" style={{ flex: 1, justifyContent: "center", fontSize: 12, padding: "7px" }}>
+          <Camera size={13} /> Add Receipt
         </button>
       </div>
 
-      <div style={{ padding: "12px 16px", display: "flex", flexDirection: "column", gap: 10 }}>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>
-          <div className="mini-stat"><strong>{stats.total}</strong><span>Receipts</span><small>Total</small></div>
-          <div className="mini-stat"><strong style={{ color: "#F97316" }}>{stats.pending}</strong><span>Pending</span><small>Review</small></div>
-          <div className="mini-stat"><strong>฿{formatCurrency(stats.totalAmount)}</strong><span>Total</span><small>Amount</small></div>
-        </div>
-
-        <label className="search-box">
-          <Search size={20} color="var(--text-muted)" />
-          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search receipts" />
-        </label>
-
-        <div style={{ display: "flex", gap: 6, overflowX: "auto" }}>
-          {RECEIPT_TABS.map((t) => (
-            <button
-              key={t.key}
-              onClick={() => setTab(t.key)}
-              style={{
-                flexShrink: 0, padding: "6px 12px", borderRadius: 20,
-                border: "1px solid var(--border)",
-                background: tab === t.key ? "var(--brand-primary)" : "white",
-                color: tab === t.key ? "white" : "var(--text-primary)",
-                cursor: "pointer", fontSize: 11, fontWeight: tab === t.key ? 600 : 400,
-                lineHeight: 1.3, textAlign: "center",
-              }}
-            >
-              <div>{t.en}</div>
-            </button>
-          ))}
-        </div>
-
-        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-          {receipts.map((r: ReceiptRow) => (
-            <div key={r.id} style={{ background: "white", borderRadius: 10, padding: "14px", border: "1px solid var(--border)" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-                <div>
-                  <strong style={{ fontSize: 15 }}>{r.supplier?.name_en ?? r.supplier?.name_th ?? "None"}</strong>
-                  <small style={{ display: "block", color: "var(--text-muted)", fontSize: 12 }}>
-                    {r.site?.name_en ?? r.site?.name_th ?? "-"} · {formatThaiDate(r.created_at)}
-                  </small>
-                  {r.payment_type && (
-                    <span style={{
-                      display: "inline-flex", alignItems: "center", gap: 4, marginTop: 4,
-                      fontSize: 11, fontWeight: 600, padding: "2px 7px", borderRadius: 5,
-                      background: r.payment_type === "qr" ? "#EFF6FF" : "#F0FDF4",
-                      color:      r.payment_type === "qr" ? "#1D4ED8" : "#15803D",
-                    }}>
-                      {r.payment_type === "qr" ? "🔷 QR" : "💵 Cash"}
-                    </span>
-                  )}
-                  {(r.gps_lat || r.gps_lng) && (
-                    <div style={{ marginTop: 4 }}>
-                      <GpsLink lat={r.gps_lat ?? null} lng={r.gps_lng ?? null} />
-                    </div>
-                  )}
-                </div>
-                <div style={{ textAlign: "right" }}>
-                  <strong style={{ fontSize: 16 }}>{money(r.amount)}</strong>
-                  <div style={{ marginTop: 2 }}><ReceiptStatusBadge status={r.status} /></div>
-                </div>
-              </div>
-              {r.status === "pending" && (
-                <div style={{ display: "flex", gap: 8, marginTop: 10, paddingTop: 10, borderTop: "1px solid var(--border)" }}>
-                  <button onClick={() => onMarkPaid(r.id)} className="btn-primary" style={{ flex: 1, justifyContent: "center", fontSize: 13, padding: "8px" }}>
-                    <Check size={15} /> จ่ายแล้ว
-                  </button>
-                  <button onClick={() => onDispute(r.id)} className="btn-primary" style={{ flex: 1, justifyContent: "center", fontSize: 13, padding: "8px", background: "#EF4444" }}>
-                    <AlertTriangle size={15} /> ปัญหา
-                  </button>
-                </div>
-              )}
-            </div>
-          ))}
-          {receipts.length === 0 && (
-            <div style={{ textAlign: "center", padding: "32px", color: "var(--text-muted)", fontSize: 14 }}>
-              ไม่พบใบเสร็จ · No receipts
-            </div>
-          )}
-        </div>
+      <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginBottom: 8 }}>
+        HISTORY — {supplierReceipts.length} receipts · ฿{formatCurrency(total)}
       </div>
-    </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 8, maxHeight: 340, overflowY: "auto" }}>
+        {supplierReceipts.map((r) => (
+          <div key={r.id} style={{ padding: "10px 0", borderTop: "1px solid var(--border)" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 600 }}>{r.site?.name_th ?? r.description ?? "-"}</div>
+                <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 2 }}>{formatThaiDate(r.created_at)}</div>
+              </div>
+              <div style={{ textAlign: "right" }}>
+                <div style={{ fontSize: 14, fontWeight: 700 }}>{money(r.amount)}</div>
+                <ReceiptStatusBadge status={r.status} />
+              </div>
+            </div>
+          </div>
+        ))}
+        {supplierReceipts.length === 0 && (
+          <div style={{ textAlign: "center", padding: 16, color: "var(--text-muted)", fontSize: 13 }}>No receipts yet</div>
+        )}
+      </div>
+    </section>
   );
 }
 
