@@ -170,6 +170,7 @@ export function SuppliersClient({
   const [pendingQr, setPendingQr] = useState(initPendingQr);
   const [openQrReceipt, setOpenQrReceipt] = useState<PendingQrReceipt | null>(null);
   const [closingReceipt, setClosingReceipt] = useState<ReceiptRow | null>(null);
+  const [editingSupplier, setEditingSupplier] = useState<Supplier | null>(null);
 
   function showToast(msg: string) {
     setToast(msg);
@@ -346,12 +347,17 @@ export function SuppliersClient({
       <section className="attention-card">
         <h2>ซัพพลายเออร์ <span>Suppliers ({suppliers.length})</span></h2>
         {suppliers.slice(0, 5).map((s) => (
-          <div key={s.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 0", borderTop: "1px solid var(--border)" }}>
+          <div
+            key={s.id}
+            onClick={() => setEditingSupplier(s)}
+            style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 0", borderTop: "1px solid var(--border)", cursor: "pointer" }}
+          >
             <Truck size={16} color="var(--text-muted)" />
             <div style={{ flex: 1 }}>
               <strong style={{ fontSize: 14 }}>{s.name_th}</strong>
               <small style={{ display: "block", color: "var(--text-muted)", fontSize: 11 }}>{s.name_en}</small>
             </div>
+            <span style={{ fontSize: 11, color: "var(--text-muted)" }}>แก้ไข ▸</span>
           </div>
         ))}
         <button
@@ -622,6 +628,18 @@ export function SuppliersClient({
             setGiveCashDriver(null);
             showToast(`✓ มอบเงินให้ ${name} แล้ว`);
             router.refresh();
+          }}
+        />
+      )}
+
+      {editingSupplier && (
+        <EditSupplierModal
+          supplier={editingSupplier}
+          onClose={() => setEditingSupplier(null)}
+          onSaved={(updated) => {
+            setSuppliers((prev) => prev.map((s) => s.id === updated.id ? updated : s));
+            setEditingSupplier(null);
+            showToast(`อัปเดต ${updated.name_th} แล้ว · Supplier updated`);
           }}
         />
       )}
@@ -1402,6 +1420,45 @@ function AddSupplierModal({ ownerId, onClose, onAdded }: { ownerId: string; onCl
       <FormField label="เบอร์โทร Phone" value={form.contact_phone} onChange={(v) => setForm((f) => ({ ...f, contact_phone: v }))} placeholder="0812345678" />
       <FormField label="หมวดหมู่ Category" value={form.category} onChange={(v) => setForm((f) => ({ ...f, category: v }))} placeholder="วัสดุก่อสร้าง / Material" />
       <ModalActions onCancel={onClose} onSave={handleSave} saving={saving} />
+    </ModalWrapper>
+  );
+}
+
+// ── Edit supplier modal ───────────────────────────────────────────────────────
+
+function EditSupplierModal({ supplier, onClose, onSaved }: { supplier: Supplier; onClose: () => void; onSaved: (s: Supplier) => void }) {
+  const supabase = createClient();
+  const [form, setForm] = useState({
+    name_th:       supplier.name_th,
+    name_en:       supplier.name_en,
+    contact_phone: supplier.contact_phone ?? "",
+    category:      supplier.category ?? "",
+  });
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+
+  async function handleSave() {
+    if (!form.name_th || !form.name_en) { setError("กรุณากรอกชื่อ · Name required"); return; }
+    setSaving(true);
+    const { data, error: dbError } = await supabase
+      .from("suppliers")
+      .update({ name_th: form.name_th, name_en: form.name_en, contact_phone: form.contact_phone || null, category: form.category || null })
+      .eq("id", supplier.id)
+      .select()
+      .single();
+    setSaving(false);
+    if (dbError) { setError(dbError.message); return; }
+    onSaved(data as Supplier);
+  }
+
+  return (
+    <ModalWrapper title="แก้ไขซัพพลายเออร์" subtitle="Edit supplier" onClose={onClose}>
+      {error && <ErrorBox msg={error} />}
+      <FormField label="ชื่อ (ไทย) *" value={form.name_th} onChange={(v) => setForm((f) => ({ ...f, name_th: v }))} placeholder="บริษัทก่อสร้าง" />
+      <FormField label="Name (English) *" value={form.name_en} onChange={(v) => setForm((f) => ({ ...f, name_en: v }))} placeholder="Construction Co." />
+      <FormField label="เบอร์โทร Phone" value={form.contact_phone} onChange={(v) => setForm((f) => ({ ...f, contact_phone: v }))} placeholder="0812345678" />
+      <FormField label="หมวดหมู่ Category" value={form.category} onChange={(v) => setForm((f) => ({ ...f, category: v }))} placeholder="วัสดุก่อสร้าง / Material" />
+      <ModalActions onCancel={onClose} onSave={handleSave} saving={saving} saveLabel="บันทึก · Save" />
     </ModalWrapper>
   );
 }

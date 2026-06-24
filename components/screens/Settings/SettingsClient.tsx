@@ -18,12 +18,13 @@ interface SettingsClientProps {
 }
 
 const SECTIONS = [
-  { key: "workday", icon: Clock, th: "วันทำงาน", en: "Workday settings" },
-  { key: "security", icon: Shield, th: "ห้องเครื่อง", en: "Engine room" },
-  { key: "support", icon: Phone, th: "ติดต่อสนับสนุน", en: "Support" },
-  { key: "users", icon: Users, th: "ผู้ใช้งาน", en: "Users & team" },
-  { key: "language", icon: Languages, th: "ภาษา", en: "Language mode" },
-  { key: "password", icon: KeyRound, th: "เปลี่ยนรหัสผ่าน", en: "Change password" },
+  { key: "workday",    icon: Clock,     th: "วันทำงาน",         en: "Workday settings" },
+  { key: "admin_code", icon: KeyRound,  th: "รหัสผู้ดูแล",      en: "Admin code" },
+  { key: "security",   icon: Shield,    th: "ห้องเครื่อง",      en: "Engine room" },
+  { key: "support",    icon: Phone,     th: "ติดต่อสนับสนุน",   en: "Support" },
+  { key: "users",      icon: Users,     th: "ผู้ใช้งาน",        en: "Users & team" },
+  { key: "language",   icon: Languages, th: "ภาษา",             en: "Language mode" },
+  { key: "password",   icon: KeyRound,  th: "เปลี่ยนรหัสผ่าน", en: "Change password" },
 ];
 
 export function SettingsClient({ profile, workdaySettings, teamMembers, workers, ownerId }: SettingsClientProps) {
@@ -254,6 +255,51 @@ export function SettingsClient({ profile, workdaySettings, teamMembers, workers,
   );
 
   const sectionContent: Record<string, React.ReactNode> = {
+    admin_code: (
+      <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+        <h2 style={{ fontSize: 22, fontWeight: 700 }}>รหัสผู้ดูแล <small style={{ fontSize: 14, fontWeight: 400, color: "var(--text-muted)" }}>Admin code</small></h2>
+        <p style={{ fontSize: 14, color: "var(--text-muted)", lineHeight: 1.6, margin: 0 }}>
+          รหัสนี้ใช้สำหรับเข้าห้องเครื่อง (Engine room) และการยืนยันตัวตนระดับสูง
+          <br /><em>Used to access the Engine room and high-privilege confirmation screens.</em>
+        </p>
+        <div style={{ display: "flex", flexDirection: "column", gap: 12, maxWidth: 360 }}>
+          <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            <span style={{ fontSize: 13, fontWeight: 600 }}>รหัสใหม่ <small style={{ fontWeight: 400, color: "var(--text-muted)" }}>New admin code</small></span>
+            <input
+              type="password"
+              value={newCode}
+              onChange={(e) => setNewCode(e.target.value)}
+              placeholder="อย่างน้อย 4 หลัก · Min 4 digits"
+              maxLength={8}
+              style={{ padding: "10px 12px", border: "1px solid var(--border)", borderRadius: 8, fontSize: 16, letterSpacing: 4 }}
+            />
+          </label>
+          <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            <span style={{ fontSize: 13, fontWeight: 600 }}>ยืนยันรหัส <small style={{ fontWeight: 400, color: "var(--text-muted)" }}>Confirm code</small></span>
+            <input
+              type="password"
+              value={confirmCode}
+              onChange={(e) => setConfirmCode(e.target.value)}
+              placeholder="พิมพ์อีกครั้ง · Repeat code"
+              maxLength={8}
+              style={{ padding: "10px 12px", border: `1px solid ${confirmCode && confirmCode !== newCode ? "#EF4444" : "var(--border)"}`, borderRadius: 8, fontSize: 16, letterSpacing: 4 }}
+            />
+            {confirmCode && confirmCode !== newCode && (
+              <span style={{ fontSize: 12, color: "#EF4444" }}>รหัสไม่ตรงกัน · Codes don't match</span>
+            )}
+          </label>
+          <button onClick={saveAdminCode} disabled={saving} className="btn-primary" style={{ alignSelf: "flex-start" }}>
+            <KeyRound size={18} />
+            {saving ? "กำลังบันทึก…" : "บันทึกรหัส · Save admin code"}
+          </button>
+        </div>
+        <div style={{ background: "#FFFBEB", border: "1px solid #FDE68A", borderRadius: 10, padding: "12px 16px", fontSize: 13, color: "#92400E", maxWidth: 400 }}>
+          <strong>หมายเหตุ:</strong> ถ้าลืมรหัส ติดต่อ Technical Admin เพื่อรีเซ็ต<br />
+          <em>Forgot your code? Contact Technical Admin for a reset.</em>
+        </div>
+      </div>
+    ),
+
     workday: (
       <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
         <h2 style={{ fontSize: 22, fontWeight: 700 }}>วันทำงาน <small style={{ fontSize: 14, fontWeight: 400, color: "var(--text-muted)" }}>Workday settings</small></h2>
@@ -440,7 +486,6 @@ export function SettingsClient({ profile, workdaySettings, teamMembers, workers,
               { icon: "🏗️", th: "Project tools", en: "Stage reports, project close assist" },
               { icon: "📋", th: "Logs", en: "Errors, user actions, system events" },
               { icon: "📢", th: "Maintenance message", en: "Show message to all users" },
-              { icon: "🔑", th: "Admin code recovery", en: "Reset owner admin code" },
             ].map((tool, i) => (
               <div key={i} style={{ display: "flex", alignItems: "center", gap: 14, padding: "14px 16px", background: "var(--surface)", borderRadius: 10, border: "1px solid var(--border)", cursor: "pointer" }}
                 onClick={() => showToast(`${tool.th} · Coming soon`)}>
