@@ -477,8 +477,8 @@ function MobileWorkers({
     <div>
       <div className="mobile-topbar">
         <div style={{ flex: 1 }}>
-          <h1 style={{ color: "white" }}>Workers</h1>
-          <p style={{ color: "rgba(255,255,255,0.75)" }}>{stats.total} total</p>
+          <h1 style={{ color: "white" }}>พนักงาน</h1>
+          <p style={{ color: "rgba(255,255,255,0.75)" }}>Workers · {stats.total} คน</p>
         </div>
         {isOwner && (
           <button onClick={onAdd} style={{ background: "transparent", border: "none", color: "white", cursor: "pointer" }}>
