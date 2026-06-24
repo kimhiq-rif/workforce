@@ -27,6 +27,10 @@
     {
       "path": "/api/cron/stage-target-reminder",
       "schedule": "30 9 * * *"
+    },
+    {
+      "path": "/api/cron/calendar-reminder",
+      "schedule": "*/15 * * * *"
     }
   ]
 }
