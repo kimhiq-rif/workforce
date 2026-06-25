@@ -71,8 +71,9 @@ export async function GET(req: NextRequest) {
         body: `${timeLabel} · in ${reminderMinutes} min`,
         url: "/calendar",
         tag: `calendar-${event.id}`,
-        iosSound: "default",
-        androidSound: "default",
+        iosSound: "chime.caf",
+        androidSound: "chime",
+        priority: 10,
       });
 
       await supabase

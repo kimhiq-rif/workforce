@@ -17,6 +17,8 @@ export interface SendPushArgs {
   iosSound?: string;
   /** Android sound file name without extension (e.g. "default"). */
   androidSound?: string;
+  /** Delivery priority 1–10; 10 = highest (immediate delivery). */
+  priority?: number;
 }
 
 export interface SendPushResult {
@@ -44,6 +46,7 @@ export async function sendOneSignalPush(args: SendPushArgs): Promise<SendPushRes
   if (args.tag) payload.web_push_topic = args.tag;
   if (args.iosSound) payload.apns_sound = args.iosSound;
   if (args.androidSound) payload.android_sound = args.androidSound;
+  if (args.priority !== undefined) payload.priority = args.priority;
 
   try {
     const res = await fetch(ONESIGNAL_API, {

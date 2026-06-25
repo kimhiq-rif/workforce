@@ -80,12 +80,23 @@ export default async function DashboardPage() {
   // Fetch the 3 nearest upcoming calendar events (today onward, not done)
   const { data: upcomingEvents } = await supabase
     .from("calendar_events")
-    .select("id, title, event_type, event_date")
+    .select("id, title, event_type, event_date, event_time")
     .eq("owner_id", ownerId)
     .gte("event_date", today)
     .eq("is_done", false)
     .order("event_date", { ascending: true })
+    .order("event_time", { ascending: true, nullsFirst: false })
     .limit(3);
+
+  // Overdue: not-done events from past dates (auto-surface in owner attention)
+  const { data: overdueEvents } = await supabase
+    .from("calendar_events")
+    .select("id, title, event_type, event_date, event_time")
+    .eq("owner_id", ownerId)
+    .lt("event_date", today)
+    .eq("is_done", false)
+    .order("event_date", { ascending: false })
+    .limit(5);
 
   // Owner soft-block: current stages with no target for > 7 days.
   const stageSoftBlock =
@@ -112,6 +123,7 @@ export default async function DashboardPage() {
       userProfile={{ name_th: profile.name_th, name_en: profile.name_en }}
       todayEvents={todayEvents ?? []}
       upcomingEvents={upcomingEvents ?? []}
+      overdueEvents={overdueEvents ?? []}
     />
   );
 }

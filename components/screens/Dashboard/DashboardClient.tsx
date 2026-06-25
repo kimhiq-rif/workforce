@@ -1,8 +1,11 @@
 "use client";
 // Copyright © 2026 Workforce. All rights reserved.
 
+import { useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
+import { createClient } from "@/lib/supabase/client";
 import {
   Activity,
   AlertCircle,
@@ -46,6 +49,7 @@ interface UpcomingCalendarEvent {
   title: string;
   event_type: "task" | "meeting";
   event_date: string;
+  event_time: string | null;
 }
 
 interface AttendanceCount {
@@ -67,6 +71,7 @@ interface DashboardClientProps {
   userProfile: { name_th?: string; name_en?: string } | null;
   todayEvents: TodayCalendarEvent[];
   upcomingEvents: UpcomingCalendarEvent[];
+  overdueEvents: UpcomingCalendarEvent[];
 }
 
 export function DashboardClient({
@@ -80,6 +85,7 @@ export function DashboardClient({
   userProfile,
   todayEvents,
   upcomingEvents,
+  overdueEvents,
 }: DashboardClientProps) {
   const initials = userProfile?.name_th
     ? userProfile.name_th.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase()
@@ -107,12 +113,23 @@ export function DashboardClient({
 
   const rightPanel = (
     <>
-      <UpcomingEventsWidget events={upcomingEvents} today={today} />
       <section className="attention-card">
         <h2>
           สิ่งที่เจ้าของต้องดู
           <span>Owner attention</span>
         </h2>
+        {overdueEvents.map((ev) => (
+          <Link key={ev.id} href="/calendar" className="attention-row">
+            <span className="attention-icon red" style={{ fontSize: 18, width: 36, height: 36, display: "flex", alignItems: "center", justifyContent: "center" }}>
+              {ev.event_type === "meeting" ? "🤝" : "📋"}
+            </span>
+            <span style={{ flex: 1 }}>
+              <strong style={{ fontSize: 14 }}>{ev.title}</strong>
+              <small style={{ fontSize: 11, color: "#DC2626" }}>เลยกำหนด · Overdue</small>
+            </span>
+            <ChevronRight size={16} color="var(--text-muted)" />
+          </Link>
+        ))}
         <Link href="/suppliers" className="attention-row">
           <span className="attention-icon orange"><FileText size={22} /></span>
           <span>
@@ -162,6 +179,8 @@ export function DashboardClient({
           ))}
         </section>
       )}
+
+      <CalendarPanel upcoming={upcomingEvents} today={today} />
     </>
   );
 
@@ -236,6 +255,7 @@ export function DashboardClient({
           totalExpected={totalExpected}
           todayEvents={todayEvents}
           upcomingEvents={upcomingEvents}
+          overdueEvents={overdueEvents}
           today={today}
         />
       </div>
@@ -252,6 +272,7 @@ function MobileDashboard({
   totalExpected,
   todayEvents,
   upcomingEvents,
+  overdueEvents,
   today,
 }: {
   sites: (DashboardSite & { reported: number; total: number; hasPendingWage: boolean; todayWorkers: AttendanceCount[] })[];
@@ -262,6 +283,7 @@ function MobileDashboard({
   totalExpected: number;
   todayEvents: TodayCalendarEvent[];
   upcomingEvents: UpcomingCalendarEvent[];
+  overdueEvents: UpcomingCalendarEvent[];
   today: string;
 }) {
   const completedSites = sites.filter((site) => site.total > 0 && site.reported >= site.total).length;
@@ -411,9 +433,7 @@ function MobileDashboard({
           </div>
         </section>
 
-        <section className="mobile-panel">
-          <UpcomingEventsWidget events={upcomingEvents} today={today} />
-        </section>
+        <CalendarPanel upcoming={upcomingEvents} overdueEvents={overdueEvents} today={today} showOverdue />
       </main>
     </div>
   );
@@ -481,70 +501,140 @@ function countdownLabel(days: number): string {
 }
 
 function countdownColor(days: number): string {
-  if (days === 0) return "#DC2626";
-  if (days === 1) return "#D97706";
-  return "#1E3A8A";
+  if (days === 0) return "#EF4444";
+  if (days === 1) return "#F59E0B";
+  return "#3B82F6";
 }
 
-function UpcomingEventsWidget({ events, today }: { events: UpcomingCalendarEvent[]; today: string }) {
-  if (!events.length) return null;
-  return (
-    <div>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-        <strong style={{ fontSize: 13, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
-          กิจกรรมที่กำลังมา · Upcoming
-        </strong>
-        <Link href="/calendar" style={{ fontSize: 12, color: "#1E3A8A", fontWeight: 600, display: "inline-flex", alignItems: "center", gap: 2 }}>
-          ดูทั้งหมด <ChevronRight size={12} />
-        </Link>
-      </div>
-      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-        {events.map((ev) => {
-          const days = daysUntil(ev.event_date, today);
-          const icon = ev.event_type === "meeting" ? "🤝" : "📋";
-          const dateLabel = new Date(ev.event_date + "T00:00:00").toLocaleDateString("th-TH", {
-            weekday: "short", month: "short", day: "numeric",
-          });
-          const chip = countdownColor(days);
-          return (
+function CalendarPanel({
+  upcoming,
+  overdueEvents = [],
+  today,
+  showOverdue = false,
+}: {
+  upcoming: UpcomingCalendarEvent[];
+  overdueEvents?: UpcomingCalendarEvent[];
+  today: string;
+  showOverdue?: boolean;
+}) {
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [localDone, setLocalDone] = useState<Set<string>>(new Set());
+  const [localDeleted, setLocalDeleted] = useState<Set<string>>(new Set());
+  const [busy, setBusy] = useState<string | null>(null);
+  const router = useRouter();
+  const supabase = createClient();
+
+  const visible = upcoming.filter((e) => !localDeleted.has(e.id));
+
+  async function markDone(id: string) {
+    setBusy(id);
+    await supabase.from("calendar_events").update({ is_done: true }).eq("id", id);
+    setLocalDone((p) => { const s = new Set(p); s.add(id); return s; });
+    setBusy(null);
+  }
+
+  async function deleteEvent(id: string) {
+    if (!confirm("ลบกิจกรรมนี้? · Delete this event?")) return;
+    setBusy(id);
+    await supabase.from("calendar_events").delete().eq("id", id);
+    setLocalDeleted((p) => { const s = new Set(p); s.add(id); return s; });
+    setBusy(null);
+    router.refresh();
+  }
+
+  function EventRow({ ev, overdue = false }: { ev: UpcomingCalendarEvent; overdue?: boolean }) {
+    const days = overdue ? -1 : daysUntil(ev.event_date, today);
+    const isDone = localDone.has(ev.id);
+    const isExpanded = expandedId === ev.id;
+    const isBusy = busy === ev.id;
+    const color = overdue ? "#DC2626" : countdownColor(days);
+    const icon = ev.event_type === "meeting" ? "🤝" : "📋";
+    const timeStr = ev.event_time ? ev.event_time.slice(0, 5) : "All day";
+    const chip = overdue ? "เลยกำหนด" : countdownLabel(days);
+
+    return (
+      <div
+        style={{
+          borderLeft: `3px solid ${color}`,
+          marginBottom: 6,
+          borderRadius: "0 6px 6px 0",
+          background: isDone ? "#F9FAFB" : "var(--surface-2, #F8FAFC)",
+          overflow: "hidden",
+        }}
+      >
+        <div
+          style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 12px", cursor: "pointer" }}
+          onClick={() => setExpandedId(isExpanded ? null : ev.id)}
+        >
+          <button
+            onClick={(e) => { e.stopPropagation(); if (!isDone && !isBusy) markDone(ev.id); }}
+            style={{
+              width: 20, height: 20, borderRadius: "50%",
+              border: `2px solid ${isDone ? "#22C55E" : color}`,
+              background: isDone ? "#22C55E" : "transparent",
+              flexShrink: 0, cursor: isDone ? "default" : "pointer",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              padding: 0, outline: "none",
+            }}
+            aria-label="Mark done"
+          >
+            {isDone && <Check size={10} color="white" />}
+          </button>
+          <span style={{ fontSize: 16, flexShrink: 0 }}>{icon}</span>
+          <span style={{ flex: 1, minWidth: 0 }}>
+            <strong style={{
+              fontSize: 13, display: "block",
+              overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+              textDecoration: isDone ? "line-through" : "none",
+              opacity: isDone ? 0.5 : 1,
+            }}>
+              {ev.title}
+            </strong>
+            <small style={{ fontSize: 11, color: "var(--text-muted)" }}>{timeStr}</small>
+          </span>
+          <span style={{ fontSize: 10, fontWeight: 700, color, background: `${color}18`, padding: "2px 6px", borderRadius: 8, flexShrink: 0 }}>
+            {chip}
+          </span>
+        </div>
+        {isExpanded && (
+          <div style={{ padding: "0 12px 10px 44px", display: "flex", gap: 8 }}>
             <Link
-              key={ev.id}
               href="/calendar"
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 10,
-                padding: "10px 12px",
-                background: "var(--surface-2, #F8FAFC)",
-                borderLeft: "4px solid #1E3A8A",
-                borderRadius: "0 8px 8px 0",
-                textDecoration: "none",
-                color: "inherit",
-              }}
+              onClick={(e) => e.stopPropagation()}
+              style={{ fontSize: 12, color: "#1E3A8A", fontWeight: 600, padding: "4px 10px", border: "1px solid #BFDBFE", borderRadius: 6, textDecoration: "none" }}
             >
-              <span style={{ fontSize: 18, flexShrink: 0 }}>{icon}</span>
-              <span style={{ flex: 1, minWidth: 0 }}>
-                <strong style={{ fontSize: 13, display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                  {ev.title}
-                </strong>
-                <small style={{ fontSize: 11, color: "var(--text-muted)" }}>{dateLabel}</small>
-              </span>
-              <span style={{
-                fontSize: 11,
-                fontWeight: 700,
-                color: chip,
-                flexShrink: 0,
-                background: `${chip}18`,
-                padding: "2px 8px",
-                borderRadius: 10,
-              }}>
-                {countdownLabel(days)}
-              </span>
+              Edit
             </Link>
-          );
-        })}
+            <button
+              onClick={(e) => { e.stopPropagation(); deleteEvent(ev.id); }}
+              disabled={isBusy}
+              style={{ fontSize: 12, color: "#EF4444", fontWeight: 600, padding: "4px 10px", border: "1px solid #FECACA", borderRadius: 6, background: "transparent", cursor: "pointer" }}
+            >
+              Delete
+            </button>
+          </div>
+        )}
       </div>
-    </div>
+    );
+  }
+
+  const hasContent = visible.length > 0 || (showOverdue && overdueEvents.length > 0);
+
+  return (
+    <section className="attention-card">
+      <h2>กิจกรรมที่กำลังมา <span>Upcoming events</span></h2>
+      {showOverdue && overdueEvents.map((ev) => <EventRow key={ev.id} ev={ev} overdue />)}
+      {visible.length === 0 && !hasContent ? (
+        <div style={{ padding: "12px 4px", color: "var(--text-muted)", fontSize: 13 }}>
+          ไม่มีกิจกรรม · No upcoming events
+        </div>
+      ) : (
+        visible.map((ev) => <EventRow key={ev.id} ev={ev} />)
+      )}
+      <Link href="/calendar" style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 4, paddingTop: 8, fontSize: 12, color: "#1E3A8A", fontWeight: 600, textDecoration: "none" }}>
+        ดูปฏิทิน · Open calendar <ChevronRight size={12} />
+      </Link>
+    </section>
   );
 }
 
