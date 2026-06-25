@@ -13,6 +13,8 @@ export interface SendPushArgs {
   url?: string;
   /** Collapse key — replaces an earlier push with the same tag. */
   tag?: string;
+  /** iOS sound file name (e.g. "default" or custom .caf/.aiff). */
+  iosSound?: string;
 }
 
 export interface SendPushResult {
@@ -38,6 +40,7 @@ export async function sendOneSignalPush(args: SendPushArgs): Promise<SendPushRes
     include_aliases: { external_id: ids },
   };
   if (args.tag) payload.web_push_topic = args.tag;
+  if (args.iosSound) payload.apns_sound = args.iosSound;
 
   try {
     const res = await fetch(ONESIGNAL_API, {

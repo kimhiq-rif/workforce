@@ -71,6 +71,7 @@ export async function GET(req: NextRequest) {
         body: `${timeLabel} · in ${reminderMinutes} min`,
         url: "/calendar",
         tag: `calendar-${event.id}`,
+        iosSound: event.event_type === "meeting" ? "long_low_short_high_unsub.caf" : "default",
       });
 
       await supabase
