@@ -15,6 +15,8 @@ export interface SendPushArgs {
   tag?: string;
   /** iOS sound file name (e.g. "default" or custom .caf/.aiff). */
   iosSound?: string;
+  /** Android sound file name without extension (e.g. "default"). */
+  androidSound?: string;
 }
 
 export interface SendPushResult {
@@ -41,6 +43,7 @@ export async function sendOneSignalPush(args: SendPushArgs): Promise<SendPushRes
   };
   if (args.tag) payload.web_push_topic = args.tag;
   if (args.iosSound) payload.apns_sound = args.iosSound;
+  if (args.androidSound) payload.android_sound = args.androidSound;
 
   try {
     const res = await fetch(ONESIGNAL_API, {

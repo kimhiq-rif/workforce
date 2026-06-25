@@ -41,6 +41,13 @@ interface TodayCalendarEvent {
   is_done: boolean;
 }
 
+interface UpcomingCalendarEvent {
+  id: string;
+  title: string;
+  event_type: "task" | "meeting";
+  event_date: string;
+}
+
 interface AttendanceCount {
   site_id: string;
   status: string;
@@ -59,6 +66,7 @@ interface DashboardClientProps {
   today: string;
   userProfile: { name_th?: string; name_en?: string } | null;
   todayEvents: TodayCalendarEvent[];
+  upcomingEvents: UpcomingCalendarEvent[];
 }
 
 export function DashboardClient({
@@ -71,6 +79,7 @@ export function DashboardClient({
   today,
   userProfile,
   todayEvents,
+  upcomingEvents,
 }: DashboardClientProps) {
   const initials = userProfile?.name_th
     ? userProfile.name_th.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase()
@@ -98,6 +107,7 @@ export function DashboardClient({
 
   const rightPanel = (
     <>
+      <UpcomingEventsWidget events={upcomingEvents} today={today} />
       <section className="attention-card">
         <h2>
           สิ่งที่เจ้าของต้องดู
@@ -225,6 +235,8 @@ export function DashboardClient({
           totalReported={totalReported}
           totalExpected={totalExpected}
           todayEvents={todayEvents}
+          upcomingEvents={upcomingEvents}
+          today={today}
         />
       </div>
     </DashboardShell>
@@ -239,6 +251,8 @@ function MobileDashboard({
   totalReported,
   totalExpected,
   todayEvents,
+  upcomingEvents,
+  today,
 }: {
   sites: (DashboardSite & { reported: number; total: number; hasPendingWage: boolean; todayWorkers: AttendanceCount[] })[];
   openReceiptsCount: number;
@@ -247,6 +261,8 @@ function MobileDashboard({
   totalReported: number;
   totalExpected: number;
   todayEvents: TodayCalendarEvent[];
+  upcomingEvents: UpcomingCalendarEvent[];
+  today: string;
 }) {
   const completedSites = sites.filter((site) => site.total > 0 && site.reported >= site.total).length;
   const rainSites = sites.filter((site) => site.status === "rain" || site.status === "day_off").length;
@@ -394,6 +410,10 @@ function MobileDashboard({
             )}
           </div>
         </section>
+
+        <section className="mobile-panel">
+          <UpcomingEventsWidget events={upcomingEvents} today={today} />
+        </section>
       </main>
     </div>
   );
@@ -444,6 +464,86 @@ function MobileSignalCard({
         <strong>{title}</strong>
         <small>{detail}</small>
       </span>
+    </div>
+  );
+}
+
+function daysUntil(eventDate: string, today: string): number {
+  const t = new Date(today + "T00:00:00");
+  const e = new Date(eventDate + "T00:00:00");
+  return Math.round((e.getTime() - t.getTime()) / 86400000);
+}
+
+function countdownLabel(days: number): string {
+  if (days === 0) return "วันนี้";
+  if (days === 1) return "พรุ่งนี้";
+  return `อีก ${days} วัน`;
+}
+
+function countdownColor(days: number): string {
+  if (days === 0) return "#DC2626";
+  if (days === 1) return "#D97706";
+  return "#1E3A8A";
+}
+
+function UpcomingEventsWidget({ events, today }: { events: UpcomingCalendarEvent[]; today: string }) {
+  if (!events.length) return null;
+  return (
+    <div>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+        <strong style={{ fontSize: 13, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+          กิจกรรมที่กำลังมา · Upcoming
+        </strong>
+        <Link href="/calendar" style={{ fontSize: 12, color: "#1E3A8A", fontWeight: 600, display: "inline-flex", alignItems: "center", gap: 2 }}>
+          ดูทั้งหมด <ChevronRight size={12} />
+        </Link>
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+        {events.map((ev) => {
+          const days = daysUntil(ev.event_date, today);
+          const icon = ev.event_type === "meeting" ? "🤝" : "📋";
+          const dateLabel = new Date(ev.event_date + "T00:00:00").toLocaleDateString("th-TH", {
+            weekday: "short", month: "short", day: "numeric",
+          });
+          const chip = countdownColor(days);
+          return (
+            <Link
+              key={ev.id}
+              href="/calendar"
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 10,
+                padding: "10px 12px",
+                background: "var(--surface-2, #F8FAFC)",
+                borderLeft: "4px solid #1E3A8A",
+                borderRadius: "0 8px 8px 0",
+                textDecoration: "none",
+                color: "inherit",
+              }}
+            >
+              <span style={{ fontSize: 18, flexShrink: 0 }}>{icon}</span>
+              <span style={{ flex: 1, minWidth: 0 }}>
+                <strong style={{ fontSize: 13, display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  {ev.title}
+                </strong>
+                <small style={{ fontSize: 11, color: "var(--text-muted)" }}>{dateLabel}</small>
+              </span>
+              <span style={{
+                fontSize: 11,
+                fontWeight: 700,
+                color: chip,
+                flexShrink: 0,
+                background: `${chip}18`,
+                padding: "2px 8px",
+                borderRadius: 10,
+              }}>
+                {countdownLabel(days)}
+              </span>
+            </Link>
+          );
+        })}
+      </div>
     </div>
   );
 }

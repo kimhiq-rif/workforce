@@ -77,6 +77,16 @@ export default async function DashboardPage() {
     .eq("event_date", today)
     .order("event_time", { ascending: true, nullsFirst: false });
 
+  // Fetch the 3 nearest upcoming calendar events (today onward, not done)
+  const { data: upcomingEvents } = await supabase
+    .from("calendar_events")
+    .select("id, title, event_type, event_date")
+    .eq("owner_id", ownerId)
+    .gte("event_date", today)
+    .eq("is_done", false)
+    .order("event_date", { ascending: true })
+    .limit(3);
+
   // Owner soft-block: current stages with no target for > 7 days.
   const stageSoftBlock =
     profile.role === "owner"
@@ -101,6 +111,7 @@ export default async function DashboardPage() {
       today={today}
       userProfile={{ name_th: profile.name_th, name_en: profile.name_en }}
       todayEvents={todayEvents ?? []}
+      upcomingEvents={upcomingEvents ?? []}
     />
   );
 }
