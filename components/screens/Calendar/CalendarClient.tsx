@@ -271,7 +271,7 @@ export function CalendarClient({ dayStatuses, wageByDay, calendarEvents: initial
               <h1>ปฏิทิน</h1>
               <p>Calendar · {THAI_MONTHS[viewDate.month]} {viewDate.year + 543}</p>
             </div>
-            <button className="btn-primary" onClick={() => { setAddForDate(today); setShowAddModal(true); }}>
+            <button className="btn-primary" onClick={() => { setAddForDate(selectedDay ?? today); setShowAddModal(true); }}>
               <CirclePlus size={20} />
               Add event
               <small>เพิ่มกิจกรรม</small>
@@ -286,7 +286,7 @@ export function CalendarClient({ dayStatuses, wageByDay, calendarEvents: initial
               <h1 style={{ color: "white" }}>ปฏิทิน</h1>
               <p style={{ color: "rgba(255,255,255,0.75)" }}>Calendar</p>
             </div>
-            <button onClick={() => { setAddForDate(today); setShowAddModal(true); }} style={{ background: "transparent", border: "none", color: "white", cursor: "pointer" }}>
+            <button onClick={() => { setAddForDate(selectedDay ?? today); setShowAddModal(true); }} style={{ background: "transparent", border: "none", color: "white", cursor: "pointer" }}>
               <CirclePlus size={24} />
             </button>
           </div>
