@@ -9,6 +9,8 @@ import {
   AlertTriangle,
   Bell,
   Building2,
+  CalendarDays,
+  Check,
   CheckCircle2,
   ChevronRight,
   Clock3,
@@ -31,6 +33,14 @@ type DashboardSite = Pick<
   manager?: { name_th: string; name_en: string } | null;
 };
 
+interface TodayCalendarEvent {
+  id: string;
+  title: string;
+  event_type: "task" | "meeting";
+  event_time: string | null;
+  is_done: boolean;
+}
+
 interface AttendanceCount {
   site_id: string;
   status: string;
@@ -48,6 +58,7 @@ interface DashboardClientProps {
   pendingWageDecisions: { site_id: string }[];
   today: string;
   userProfile: { name_th?: string; name_en?: string } | null;
+  todayEvents: TodayCalendarEvent[];
 }
 
 export function DashboardClient({
@@ -59,6 +70,7 @@ export function DashboardClient({
   pendingWageDecisions,
   today,
   userProfile,
+  todayEvents,
 }: DashboardClientProps) {
   const initials = userProfile?.name_th
     ? userProfile.name_th.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase()
@@ -212,6 +224,7 @@ export function DashboardClient({
           liveSites={liveSites}
           totalReported={totalReported}
           totalExpected={totalExpected}
+          todayEvents={todayEvents}
         />
       </div>
     </DashboardShell>
@@ -225,6 +238,7 @@ function MobileDashboard({
   liveSites,
   totalReported,
   totalExpected,
+  todayEvents,
 }: {
   sites: (DashboardSite & { reported: number; total: number; hasPendingWage: boolean; todayWorkers: AttendanceCount[] })[];
   openReceiptsCount: number;
@@ -232,6 +246,7 @@ function MobileDashboard({
   liveSites: number;
   totalReported: number;
   totalExpected: number;
+  todayEvents: TodayCalendarEvent[];
 }) {
   const completedSites = sites.filter((site) => site.total > 0 && site.reported >= site.total).length;
   const rainSites = sites.filter((site) => site.status === "rain" || site.status === "day_off").length;
@@ -264,10 +279,12 @@ function MobileDashboard({
         </div>
         <div className="mobile-header-actions">
           <span className="mobile-time-chip"><Clock3 size={13} /> Bangkok</span>
-          <button className="mobile-icon-button" aria-label="Notifications">
+          <Link href="/calendar" className="mobile-icon-button" aria-label="Calendar & notifications">
             <Bell size={18} />
-            {totalAlerts > 0 && <span>{Math.min(totalAlerts, 9)}</span>}
-          </button>
+            {todayEvents.filter((e) => !e.is_done).length > 0 && (
+              <span>{Math.min(todayEvents.filter((e) => !e.is_done).length, 9)}</span>
+            )}
+          </Link>
         </div>
       </header>
 
@@ -355,13 +372,26 @@ function MobileDashboard({
 
         <section className="mobile-panel">
           <div className="mobile-section-title">
-            <strong>Sites progress</strong>
-            <small>{sites.length} total</small>
+            <strong>Today&apos;s events · วันนี้</strong>
+            <Link href="/calendar" style={{ fontSize: 12, color: "var(--brand-primary)", fontWeight: 600 }}>
+              Calendar <ChevronRight size={12} style={{ display: "inline" }} />
+            </Link>
           </div>
-          <div className="mobile-site-progress-list">
-            {sites.slice(0, 6).map((site) => (
-              <MobileSiteProgressRow key={site.id} site={site} />
-            ))}
+          <div className="mobile-update-list">
+            {todayEvents.length === 0 ? (
+              <div className="mobile-empty-row">No events today · ไม่มีกิจกรรม</div>
+            ) : (
+              todayEvents.map((ev) => (
+                <Link key={ev.id} href="/calendar" className="mobile-update-row" style={{ textDecoration: "none", color: "inherit", opacity: ev.is_done ? 0.5 : 1 }}>
+                  <span style={{ fontSize: 18 }}>{ev.event_type === "meeting" ? "🤝" : "📋"}</span>
+                  <span className="mobile-update-body">
+                    <strong style={{ textDecoration: ev.is_done ? "line-through" : "none" }}>{ev.title}</strong>
+                    <small>{ev.event_time ? ev.event_time.slice(0, 5) : "All day"} · {ev.event_type === "meeting" ? "Meeting" : "Task"}</small>
+                  </span>
+                  {ev.is_done && <Check size={16} color="#22C55E" />}
+                </Link>
+              ))
+            )}
           </div>
         </section>
       </main>

@@ -69,6 +69,14 @@ export default async function DashboardPage() {
     worker: Array.isArray(a.worker) ? (a.worker[0] ?? null) : a.worker,
   }));
 
+  // Fetch today's calendar events for mobile dashboard
+  const { data: todayEvents } = await supabase
+    .from("calendar_events")
+    .select("id, title, event_type, event_time, is_done")
+    .eq("owner_id", ownerId)
+    .eq("event_date", today)
+    .order("event_time", { ascending: true, nullsFirst: false });
+
   // Owner soft-block: current stages with no target for > 7 days.
   const stageSoftBlock =
     profile.role === "owner"
@@ -92,6 +100,7 @@ export default async function DashboardPage() {
       pendingWageDecisions={pendingWageDecisions ?? []}
       today={today}
       userProfile={{ name_th: profile.name_th, name_en: profile.name_en }}
+      todayEvents={todayEvents ?? []}
     />
   );
 }
