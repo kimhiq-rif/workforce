@@ -477,7 +477,9 @@ export function SuppliersClient({
                   <button key={v} onClick={() => { setDesktopView(v); setDesktopSelectedSupplier(null); setSelectedReceipt(null); }}
                     style={{ padding: "7px 16px", border: "none", background: desktopView === v ? "var(--brand-primary)" : "transparent",
                       color: desktopView === v ? "white" : "var(--text-muted)", cursor: "pointer", fontSize: 13, fontWeight: desktopView === v ? 600 : 400 }}>
-                    {v === "receipts" ? "ใบเสร็จ · Receipts" : "ซัพพลายเออร์ · Suppliers"}
+                    {v === "receipts"
+              ? <><span className="th-text">ใบเสร็จ</span><span className="en-text">Receipts</span></>
+              : <><span className="th-text">ซัพพลายเออร์</span><span className="en-text">Suppliers</span></>}
                   </button>
                 ))}
               </div>
@@ -526,7 +528,8 @@ export function SuppliersClient({
                 </div>
                 {filteredReceipts.length === 0 ? (
                   <div style={{ padding: "32px", textAlign: "center", color: "var(--text-muted)", fontSize: 14 }}>
-                    ไม่พบใบเสร็จ · No receipts found
+                    <span className="th-text">ไม่พบใบเสร็จ</span>
+                <span className="en-text">No receipts</span> found
                   </div>
                 ) : (
                   filteredReceipts.map((r) => (
@@ -1386,12 +1389,15 @@ function MobileSuppliers({ suppliers, receipts, allReceipts, stats, tab, setTab,
 
           {/* Action */}
           <button onClick={onAddReceipt} className="btn-primary" style={{ justifyContent: "center", padding: "12px" }}>
-            <Camera size={18} /> เพิ่มใบเสร็จ · Add Receipt
+            <Camera size={18} />
+            <span className="th-text">เพิ่มใบเสร็จ</span>
+            <span className="en-text">Add Receipt</span>
           </button>
 
           {/* Receipt history */}
           <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-muted)", marginTop: 4 }}>
-            RECEIPT HISTORY ({supplierReceipts.length})
+            <span className="th-text">ประวัติใบเสร็จ ({supplierReceipts.length})</span>
+            <span className="en-text">RECEIPT HISTORY ({supplierReceipts.length})</span>
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {supplierReceipts.map((r) => (
@@ -1409,10 +1415,14 @@ function MobileSuppliers({ suppliers, receipts, allReceipts, stats, tab, setTab,
                 {r.status === "pending" && (
                   <div style={{ display: "flex", gap: 8, marginTop: 10, paddingTop: 10, borderTop: "1px solid var(--border)" }}>
                     <button onClick={() => onMarkPaid(r.id)} className="btn-primary" style={{ flex: 1, justifyContent: "center", fontSize: 12, padding: "7px" }}>
-                      <Check size={13} /> จ่ายแล้ว
+                      <Check size={13} />
+                      <span className="th-text">จ่ายแล้ว</span>
+                      <span className="en-text">Paid</span>
                     </button>
                     <button onClick={() => onDispute(r.id)} className="btn-primary" style={{ flex: 1, justifyContent: "center", fontSize: 12, padding: "7px", background: "#EF4444" }}>
-                      <AlertTriangle size={13} /> ปัญหา
+                      <AlertTriangle size={13} />
+                      <span className="th-text">ปัญหา</span>
+                      <span className="en-text">Dispute</span>
                     </button>
                   </div>
                 )}
@@ -1420,7 +1430,8 @@ function MobileSuppliers({ suppliers, receipts, allReceipts, stats, tab, setTab,
             ))}
             {supplierReceipts.length === 0 && (
               <div style={{ textAlign: "center", padding: 24, color: "var(--text-muted)", fontSize: 13 }}>
-                ไม่มีใบเสร็จ · No receipts yet
+                <span className="th-text">ไม่มีใบเสร็จ</span>
+                <span className="en-text">No receipts yet</span>
               </div>
             )}
           </div>
@@ -1433,8 +1444,10 @@ function MobileSuppliers({ suppliers, receipts, allReceipts, stats, tab, setTab,
     <div>
       <div className="mobile-topbar">
         <div style={{ flex: 1 }}>
-          <h1 style={{ color: "white" }}>{mobileView === "receipts" ? "ใบเสร็จ" : "ซัพพลายเออร์"}</h1>
-          <p style={{ color: "rgba(255,255,255,0.75)" }}>{mobileView === "receipts" ? "Receipts" : "Suppliers"}</p>
+          <h1 style={{ color: "white" }}>
+            <span className="th-text">{mobileView === "receipts" ? "ใบเสร็จ" : "ซัพพลายเออร์"}</span>
+            <span className="en-text">{mobileView === "receipts" ? "Receipts" : "Suppliers"}</span>
+          </h1>
         </div>
         {mobileView === "receipts"
           ? <button onClick={onAddReceipt} style={{ background: "transparent", border: "none", color: "white", cursor: "pointer" }}><CirclePlus size={24} /></button>
@@ -1449,7 +1462,9 @@ function MobileSuppliers({ suppliers, receipts, allReceipts, stats, tab, setTab,
             style={{ flex: 1, padding: "10px 0", border: "none", background: "transparent", cursor: "pointer", fontSize: 13, fontWeight: mobileView === v ? 700 : 400,
               color: mobileView === v ? "var(--brand-primary)" : "var(--text-muted)",
               borderBottom: mobileView === v ? "2px solid var(--brand-primary)" : "2px solid transparent", marginBottom: -2 }}>
-            {v === "receipts" ? "ใบเสร็จ · Receipts" : "ซัพพลายเออร์ · Suppliers"}
+            {v === "receipts"
+              ? <><span className="th-text">ใบเสร็จ</span><span className="en-text">Receipts</span></>
+              : <><span className="th-text">ซัพพลายเออร์</span><span className="en-text">Suppliers</span></>}
           </button>
         ))}
       </div>
@@ -1463,7 +1478,7 @@ function MobileSuppliers({ suppliers, receipts, allReceipts, stats, tab, setTab,
           </div>
           <label className="search-box">
             <Search size={20} color="var(--text-muted)" />
-            <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search receipts" />
+            <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="ค้นหาใบเสร็จ · Search receipts" />
           </label>
           <div style={{ display: "flex", gap: 6, overflowX: "auto" }}>
             {RECEIPT_TABS.map((t) => (
@@ -1472,7 +1487,8 @@ function MobileSuppliers({ suppliers, receipts, allReceipts, stats, tab, setTab,
                   background: tab === t.key ? "var(--brand-primary)" : "white",
                   color: tab === t.key ? "white" : "var(--text-primary)",
                   cursor: "pointer", fontSize: 11, fontWeight: tab === t.key ? 600 : 400, lineHeight: 1.3 }}>
-                {t.en}
+                <span className="th-text">{t.th}</span>
+                <span className="en-text">{t.en}</span>
               </button>
             ))}
           </div>
@@ -1500,10 +1516,14 @@ function MobileSuppliers({ suppliers, receipts, allReceipts, stats, tab, setTab,
                 {r.status === "pending" && (
                   <div style={{ display: "flex", gap: 8, marginTop: 10, paddingTop: 10, borderTop: "1px solid var(--border)" }}>
                     <button onClick={() => onMarkPaid(r.id)} className="btn-primary" style={{ flex: 1, justifyContent: "center", fontSize: 13, padding: "8px" }}>
-                      <Check size={15} /> จ่ายแล้ว
+                      <Check size={15} />
+                      <span className="th-text">จ่ายแล้ว</span>
+                      <span className="en-text">Paid</span>
                     </button>
                     <button onClick={() => onDispute(r.id)} className="btn-primary" style={{ flex: 1, justifyContent: "center", fontSize: 13, padding: "8px", background: "#EF4444" }}>
-                      <AlertTriangle size={15} /> ปัญหา
+                      <AlertTriangle size={15} />
+                      <span className="th-text">ปัญหา</span>
+                      <span className="en-text">Dispute</span>
                     </button>
                   </div>
                 )}
@@ -1511,7 +1531,8 @@ function MobileSuppliers({ suppliers, receipts, allReceipts, stats, tab, setTab,
             ))}
             {receipts.length === 0 && (
               <div style={{ textAlign: "center", padding: "32px", color: "var(--text-muted)", fontSize: 14 }}>
-                ไม่พบใบเสร็จ · No receipts
+                <span className="th-text">ไม่พบใบเสร็จ</span>
+                <span className="en-text">No receipts</span>
               </div>
             )}
           </div>
@@ -1521,7 +1542,7 @@ function MobileSuppliers({ suppliers, receipts, allReceipts, stats, tab, setTab,
         <div style={{ padding: "12px 16px", display: "flex", flexDirection: "column", gap: 10 }}>
           <label className="search-box">
             <Search size={20} color="var(--text-muted)" />
-            <input value={supplierSearch} onChange={(e) => setSupplierSearch(e.target.value)} placeholder="Search suppliers" />
+            <input value={supplierSearch} onChange={(e) => setSupplierSearch(e.target.value)} placeholder="ค้นหาซัพพลายเออร์ · Search suppliers" />
           </label>
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {filteredSuppliers.map((s) => {
@@ -1536,14 +1557,17 @@ function MobileSuppliers({ suppliers, receipts, allReceipts, stats, tab, setTab,
                   </div>
                   <div style={{ textAlign: "right", flexShrink: 0, marginLeft: 12 }}>
                     <div style={{ fontSize: 13, fontWeight: 700 }}>{count > 0 ? money(total) : "—"}</div>
-                    <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 2 }}>{count} receipts</div>
+                    <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 2 }}>
+                      {count} <span className="th-text">ใบเสร็จ</span><span className="en-text">receipts</span>
+                    </div>
                   </div>
                 </button>
               );
             })}
             {filteredSuppliers.length === 0 && (
               <div style={{ textAlign: "center", padding: "32px", color: "var(--text-muted)", fontSize: 14 }}>
-                ไม่พบซัพพลายเออร์ · No suppliers
+                <span className="th-text">ไม่พบซัพพลายเออร์</span>
+                <span className="en-text">No suppliers</span>
               </div>
             )}
           </div>

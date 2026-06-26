@@ -276,8 +276,11 @@ function MobileReports({ siteReports, blocked, ready, today, onSend, sendingId }
     <div>
       <div className="mobile-topbar">
         <div style={{ flex: 1 }}>
-          <h1 style={{ color: "white" }}>รายงาน</h1>
-          <p style={{ color: "rgba(255,255,255,0.75)", fontSize: 12 }}>Reports · {formatThaiDate(today)}</p>
+          <h1 style={{ color: "white" }}>
+            <span className="th-text">รายงาน</span>
+            <span className="en-text">Reports</span>
+          </h1>
+          <p style={{ color: "rgba(255,255,255,0.75)", fontSize: 12 }}>{formatThaiDate(today)}</p>
         </div>
       </div>
 
@@ -297,8 +300,8 @@ function MobileReports({ siteReports, blocked, ready, today, onSend, sendingId }
             >
               <div style={{ width: 8, height: 32, borderRadius: 4, background: r.color, flexShrink: 0 }} />
               <div style={{ flex: 1 }}>
-                <strong style={{ fontSize: 15 }}>{r.th}</strong>
-                <small style={{ display: "block", color: "var(--text-muted)", fontSize: 12 }}>{r.en}</small>
+                <strong className="th-text" style={{ fontSize: 15, display: "block" }}>{r.th}</strong>
+                <strong className="en-text" style={{ fontSize: 15, display: "block" }}>{r.en}</strong>
               </div>
               <ChevronRight size={18} color="var(--text-muted)" />
             </Link>
@@ -307,7 +310,10 @@ function MobileReports({ siteReports, blocked, ready, today, onSend, sendingId }
         {blocked.length > 0 && (
           <div style={{ background: "#FEF2F2", border: "1px solid #FECACA", borderRadius: 10, padding: "12px 14px", display: "flex", alignItems: "center", gap: 8, color: "#B91C1C" }}>
             <AlertTriangle size={18} />
-            <span style={{ fontSize: 14, fontWeight: 600 }}>{blocked.length} รายงานถูกบล็อค · Blocked</span>
+            <span style={{ fontSize: 14, fontWeight: 600 }}>
+              <span className="th-text">{blocked.length} รายงานถูกบล็อค</span>
+              <span className="en-text">{blocked.length} reports blocked</span>
+            </span>
           </div>
         )}
 
@@ -316,19 +322,24 @@ function MobileReports({ siteReports, blocked, ready, today, onSend, sendingId }
             <div style={{ padding: "14px 14px 10px" }}>
               <div style={{ display: "flex", justifyContent: "space-between" }}>
                 <strong style={{ fontSize: 16 }}>{r.name_th}</strong>
-                {r.blocked && <span style={{ background: "#FEF2F2", color: "#B91C1C", borderRadius: 6, padding: "2px 8px", fontSize: 11, fontWeight: 600 }}>บล็อค</span>}
+                {r.blocked && <span style={{ background: "#FEF2F2", color: "#B91C1C", borderRadius: 6, padding: "2px 8px", fontSize: 11, fontWeight: 600 }}>
+                  <span className="th-text">บล็อค</span>
+                  <span className="en-text">Blocked</span>
+                </span>}
               </div>
               <small style={{ color: "var(--text-muted)", fontSize: 12 }}>{r.name_en}</small>
               <div style={{ display: "flex", gap: 16, marginTop: 10, fontSize: 13 }}>
-                <span><strong>{r.workerCount}</strong> คน</span>
-                <span>ค่าแรง <strong>฿{formatCurrency(r.totalWage)}</strong></span>
-                <span>ใบเสร็จ <strong>฿{formatCurrency(r.totalReceipts)}</strong></span>
+                <span><strong>{r.workerCount}</strong> <span className="th-text">คน</span><span className="en-text">workers</span></span>
+                <span><span className="th-text">ค่าแรง</span><span className="en-text">Wages</span> <strong>฿{formatCurrency(r.totalWage)}</strong></span>
+                <span><span className="th-text">ใบเสร็จ</span><span className="en-text">Receipts</span> <strong>฿{formatCurrency(r.totalReceipts)}</strong></span>
               </div>
             </div>
             <div style={{ padding: "8px 14px", borderTop: "1px solid var(--border)", display: "flex", gap: 8 }}>
               {r.reportStatus === "blocked" ? (
                 <Link href={`/sites/${r.id}`} className="btn-primary" style={{ flex: 1, justifyContent: "center", background: "#EF4444", textDecoration: "none", padding: "8px" }}>
-                  <AlertTriangle size={16} /> แก้ไขก่อน
+                  <AlertTriangle size={16} />
+                  <span className="th-text">แก้ไขก่อน</span>
+                  <span className="en-text">Fix first</span>
                 </Link>
               ) : (
                 <button
@@ -338,7 +349,9 @@ function MobileReports({ siteReports, blocked, ready, today, onSend, sendingId }
                   style={{ flex: 1, justifyContent: "center", padding: "8px" }}
                 >
                   <Send size={16} />
-                  {sendingId === r.id ? "กำลังส่ง…" : "ส่งรายงาน"}
+                  {sendingId === r.id
+                    ? <><span className="th-text">กำลังส่ง…</span><span className="en-text">Sending…</span></>
+                    : <><span className="th-text">ส่งรายงาน</span><span className="en-text">Send report</span></>}
                 </button>
               )}
             </div>
