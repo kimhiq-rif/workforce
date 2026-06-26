@@ -102,6 +102,13 @@ export function SiteDetailClient({
   const currentStage = stages.find((s) => s.is_current) ?? null;
   const [showOvertime, setShowOvertime] = useState(false);
 
+  // Close Project
+  const [closeModal, setCloseModal] = useState(false);
+  const [closeReason, setCloseReason] = useState<"completed" | "stopped_cancelled">("completed");
+  const [closeCode, setCloseCode] = useState("");
+  const [closeError, setCloseError] = useState("");
+  const [closing, setClosing] = useState(false);
+
   // Workers reported present today — the candidates for overtime.
   const overtimeWorkers = Array.from(
     new Map(
@@ -142,6 +149,33 @@ export function SiteDetailClient({
   }
   const sitePhotoVideoRef = useRef<HTMLVideoElement>(null);
   const sitePhotoStreamRef = useRef<MediaStream | null>(null);
+
+  async function handleCloseProject() {
+    if (closing) return;
+    if (closeCode.length < 4) { setCloseError("รหัสไม่ครบ · Code too short"); return; }
+    setClosing(true);
+    setCloseError("");
+    try {
+      const res = await fetch(`/api/sites/${site.id}/close`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ admin_code: closeCode, close_reason: closeReason }),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        if (json.error === "no_code_set") setCloseError("ยังไม่ได้ตั้งรหัส Admin · Set Admin Code in Settings first");
+        else if (json.error === "invalid_code") setCloseError("รหัสไม่ถูกต้อง · Incorrect admin code");
+        else setCloseError(json.error ?? "Error");
+        return;
+      }
+      setCloseModal(false);
+      router.push(`/reports/project-final/${site.id}`);
+    } catch {
+      setCloseError("เกิดข้อผิดพลาด · Network error");
+    } finally {
+      setClosing(false);
+    }
+  }
 
   function showToast(msg: string) {
     setToast(msg);
@@ -570,6 +604,17 @@ export function SiteDetailClient({
               รายงานสรุปโครงการ · Project final report
             </Link>
           )}
+          {!(site as any).closed_at && userRole === "owner" && (
+            <button
+              className="btn-primary"
+              style={{ background: "#DC2626" }}
+              onClick={() => { setCloseCode(""); setCloseError(""); setCloseReason("completed"); setCloseModal(true); }}
+            >
+              <Check size={18} />
+              <span className="th-text">ปิดโปรเจกต์</span>
+              <span className="en-text">Close Project</span>
+            </button>
+          )}
           {(userRole === "owner" || userRole === "field_manager" || userRole === "technical_admin") && (
             <button
               className="btn-primary"
@@ -806,6 +851,7 @@ export function SiteDetailClient({
             onUpdateSitePhoto={openSitePhotoCamera}
             onMoveStage={() => { setMoveStageNote(""); setMoveStageModal(true); }}
             onOvertime={overtimeWorkers.length > 0 ? () => setShowOvertime(true) : undefined}
+            onCloseProject={!(site as any).closed_at && userRole === "owner" ? () => { setCloseCode(""); setCloseError(""); setCloseReason("completed"); setCloseModal(true); } : undefined}
             currentStage={currentStage}
             rainStatus={rainStatus}
             today={today}
@@ -1087,6 +1133,73 @@ export function SiteDetailClient({
         </>
       )}
 
+      {/* Close Project modal */}
+      {closeModal && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
+          <div style={{ background: "white", borderRadius: 20, padding: "28px 24px", width: "100%", maxWidth: 420 }}>
+            <div style={{ textAlign: "center", marginBottom: 20 }}>
+              <div style={{ fontSize: 42, marginBottom: 8 }}>🏁</div>
+              <h2 style={{ fontSize: 22, fontWeight: 700, color: "#DC2626", marginBottom: 4 }}>ปิดโปรเจกต์</h2>
+              <p style={{ fontSize: 14, color: "var(--text-muted)" }}>Close Project · {site.name_th}</p>
+            </div>
+
+            {/* Reason */}
+            <div style={{ marginBottom: 16 }}>
+              <p style={{ fontSize: 13, color: "var(--text-muted)", marginBottom: 8 }}>สาเหตุ · Reason</p>
+              {(["completed", "stopped_cancelled"] as const).map((r) => (
+                <label key={r} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", borderRadius: 10, border: `2px solid ${closeReason === r ? "#DC2626" : "#E5E7EB"}`, marginBottom: 8, cursor: "pointer", background: closeReason === r ? "#FEF2F2" : "white" }}>
+                  <input type="radio" name="closeReason" value={r} checked={closeReason === r} onChange={() => setCloseReason(r)} style={{ accentColor: "#DC2626" }} />
+                  <div>
+                    <div style={{ fontSize: 14, fontWeight: 600, color: closeReason === r ? "#DC2626" : "#374151" }}>
+                      {r === "completed" ? "✅ เสร็จสมบูรณ์ · Completed" : "⛔ หยุด/ยกเลิก · Stopped / Cancelled"}
+                    </div>
+                  </div>
+                </label>
+              ))}
+            </div>
+
+            {/* Admin code */}
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ fontSize: 13, color: "var(--text-muted)", display: "block", marginBottom: 6 }}>
+                🔐 รหัส Admin · Admin Code
+              </label>
+              <input
+                type="password"
+                inputMode="numeric"
+                value={closeCode}
+                onChange={(e) => { setCloseCode(e.target.value); setCloseError(""); }}
+                onKeyDown={(e) => { if (e.key === "Enter") handleCloseProject(); }}
+                placeholder="••••"
+                style={{ width: "100%", borderRadius: 10, border: `2px solid ${closeError ? "#DC2626" : "#D1D5DB"}`, padding: "10px 14px", fontSize: 18, letterSpacing: 6, textAlign: "center", outline: "none", boxSizing: "border-box" }}
+                autoFocus
+              />
+              {closeError && <p style={{ fontSize: 13, color: "#DC2626", marginTop: 6 }}>{closeError}</p>}
+            </div>
+
+            <div style={{ background: "#FEF2F2", borderRadius: 10, padding: "10px 14px", marginBottom: 20, fontSize: 13, color: "#991B1B" }}>
+              ⚠️ การกระทำนี้ไม่สามารถยกเลิกได้ · This action cannot be undone
+            </div>
+
+            <div style={{ display: "flex", gap: 10 }}>
+              <button
+                onClick={() => setCloseModal(false)}
+                style={{ flex: 1, padding: "12px 0", borderRadius: 10, border: "1px solid #D1D5DB", background: "white", fontSize: 15, cursor: "pointer" }}
+              >
+                <span className="th-text">ยกเลิก</span>
+                <span className="en-text">Cancel</span>
+              </button>
+              <button
+                onClick={handleCloseProject}
+                disabled={closing}
+                style={{ flex: 2, padding: "12px 0", borderRadius: 10, background: "#DC2626", color: "white", fontSize: 15, fontWeight: 600, border: "none", cursor: closing ? "not-allowed" : "pointer", opacity: closing ? 0.7 : 1 }}
+              >
+                {closing ? "กำลังปิด…" : "🏁 ปิดโปรเจกต์ · Close"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Move Stage modal */}
       {moveStageModal && currentStage && (
         <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
@@ -1357,7 +1470,7 @@ function AttendanceStatusBadge({ status, isLate }: { status: string; isLate: boo
 function MobileSiteDetail({
   site, workers, attendanceEvents, reported, totalWage, late,
   onCheckIn, onStartReport, onRain, onTransfer, onUpdateSitePhoto, onMoveStage,
-  currentStage, rainStatus, today, userRole, onOvertime,
+  currentStage, rainStatus, today, userRole, onOvertime, onCloseProject,
 }: {
   site: Site;
   workers: SiteWorker[];
@@ -1372,6 +1485,7 @@ function MobileSiteDetail({
   onUpdateSitePhoto: () => void;
   onMoveStage: () => void;
   onOvertime?: () => void;
+  onCloseProject?: () => void;
   currentStage: SiteStage | null;
   rainStatus: string;
   today: string;
@@ -1464,6 +1578,17 @@ function MobileSiteDetail({
             <span className="th-text">รายงานสรุปโครงการ</span>
             <span className="en-text">Project final report</span>
           </Link>
+        )}
+        {!(site as any).closed_at && userRole === "owner" && (
+          <button
+            className="btn-primary"
+            style={{ width: "100%", justifyContent: "center", padding: "14px", borderRadius: 14, gap: 10, background: "#DC2626" }}
+            onClick={onCloseProject}
+          >
+            <Check size={20} />
+            <span className="th-text">ปิดโปรเจกต์</span>
+            <span className="en-text">Close Project</span>
+          </button>
         )}
         <button
           className="btn-primary"
