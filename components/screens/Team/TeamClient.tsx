@@ -225,14 +225,22 @@ function MobileTeam({ ownerName, members, onAdd, onDelete }: {
     <div>
       <div className="mobile-topbar">
         <div style={{ flex: 1 }}>
-          <h1 style={{ color: "white" }}>ทีมงาน</h1>
-          <p style={{ color: "rgba(255,255,255,0.75)" }}>Team · {members.length} members</p>
+          <h1 style={{ color: "white" }}>
+            <span className="th-text">ทีมงาน</span>
+            <span className="en-text">Team</span>
+          </h1>
+          <p style={{ color: "rgba(255,255,255,0.75)" }}>
+            <span className="th-text">{members.length} คน</span>
+            <span className="en-text">{members.length} members</span>
+          </p>
         </div>
         <button
           onClick={onAdd}
           className="mobile-topbar-action" style={{ gap: 6 }}
         >
-          <UserPlus size={16} /> Add
+          <UserPlus size={16} />
+          <span className="th-text">เพิ่ม</span>
+          <span className="en-text">Add</span>
         </button>
       </div>
 
@@ -242,9 +250,15 @@ function MobileTeam({ ownerName, members, onAdd, onDelete }: {
           <div className="avatar" style={{ width: 36, height: 36, fontSize: 13, background: "var(--brand-primary)", color: "white", flexShrink: 0 }}>{ownerName[0]}</div>
           <div style={{ flex: 1 }}>
             <strong style={{ fontSize: 14 }}>{ownerName}</strong>
-            <small style={{ display: "block", color: "var(--text-muted)", fontSize: 11 }}>Owner · เจ้าของ</small>
+            <small style={{ display: "block", color: "var(--text-muted)", fontSize: 11 }}>
+              <span className="th-text">เจ้าของ</span>
+              <span className="en-text">Owner</span>
+            </small>
           </div>
-          <span style={{ background: "#FFF7ED", color: "#C2410C", padding: "3px 8px", borderRadius: 12, fontSize: 11, fontWeight: 600 }}>Owner</span>
+          <span style={{ background: "#FFF7ED", color: "#C2410C", padding: "3px 8px", borderRadius: 12, fontSize: 11, fontWeight: 600 }}>
+            <span className="th-text">เจ้าของ</span>
+            <span className="en-text">Owner</span>
+          </span>
         </div>
 
         {members.map((m) => {

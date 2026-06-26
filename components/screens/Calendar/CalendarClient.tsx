@@ -283,8 +283,10 @@ export function CalendarClient({ dayStatuses, wageByDay, calendarEvents: initial
         <div className="mobile-only">
           <div className="mobile-topbar">
             <div style={{ flex: 1 }}>
-              <h1 style={{ color: "white" }}>ปฏิทิน</h1>
-              <p style={{ color: "rgba(255,255,255,0.75)" }}>Calendar</p>
+              <h1 style={{ color: "white" }}>
+                <span className="th-text">ปฏิทิน</span>
+                <span className="en-text">Calendar</span>
+              </h1>
             </div>
             <button onClick={() => { setAddForDate(selectedDay ?? today); setShowAddModal(true); }} style={{ background: "transparent", border: "none", color: "white", cursor: "pointer" }}>
               <CirclePlus size={24} />
@@ -294,7 +296,7 @@ export function CalendarClient({ dayStatuses, wageByDay, calendarEvents: initial
             {calendarGrid}
             {selectedDay && (selectedData || selectedEvents.length > 0) && (
               <div style={{ marginTop: 12, background: "white", borderRadius: 10, padding: "14px", border: "1px solid var(--border)" }}>
-                {selectedData && <strong style={{ fontSize: 15 }}>฿{formatCurrency(selectedData.wage)} wages</strong>}
+                {selectedData && <strong style={{ fontSize: 15 }}>฿{formatCurrency(selectedData.wage)} <span className="th-text">ค่าแรง</span><span className="en-text">wages</span></strong>}
                 {selectedEvents.map((ev) => (
                   <div key={ev.id} style={{ fontSize: 13, color: "var(--text-muted)", marginTop: 6, display: "flex", alignItems: "center", gap: 6 }}>
                     <span style={{ width: 8, height: 8, borderRadius: "50%", background: ev.event_type === "meeting" ? "#F97316" : "#1D4ED8", display: "inline-block", flexShrink: 0 }} />

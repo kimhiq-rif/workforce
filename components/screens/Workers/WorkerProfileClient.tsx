@@ -719,11 +719,13 @@ function MobileWorkerProfile({ worker, attendanceHistory, advances, stats, onAdd
         <div style={{ display: "flex", gap: 8 }}>
           <button className="btn-primary" style={{ flex: 2, justifyContent: "center", background: "#F59E0B" }} onClick={onAddAdvance}>
             <Banknote size={18} />
-            บันทึกเบิกเงิน
+            <span className="th-text">บันทึกเบิกเงิน</span>
+            <span className="en-text">Record advance</span>
           </button>
           <button className="btn-primary" style={{ flex: 1, justifyContent: "center", background: "#1D4ED8" }} onClick={onPrintReport}>
             <Printer size={18} />
-            รายงาน
+            <span className="th-text">รายงาน</span>
+            <span className="en-text">Report</span>
           </button>
         </div>
 
@@ -735,7 +737,8 @@ function MobileWorkerProfile({ worker, attendanceHistory, advances, stats, onAdd
                 style={{ flex: 1, padding: "12px 8px", background: "#F0FDF4", color: "#15803D", border: "1px solid #BBF7D0", borderRadius: 10, cursor: "pointer", fontSize: 14, fontWeight: 600, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}
               >
                 <Pencil size={16} />
-                แก้ไข · Edit
+                <span className="th-text">แก้ไข</span>
+                <span className="en-text">Edit</span>
               </button>
             )}
             {onDeactivate && (
@@ -744,18 +747,23 @@ function MobileWorkerProfile({ worker, attendanceHistory, advances, stats, onAdd
                 style={{ flex: 1, padding: "12px 8px", background: "#FEF2F2", color: "#B91C1C", border: "1px solid #FECACA", borderRadius: 10, cursor: "pointer", fontSize: 14, fontWeight: 600, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}
               >
                 <Trash2 size={16} />
-                เก็บถาวร · Archive
+                <span className="th-text">เก็บถาวร</span>
+                <span className="en-text">Archive</span>
               </button>
             )}
           </div>
         )}
 
         <div>
-          <div style={{ fontSize: 16, fontWeight: 600, marginBottom: 10 }}>ประวัติการทำงาน <small style={{ color: "var(--text-muted)", fontSize: 12 }}>30-day history</small></div>
+          <div style={{ fontSize: 16, fontWeight: 600, marginBottom: 10 }}>
+            <span className="th-text">ประวัติการทำงาน</span>
+            <span className="en-text" style={{ color: "var(--text-muted)", fontSize: 12 }}>30-day history</span>
+          </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
             {attendanceHistory.length === 0 ? (
               <div style={{ textAlign: "center", color: "var(--text-muted)", fontSize: 14, padding: "20px 0" }}>
-                ยังไม่מีประวัติ · No history yet
+                <span className="th-text">ยังไม่มีประวัติ</span>
+                <span className="en-text">No history yet</span>
               </div>
             ) : attendanceHistory.slice(0, 20).map((a) => (
               <div key={a.event_date} style={{ background: "white", borderRadius: 10, padding: "10px 14px", display: "flex", justifyContent: "space-between", alignItems: "center", border: "1px solid var(--border)" }}>
@@ -766,7 +774,11 @@ function MobileWorkerProfile({ worker, attendanceHistory, advances, stats, onAdd
                 <div style={{ textAlign: "right" }}>
                   <strong style={{ fontSize: 14 }}>{a.arrival_time ? formatTime(a.arrival_time) : "-"}</strong>
                   <small style={{ display: "block", color: a.is_late ? "#F97316" : "#22C55E", fontSize: 11 }}>
-                    {a.is_late ? "สาย" : a.status === "on_site" ? "ปกติ" : a.status}
+                    {a.is_late
+                      ? <><span className="th-text">สาย</span><span className="en-text">Late</span></>
+                      : a.status === "on_site"
+                        ? <><span className="th-text">ปกติ</span><span className="en-text">On time</span></>
+                        : a.status}
                   </small>
                 </div>
                 <strong style={{ fontSize: 15, minWidth: 70, textAlign: "right" }}>

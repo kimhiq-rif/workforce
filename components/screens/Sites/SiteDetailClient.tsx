@@ -1364,7 +1364,10 @@ function MobileSiteDetail({
         <Link href="/sites" className="mobile-topbar-back"><ChevronLeft size={24} /></Link>
         <div style={{ flex: 1 }}>
           <h1 style={{ color: "white" }}>{site.name_th}</h1>
-          <p style={{ color: "rgba(255,255,255,0.75)" }}>{site.name_en} · Site detail</p>
+          <p style={{ color: "rgba(255,255,255,0.75)" }}>
+            <span className="th-text">{site.name_th}</span>
+            <span className="en-text">{site.name_en}</span>
+          </p>
         </div>
         {(userRole === "owner" || userRole === "field_manager" || userRole === "technical_admin") && (
           <button
@@ -1379,7 +1382,9 @@ function MobileSiteDetail({
             onClick={onRain}
             className="mobile-topbar-action" style={{ padding: "6px 10px" }}
           >
-            <CloudRain size={16} /> ฝน
+            <CloudRain size={16} />
+            <span className="th-text">ฝน</span>
+            <span className="en-text">Rain</span>
           </button>
         )}
         {userRole === "owner" && (site as any).project_type === "long" && currentStage && (
@@ -1436,7 +1441,8 @@ function MobileSiteDetail({
             style={{ width: "100%", justifyContent: "center", padding: "14px", borderRadius: 14, gap: 10, background: "#22C55E", textDecoration: "none" }}
           >
             <FileText size={20} />
-            รายงานสรุปโครงการ · Project final report
+            <span className="th-text">รายงานสรุปโครงการ</span>
+            <span className="en-text">Project final report</span>
           </Link>
         )}
         <button
@@ -1445,13 +1451,15 @@ function MobileSiteDetail({
           onClick={onStartReport}
         >
           <PlayCircle size={22} />
-          เริ่มรายงาน · Start Report
+          <span className="th-text">เริ่มรายงาน</span>
+          <span className="en-text">Start Report</span>
         </button>
 
         {/* Worker list */}
         <div>
           <div style={{ fontSize: 16, fontWeight: 600, marginBottom: 8 }}>
-            พนักงานวันนี้ <small style={{ color: "var(--text-muted)", fontSize: 12 }}>Today workers</small>
+            <span className="th-text">พนักงานวันนี้</span>
+            <span className="en-text" style={{ color: "var(--text-muted)", fontSize: 12 }}>Today workers</span>
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {workers.map((worker) => {
@@ -1475,7 +1483,11 @@ function MobileSiteDetail({
                       {event?.arrival_time ? formatTime(event.arrival_time) : "-"}
                     </strong>
                     <small style={{ color: event?.is_late ? "#F97316" : "#22C55E", fontSize: 11 }}>
-                      {event ? (event.is_late ? "สาย" : "ปกติ") : "ยังไม่รายงาน"}
+                      {event
+                        ? event.is_late
+                          ? <><span className="th-text">สาย</span><span className="en-text">Late</span></>
+                          : <><span className="th-text">ปกติ</span><span className="en-text">On time</span></>
+                        : <><span className="th-text">ยังไม่รายงาน</span><span className="en-text">Not reported</span></>}
                     </small>
                   </div>
                   {userRole === "owner" ? (
