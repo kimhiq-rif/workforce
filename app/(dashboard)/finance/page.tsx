@@ -57,6 +57,37 @@ export default async function FinancePage() {
     })())
     .order("event_date");
 
+  // Driver cash float (owner-only)
+  let driverCashData: { driver: { id: string; name_th: string; name_en: string }; totalGiven: number; totalSpent: number; balance: number }[] = [];
+  if (profile?.role === "owner") {
+    const { data: driverManagers } = await supabase
+      .from("users")
+      .select("id, name_th, name_en")
+      .eq("owner_id", ownerId)
+      .eq("role", "technical_admin");
+
+    const { data: cashEntries } = await supabase
+      .from("driver_cash_entries")
+      .select("driver_user_id, amount")
+      .eq("owner_id", ownerId);
+
+    const { data: driverReceipts } = await supabase
+      .from("receipts")
+      .select("submitted_by, amount")
+      .eq("owner_id", ownerId)
+      .not("submitted_by", "is", null);
+
+    driverCashData = (driverManagers ?? []).map((dm) => {
+      const totalGiven = (cashEntries ?? [])
+        .filter((e) => e.driver_user_id === dm.id)
+        .reduce((sum, e) => sum + Number(e.amount), 0);
+      const totalSpent = (driverReceipts ?? [])
+        .filter((r) => r.submitted_by === dm.id)
+        .reduce((sum, r) => sum + Number(r.amount ?? 0), 0);
+      return { driver: dm, totalGiven, totalSpent, balance: totalGiven - totalSpent };
+    });
+  }
+
   return (
     <FinanceClient
       todayAttendance={todayAttendance ?? []}
@@ -64,7 +95,9 @@ export default async function FinancePage() {
       pendingAdvances={pendingAdvances ?? []}
       weeklyWages={weeklyWages ?? []}
       ownerId={ownerId}
+      userId={profile?.id}
       today={today}
+      driverCashData={driverCashData}
     />
   );
 }
