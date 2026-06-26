@@ -27,20 +27,29 @@ export async function POST(req: NextRequest) {
 
   const supabase = createServiceClient();
 
-  let query = supabase.from("users").select("id").eq("owner_id", ownerId);
-  if (recipient === "owners") {
-    query = query.eq("role", "owner");
-  } else if (recipient === "owners_managers") {
-    query = query.in("role", ["owner", "field_manager"]);
-  }
-  // "everyone" → no additional role filter
+  // "owners" → only the owner themselves
+  // "owners_managers" → owner + field managers under this owner
+  // "everyone" → owner + all users under this owner
+  // The owner's own row has owner_id = null, so we always include ownerId explicitly.
+  let memberIds: string[] = [];
+  if (recipient !== "owners") {
+    const roleFilter = recipient === "owners_managers"
+      ? ["field_manager"]
+      : ["field_manager", "technical_admin", "worker"];
 
-  const { data: users, error } = await query;
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    const { data: members, error } = await supabase
+      .from("users")
+      .select("id")
+      .eq("owner_id", ownerId)
+      .in("role", roleFilter);
+
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+    memberIds = (members ?? []).map((u) => u.id);
   }
 
-  const externalIds = (users ?? []).map((u) => u.id);
+  const externalIds = Array.from(new Set([ownerId, ...memberIds]));
   const result = await sendOneSignalPush({
     externalIds,
     title: title.trim(),
