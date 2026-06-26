@@ -117,12 +117,14 @@ export function SettingsClient({ profile, workdaySettings, teamMembers, workers,
   const [inviteRole, setInviteRole] = useState<"field_manager" | "technical_admin">("field_manager");
   const [inviting, setInviting] = useState(false);
   const [inviteLink, setInviteLink] = useState<string | null>(null);
+  const [inviteSentEmail, setInviteSentEmail] = useState<string | null>(null);
   const [workerList, setWorkerList] = useState(workers);
 
   async function handleCreateInvite() {
     if (!inviteWorkerId) return;
     setInviting(true);
     setInviteLink(null);
+    setInviteSentEmail(null);
     try {
       const res = await fetch("/api/team/invite", {
         method: "POST",
@@ -131,7 +133,11 @@ export function SettingsClient({ profile, workdaySettings, teamMembers, workers,
       });
       const json = await res.json();
       if (!res.ok) { showToast(json.error ?? "Error"); return; }
-      setInviteLink(json.invite_url);
+      if (json.sent_by_email) {
+        setInviteSentEmail(json.email);
+      } else {
+        setInviteLink(json.invite_url);
+      }
       setWorkerList((prev) => prev.map((w) => w.id === inviteWorkerId ? { ...w, auth_user_id: "granted" } : w));
     } finally {
       setInviting(false);
@@ -574,7 +580,18 @@ export function SettingsClient({ profile, workdaySettings, teamMembers, workers,
             Select a worker and role — generates a one-time invite link to share via LINE or WhatsApp.
           </p>
 
-          {!inviteLink ? (
+          {inviteSentEmail ? (
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              <div style={{ background: "#F0FDF4", border: "1px solid #BBF7D0", borderRadius: 10, padding: "14px 16px" }}>
+                <p style={{ fontSize: 15, fontWeight: 700, color: "#15803D", marginBottom: 4 }}>✉️ อีเมลถูกส่งแล้ว · Email sent</p>
+                <p style={{ fontSize: 13, color: "#166534" }}>{inviteSentEmail}</p>
+                <p style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 6 }}>พนักงานจะได้รับลิงก์เข้าสู่ระบบในอีเมล · Worker will receive login link in their inbox</p>
+              </div>
+              <button onClick={() => { setInviteSentEmail(null); setInviteWorkerId(""); }} style={{ fontSize: 13, color: "var(--text-muted)", background: "transparent", border: "none", cursor: "pointer", textDecoration: "underline" }}>
+                เชิญคนอื่น · Invite another
+              </button>
+            </div>
+          ) : !inviteLink ? (
             <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
               <select
                 value={inviteWorkerId}
