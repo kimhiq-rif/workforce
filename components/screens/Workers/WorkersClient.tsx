@@ -287,7 +287,8 @@ export function WorkersClient({ workers: initialWorkers, todayAttendance, sites,
 
             {filtered.length === 0 ? (
               <div style={{ padding: "32px", textAlign: "center", color: "var(--text-muted)", fontSize: 14 }}>
-                ไม่พบพนักงาน · No workers found
+                <span className="th-text">ไม่พบพนักงาน</span>
+              <span className="en-text">No workers found</span>
               </div>
             ) : (
               filtered.map((worker) => {
@@ -477,8 +478,14 @@ function MobileWorkers({
     <div>
       <div className="mobile-topbar">
         <div style={{ flex: 1 }}>
-          <h1 style={{ color: "white" }}>พนักงาน</h1>
-          <p style={{ color: "rgba(255,255,255,0.75)" }}>Workers · {stats.total} คน</p>
+          <h1 style={{ color: "white" }}>
+            <span className="th-text">พนักงาน</span>
+            <span className="en-text">Workers</span>
+          </h1>
+          <p style={{ color: "rgba(255,255,255,0.75)" }}>
+            <span className="th-text">{stats.total} คน</span>
+            <span className="en-text">{stats.total} workers</span>
+          </p>
         </div>
         {isOwner && (
           <button onClick={onAdd} style={{ background: "transparent", border: "none", color: "white", cursor: "pointer" }}>
@@ -510,7 +517,7 @@ function MobileWorkers({
         {/* Search */}
         <label className="search-box">
           <Search size={20} color="var(--text-muted)" />
-          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search workers" />
+          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="ค้นหาพนักงาน · Search workers" />
         </label>
 
         {/* Tabs */}
@@ -533,7 +540,8 @@ function MobileWorkers({
                 gap: 1,
               }}
             >
-              <span style={{ fontSize: 12, fontWeight: tab === t.key ? 700 : 500, lineHeight: 1.3 }}>{t.en}</span>
+              <span className="th-text" style={{ fontSize: 12, fontWeight: tab === t.key ? 700 : 500, lineHeight: 1.3 }}>{t.th}</span>
+              <span className="en-text" style={{ fontSize: 12, fontWeight: tab === t.key ? 700 : 500, lineHeight: 1.3 }}>{t.en}</span>
             </button>
           ))}
         </div>
@@ -594,7 +602,8 @@ function MobileWorkers({
           })}
           {workers.length === 0 && (
             <div style={{ textAlign: "center", padding: "32px", color: "var(--text-muted)", fontSize: 14 }}>
-              ไม่พบพนักงาน · No workers found
+              <span className="th-text">ไม่พบพนักงาน</span>
+              <span className="en-text">No workers found</span>
             </div>
           )}
         </div>

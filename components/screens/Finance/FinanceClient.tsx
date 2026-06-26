@@ -250,8 +250,11 @@ function MobileFinance({ todayWageTotal, pendingReceiptTotal, pendingAdvanceTota
     <div>
       <div className="mobile-topbar">
         <div style={{ flex: 1 }}>
-          <h1 style={{ color: "white" }}>การเงิน</h1>
-          <p style={{ color: "rgba(255,255,255,0.75)" }}>Finance · {formatThaiDate(today)}</p>
+          <h1 style={{ color: "white" }}>
+            <span className="th-text">การเงิน</span>
+            <span className="en-text">Finance</span>
+          </h1>
+          <p style={{ color: "rgba(255,255,255,0.75)" }}>{formatThaiDate(today)}</p>
         </div>
       </div>
 
@@ -264,7 +267,10 @@ function MobileFinance({ todayWageTotal, pendingReceiptTotal, pendingAdvanceTota
 
         {pendingReceipts.length > 0 && (
           <div>
-            <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 8 }}>ใบเสร็จรอชำระ <small style={{ fontSize: 12, color: "var(--text-muted)", fontWeight: 400 }}>Pending receipts</small></div>
+            <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 8 }}>
+              <span className="th-text">ใบเสร็จรอชำระ</span>
+              <span className="en-text" style={{ fontSize: 12, color: "var(--text-muted)", fontWeight: 400 }}>Pending receipts</span>
+            </div>
             {pendingReceipts.slice(0, 5).map((r: any) => (
               <div key={r.id} style={{ background: "white", borderRadius: 8, padding: "12px 14px", marginBottom: 6, border: "1px solid var(--border)", display: "flex", alignItems: "center", gap: 10 }}>
                 <div style={{ flex: 1 }}>
@@ -282,7 +288,10 @@ function MobileFinance({ todayWageTotal, pendingReceiptTotal, pendingAdvanceTota
 
         {pendingAdvances.length > 0 && (
           <div>
-            <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 8 }}>เบิกค้างจ่าย <small style={{ fontSize: 12, color: "var(--text-muted)", fontWeight: 400 }}>Pending advances</small></div>
+            <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 8 }}>
+              <span className="th-text">เบิกค้างจ่าย</span>
+              <span className="en-text" style={{ fontSize: 12, color: "var(--text-muted)", fontWeight: 400 }}>Pending advances</span>
+            </div>
             {pendingAdvances.slice(0, 5).map((a: any) => (
               <div key={a.id} style={{ background: "white", borderRadius: 8, padding: "12px 14px", marginBottom: 6, border: "1px solid var(--border)", display: "flex", alignItems: "center", gap: 10 }}>
                 <div className="avatar" style={{ width: 32, height: 32, fontSize: 11, flexShrink: 0 }}>{a.worker?.name_th?.[0] ?? "?"}</div>

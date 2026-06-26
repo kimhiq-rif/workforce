@@ -601,8 +601,14 @@ function MobileSites({
       {/* Mobile topbar */}
       <div className="mobile-topbar">
         <div style={{ flex: 1 }}>
-          <h1 style={{ color: "white" }}>Sites</h1>
-          <p style={{ color: "rgba(255,255,255,0.75)" }}>Sites management</p>
+          <h1 style={{ color: "white" }}>
+            <span className="th-text">ไซต์</span>
+            <span className="en-text">Sites</span>
+          </h1>
+          <p style={{ color: "rgba(255,255,255,0.75)" }}>
+            <span className="th-text">จัดการไซต์</span>
+            <span className="en-text">Sites management</span>
+          </p>
         </div>
         <button
           onClick={onAddSite}
@@ -619,7 +625,7 @@ function MobileSites({
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search sites"
+            placeholder="ค้นหาไซต์ · Search sites"
           />
         </label>
 
@@ -641,7 +647,8 @@ function MobileSites({
                 fontWeight: statusFilter === opt.key ? 600 : 400,
               }}
             >
-              {opt.en}
+              <span className="th-text">{opt.th}</span>
+              <span className="en-text">{opt.en}</span>
             </button>
           ))}
         </div>
@@ -695,7 +702,8 @@ function MobileSites({
 
           {sites.length === 0 && (
             <div style={{ textAlign: "center", padding: "32px", color: "var(--text-muted)", fontSize: 14 }}>
-              ไม่พบไซต์ · No sites found
+              <span className="th-text">ไม่พบไซต์</span>
+              <span className="en-text">No sites found</span>
             </div>
           )}
         </div>
