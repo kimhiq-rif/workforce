@@ -5,6 +5,7 @@
 import { Sidebar } from "./Sidebar";
 import { SystemBar } from "./SystemBar";
 import { BottomNav } from "./BottomNav";
+import { ActivityTracker } from "./ActivityTracker";
 
 interface DashboardShellProps {
   children: React.ReactNode;
@@ -23,6 +24,7 @@ export function DashboardShell({
 }: DashboardShellProps) {
   return (
     <>
+      <ActivityTracker />
       {/* ── Desktop 3-column ──────────────────────────────────────────── */}
       <div
         className="desktop-only"

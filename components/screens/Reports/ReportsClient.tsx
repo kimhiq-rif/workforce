@@ -123,7 +123,7 @@ export function ReportsClient({ sites, attendance, receipts, dayStatuses, today,
               { href: "/reports",          icon: FileText,   th: "รายงานประจำวัน",    en: "Daily reports",      color: "#1E3A8A" },
               { href: "/reports/halfmonth", icon: CreditCard, th: "เงินเดือนครึ่งเดือน", en: "Half-month payroll", color: "#6C5CE7" },
               { href: "/reports/monthly",   icon: TrendingUp, th: "สรุปรายเดือน",      en: "Monthly summary",    color: "#06B6D4" },
-              { href: "/reports/annual",    icon: CalendarRange, th: "Annual overview", en: "Big document", color: "#FF6A00" },
+              { href: "/reports/annual",    icon: CalendarRange, th: "รายงานประจำปี",    en: "Annual overview", color: "#FF6A00" },
               { href: "/reports/project-final", icon: Building2, th: "สรุปโครงการ", en: "Project final report", color: "#22C55E" },
             ].map((r) => {
               const Icon = r.icon;
@@ -287,7 +287,7 @@ function MobileReports({ siteReports, blocked, ready, today, onSend, sendingId }
           {[
             { href: "/reports/halfmonth", th: "เงินเดือนครึ่งเดือน", en: "Half-month payroll", color: "#6C5CE7" },
             { href: "/reports/monthly",   th: "สรุปรายเดือน",       en: "Monthly summary",    color: "#06B6D4" },
-            { href: "/reports/annual",    th: "Annual overview",     en: "Big document",       color: "#FF6A00" },
+            { href: "/reports/annual",    th: "รายงานประจำปี",       en: "Annual overview",    color: "#FF6A00" },
             { href: "/reports/project-final", th: "สรุปโครงการ",    en: "Project final report", color: "#22C55E" },
           ].map((r) => (
             <Link

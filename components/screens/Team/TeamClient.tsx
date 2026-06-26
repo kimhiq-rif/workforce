@@ -132,10 +132,10 @@ export function TeamClient({ members: initialMembers, ownerName }: TeamClientPro
             {members.length === 0 ? (
               <div style={{ background: "white", border: "2px dashed var(--border)", borderRadius: 12, padding: "40px 20px", textAlign: "center" }}>
                 <UserPlus size={32} color="var(--text-muted)" style={{ marginBottom: 12 }} />
-                <div style={{ fontSize: 16, fontWeight: 600, marginBottom: 4 }}>No team members yet</div>
-                <div style={{ fontSize: 13, color: "var(--text-muted)", marginBottom: 16 }}>Add a Field Manager or Driver Manager to get started</div>
+                <div style={{ fontSize: 16, fontWeight: 600, marginBottom: 4 }}><span className="th-text">ยังไม่มีทีมงาน</span><span className="en-text">No team members yet</span></div>
+                <div style={{ fontSize: 13, color: "var(--text-muted)", marginBottom: 16 }}><span className="th-text">เพิ่มผู้จัดการหน้างานหรือผู้จัดการขนส่ง</span><span className="en-text">Add a Field Manager or Driver Manager to get started</span></div>
                 <button className="btn-primary" onClick={() => setShowAddModal(true)}>
-                  <UserPlus size={16} /> Add first member
+                  <UserPlus size={16} /> <span className="th-text">เพิ่มสมาชิกคนแรก</span><span className="en-text">Add first member</span>
                 </button>
               </div>
             ) : (
@@ -163,7 +163,7 @@ export function TeamClient({ members: initialMembers, ownerName }: TeamClientPro
                       <button
                         onClick={() => handleDelete(m)}
                         title="Remove from team"
-                        style={{ background: "#FEF2F2", border: "1px solid #FECACA", borderRadius: 8, padding: "6px 10px", cursor: "pointer", color: "#B91C1C", display: "flex", alignItems: "center" }}
+                        style={{ background: "#FEF2F2", border: "1px solid #FECACA", borderRadius: 8, padding: "10px 12px", cursor: "pointer", color: "#B91C1C", display: "flex", alignItems: "center", minHeight: 44, minWidth: 44, justifyContent: "center" }}
                       >
                         <Trash2 size={15} />
                       </button>
@@ -261,7 +261,7 @@ function MobileTeam({ ownerName, members, onAdd, onDelete }: {
               </div>
               <button
                 onClick={() => onDelete(m)}
-                style={{ background: "#FEF2F2", border: "1px solid #FECACA", borderRadius: 6, padding: "5px 8px", cursor: "pointer", color: "#B91C1C", display: "flex" }}
+                style={{ background: "#FEF2F2", border: "1px solid #FECACA", borderRadius: 6, padding: "10px 12px", cursor: "pointer", color: "#B91C1C", display: "flex", minHeight: 44, minWidth: 44, alignItems: "center", justifyContent: "center" }}
               >
                 <Trash2 size={14} />
               </button>
@@ -271,9 +271,9 @@ function MobileTeam({ ownerName, members, onAdd, onDelete }: {
 
         {members.length === 0 && (
           <div style={{ background: "white", borderRadius: 10, padding: "28px 16px", textAlign: "center", border: "2px dashed var(--border)" }}>
-            <div style={{ color: "var(--text-muted)", fontSize: 14, marginBottom: 12 }}>No team members yet</div>
+            <div style={{ color: "var(--text-muted)", fontSize: 14, marginBottom: 12 }}><span className="th-text">ยังไม่มีทีมงาน</span><span className="en-text">No team members yet</span></div>
             <button className="btn-primary" onClick={onAdd} style={{ justifyContent: "center" }}>
-              <UserPlus size={16} /> Add first member
+              <UserPlus size={16} /> <span className="th-text">เพิ่มสมาชิกคนแรก</span><span className="en-text">Add first member</span>
             </button>
           </div>
         )}
@@ -417,10 +417,12 @@ function AddMemberModal({ onClose, onAdded }: {
 
         <div style={{ display: "flex", gap: 12, marginTop: 22 }}>
           <button onClick={onClose} style={{ flex: 1, padding: "11px", border: "1px solid var(--border)", borderRadius: 10, background: "white", cursor: "pointer", fontSize: 14 }}>
-            Cancel
+            <span className="th-text">ยกเลิก</span><span className="en-text">Cancel</span>
           </button>
           <button onClick={handleSave} disabled={saving} className="btn-primary" style={{ flex: 2, justifyContent: "center" }}>
-            {saving ? "Creating account…" : "Create account"}
+            {saving
+              ? <><span className="th-text">กำลังสร้าง…</span><span className="en-text">Creating…</span></>
+              : <><span className="th-text">สร้างบัญชี</span><span className="en-text">Create account</span></>}
           </button>
         </div>
       </div>

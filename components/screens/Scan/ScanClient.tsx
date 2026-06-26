@@ -312,7 +312,7 @@ export function ScanClient({ ownerId, userId, sites, defaultSiteId }: ScanClient
       <div style={{ position: "absolute", top: 0, left: 0, right: 0, zIndex: 10, padding: "env(safe-area-inset-top, 16px) 16px 16px", display: "flex", alignItems: "center", gap: 10 }}>
         <button
           onClick={() => router.back()}
-          style={{ background: "rgba(0,0,0,0.45)", border: "none", borderRadius: "50%", width: 42, height: 42, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0 }}
+          style={{ background: "rgba(0,0,0,0.45)", border: "none", borderRadius: "50%", width: 44, height: 44, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0 }}
         >
           <ArrowLeft size={20} color="white" />
         </button>

@@ -364,8 +364,7 @@ function AddEventModal({ initialDate, sites, onClose, onAdded }: {
       <div style={{ background: "white", borderRadius: 16, padding: "28px 24px", width: "100%", maxWidth: 480, maxHeight: "90vh", overflowY: "auto" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
           <h2 style={{ fontSize: 20, fontWeight: 700 }}>
-            Add event
-            <small style={{ display: "block", fontSize: 13, fontWeight: 400, color: "var(--text-muted)" }}>เพิ่มกิจกรรม</small>
+            <span className="th-text">เพิ่มกิจกรรม</span><span className="en-text">Add event</span>
           </h2>
           <button onClick={onClose} style={{ background: "transparent", border: "none", cursor: "pointer" }}><X size={24} /></button>
         </div>
@@ -376,11 +375,11 @@ function AddEventModal({ initialDate, sites, onClose, onAdded }: {
 
           {/* Type selector */}
           <div>
-            <label style={{ fontSize: 13, fontWeight: 600, display: "block", marginBottom: 6 }}>Event type</label>
+            <label style={{ fontSize: 13, fontWeight: 600, display: "block", marginBottom: 6 }}><span className="th-text">ประเภทกิจกรรม</span><span className="en-text">Event type</span></label>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
               {([
-                { value: "task", icon: <CalendarDays size={18} />, label: "Task", sub: "To-do / Reminder", color: "#1D4ED8" },
-                { value: "meeting", icon: <Users size={18} />, label: "Meeting", sub: "With sound alert", color: "#EA580C" },
+                { value: "task",    icon: <CalendarDays size={18} />, th: "งาน",    en: "Task",    sub: "รายการ · To-do",           color: "#1D4ED8" },
+                { value: "meeting", icon: <Users size={18} />,        th: "ประชุม", en: "Meeting", sub: "แจ้งเตือนเสียง · Alert",    color: "#EA580C" },
               ] as const).map((opt) => (
                 <div
                   key={opt.value}
@@ -399,7 +398,7 @@ function AddEventModal({ initialDate, sites, onClose, onAdded }: {
                 >
                   {opt.icon}
                   <div>
-                    <strong style={{ fontSize: 14 }}>{opt.label}</strong>
+                    <strong style={{ fontSize: 14 }}><span className="th-text">{opt.th}</span><span className="en-text">{opt.en}</span></strong>
                     <small style={{ display: "block", color: "var(--text-muted)", fontSize: 11 }}>{opt.sub}</small>
                   </div>
                 </div>
@@ -409,7 +408,7 @@ function AddEventModal({ initialDate, sites, onClose, onAdded }: {
 
           {/* Title */}
           <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-            <span style={{ fontSize: 13, fontWeight: 600 }}>Title *</span>
+            <span style={{ fontSize: 13, fontWeight: 600 }}><span className="th-text">ชื่อกิจกรรม *</span><span className="en-text">Title *</span></span>
             <input
               value={form.title}
               onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
@@ -422,7 +421,7 @@ function AddEventModal({ initialDate, sites, onClose, onAdded }: {
           {/* Date + Time */}
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
             <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-              <span style={{ fontSize: 13, fontWeight: 600 }}>Date</span>
+              <span style={{ fontSize: 13, fontWeight: 600 }}><span className="th-text">วันที่</span><span className="en-text">Date</span></span>
               <input
                 type="date"
                 value={form.event_date}
@@ -431,7 +430,7 @@ function AddEventModal({ initialDate, sites, onClose, onAdded }: {
               />
             </label>
             <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-              <span style={{ fontSize: 13, fontWeight: 600 }}>Time (optional)</span>
+              <span style={{ fontSize: 13, fontWeight: 600 }}><span className="th-text">เวลา (ถ้ามี)</span><span className="en-text">Time (optional)</span></span>
               <input
                 type="time"
                 value={form.event_time}
@@ -444,7 +443,7 @@ function AddEventModal({ initialDate, sites, onClose, onAdded }: {
           {/* Reminder */}
           <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
             <span style={{ fontSize: 13, fontWeight: 600, display: "flex", alignItems: "center", gap: 6 }}>
-              <Bell size={14} /> Push reminder
+              <Bell size={14} /> <span className="th-text">การแจ้งเตือน</span><span className="en-text">Push reminder</span>
             </span>
             <select
               value={form.reminder_minutes}
@@ -465,7 +464,7 @@ function AddEventModal({ initialDate, sites, onClose, onAdded }: {
           {/* Site (optional) */}
           {sites.length > 0 && (
             <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-              <span style={{ fontSize: 13, fontWeight: 600 }}>Related site (optional)</span>
+              <span style={{ fontSize: 13, fontWeight: 600 }}><span className="th-text">ไซต์ที่เกี่ยวข้อง (ถ้ามี)</span><span className="en-text">Related site (optional)</span></span>
               <select
                 value={form.site_id}
                 onChange={(e) => setForm((f) => ({ ...f, site_id: e.target.value }))}
@@ -479,7 +478,7 @@ function AddEventModal({ initialDate, sites, onClose, onAdded }: {
 
           {/* Notes */}
           <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-            <span style={{ fontSize: 13, fontWeight: 600 }}>Notes (optional)</span>
+            <span style={{ fontSize: 13, fontWeight: 600 }}><span className="th-text">หมายเหตุ (ถ้ามี)</span><span className="en-text">Notes (optional)</span></span>
             <textarea
               value={form.notes}
               onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
@@ -492,10 +491,14 @@ function AddEventModal({ initialDate, sites, onClose, onAdded }: {
           {/* Actions */}
           <div style={{ display: "flex", gap: 12 }}>
             <button onClick={onClose} style={{ flex: 1, padding: "11px", border: "1px solid var(--border)", borderRadius: 10, background: "white", cursor: "pointer", fontSize: 14 }}>
-              Cancel
+              <span className="th-text">ยกเลิก</span><span className="en-text">Cancel</span>
             </button>
             <button onClick={handleSave} disabled={saving} className="btn-primary" style={{ flex: 2, justifyContent: "center", background: isMeeting ? "#EA580C" : "var(--brand-primary)" }}>
-              {saving ? "Saving…" : `Add ${isMeeting ? "meeting" : "task"}`}
+              {saving
+                ? <><span className="th-text">กำลังบันทึก…</span><span className="en-text">Saving…</span></>
+                : isMeeting
+                  ? <><span className="th-text">เพิ่มประชุม</span><span className="en-text">Add meeting</span></>
+                  : <><span className="th-text">เพิ่มงาน</span><span className="en-text">Add task</span></>}
             </button>
           </div>
         </div>

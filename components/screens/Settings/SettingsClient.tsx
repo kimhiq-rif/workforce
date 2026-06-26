@@ -920,6 +920,7 @@ function TimeField({ label, value, onChange }: { label: string; value: string; o
 function MobileSettings({ sections, sectionContent, profile, onSignOut }: any) {
   const [open, setOpen] = useState<string | null>(null);
   const langMode = useLangMode();
+  const router = useRouter();
   const title = getBilingualLabel(langMode, "การตั้งค่า", "Settings");
   const signOut = getBilingualLabel(langMode, "ออกจากระบบ", "Sign out");
   const activeSection = open ? sections.find((s: any) => s.key === open) : null;
@@ -932,7 +933,7 @@ function MobileSettings({ sections, sectionContent, profile, onSignOut }: any) {
         <div className="mobile-topbar">
           <button
             onClick={() => setOpen(null)}
-            style={{ background: "rgba(255,255,255,0.15)", border: "none", borderRadius: 8, width: 36, height: 36, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0 }}
+            style={{ background: "rgba(255,255,255,0.15)", border: "none", borderRadius: 8, width: 44, height: 44, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0 }}
             aria-label="Back to settings"
           >
             <ChevronLeft size={20} color="white" />
@@ -941,7 +942,7 @@ function MobileSettings({ sections, sectionContent, profile, onSignOut }: any) {
             <h1 style={{ color: "white" }}>{label.primary}</h1>
             {label.secondary && <p style={{ color: "rgba(255,255,255,0.75)" }}>{label.secondary}</p>}
           </div>
-          <span style={{ width: 36, height: 36, borderRadius: 8, background: "rgba(255,255,255,0.15)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <span style={{ width: 44, height: 44, borderRadius: 8, background: "rgba(255,255,255,0.15)", display: "flex", alignItems: "center", justifyContent: "center" }}>
             <Icon size={18} color="white" />
           </span>
         </div>
@@ -955,6 +956,13 @@ function MobileSettings({ sections, sectionContent, profile, onSignOut }: any) {
   return (
     <div>
       <div className="mobile-topbar">
+        <button
+          onClick={() => router.back()}
+          style={{ background: "rgba(255,255,255,0.15)", border: "none", borderRadius: 8, width: 44, height: 44, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0, marginRight: 10 }}
+          aria-label="Back"
+        >
+          <ChevronLeft size={20} color="white" />
+        </button>
         <div style={{ flex: 1 }}>
           <h1 style={{ color: "white" }}>{title.primary}</h1>
           {title.secondary && <p style={{ color: "rgba(255,255,255,0.75)" }}>{title.secondary}</p>}
