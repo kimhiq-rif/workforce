@@ -19,7 +19,7 @@ export default async function SettingsPage() {
   // Fetch team members (for Users section)
   const { data: teamMembers } = await supabase
     .from("users")
-    .select("id, auth_id, name_th, name_en, role")
+    .select("id, auth_id, name_th, name_en, role, has_set_password")
     .or(`id.eq.${ownerId},owner_id.eq.${ownerId}`)
     .order("role");
 

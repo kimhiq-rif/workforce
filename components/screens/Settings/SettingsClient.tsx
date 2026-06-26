@@ -6,8 +6,86 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { DashboardShell } from "@/components/layout/DashboardShell";
 import { getBilingualLabel, useLangMode } from "@/components/layout/useLangMode";
-import { Clock, Shield, Phone, Users, Languages, ChevronDown, ChevronLeft, ChevronRight, Check, LogOut, Eye, EyeOff, UserCog, Copy, KeyRound, Building2, Image as ImageIcon, Trash2, Upload, Bell } from "lucide-react";
+import { Clock, Shield, Phone, Users, Languages, ChevronDown, ChevronLeft, ChevronRight, Check, LogOut, Eye, EyeOff, UserCog, Copy, KeyRound, Building2, Image as ImageIcon, Trash2, Upload, Bell, MonitorSmartphone } from "lucide-react";
 import { formatCurrency } from "@/lib/format";
+
+function RemoteAccessPanel({ teamMembers }: { teamMembers: any[] }) {
+  const [loadingId, setLoadingId] = useState<string | null>(null);
+  const [accessUrl, setAccessUrl] = useState<string | null>(null);
+  const [accessName, setAccessName] = useState("");
+
+  async function handleRemoteAccess(member: any) {
+    setLoadingId(member.id);
+    setAccessUrl(null);
+    try {
+      const res = await fetch("/api/team/remote-access", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ user_id: member.id }),
+      });
+      const json = await res.json();
+      if (!res.ok) { alert(json.error ?? "Error"); return; }
+      setAccessUrl(json.access_url);
+      setAccessName(`${member.name_th} · ${member.name_en}`);
+    } finally {
+      setLoadingId(null);
+    }
+  }
+
+  const nonOwners = teamMembers.filter((m) => m.role !== "owner");
+
+  return (
+    <div style={{ border: "1px solid #BFDBFE", borderRadius: 12, background: "#F8FAFF", padding: 16 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
+        <span style={{ width: 36, height: 36, borderRadius: 9, background: "#EFF6FF", color: "var(--brand-primary)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+          <MonitorSmartphone size={18} />
+        </span>
+        <div>
+          <h3 style={{ fontSize: 15, fontWeight: 700, margin: 0, color: "var(--brand-primary)" }}>כניסה מרחוק · Remote access</h3>
+          <p style={{ fontSize: 12, color: "var(--text-muted)", margin: 0 }}>כניסה לחשבון משתמש לתמיכה טכנית</p>
+        </div>
+      </div>
+
+      {accessUrl ? (
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          <div style={{ background: "#FFFBEB", border: "1px solid #FDE68A", borderRadius: 10, padding: "12px 14px" }}>
+            <p style={{ fontSize: 13, fontWeight: 600, color: "#92400E", marginBottom: 4 }}>⚡ לינק חד-פעמי ל: {accessName}</p>
+            <p style={{ fontSize: 11, color: "var(--text-muted)" }}>תקף 5 דקות בלבד · Valid for 5 minutes only</p>
+          </div>
+          <a href={accessUrl} target="_blank" rel="noopener noreferrer"
+            style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: "11px", background: "var(--brand-primary)", color: "white", borderRadius: 10, fontSize: 14, fontWeight: 600, textDecoration: "none" }}>
+            <MonitorSmartphone size={16} /> כנס כ-{accessName}
+          </a>
+          <button onClick={() => setAccessUrl(null)} style={{ fontSize: 13, color: "var(--text-muted)", background: "transparent", border: "none", cursor: "pointer", textDecoration: "underline" }}>
+            בחר משתמש אחר
+          </button>
+        </div>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          {nonOwners.map((member) => (
+            <div key={member.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 12px", background: "white", border: "1px solid var(--border)", borderRadius: 10 }}>
+              <div>
+                <strong style={{ fontSize: 14 }}>{member.name_th} · {member.name_en}</strong>
+                <small style={{ display: "block", color: "var(--text-muted)", fontSize: 12 }}>
+                  {member.role === "field_manager" ? "Field Manager" : "Driver Manager"}
+                  {member.has_set_password ? " · ✓ הגדיר סיסמא" : " · ⏳ טרם הגדיר סיסמא"}
+                </small>
+              </div>
+              <button
+                onClick={() => handleRemoteAccess(member)}
+                disabled={loadingId === member.id}
+                style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 14px", background: "#EFF6FF", color: "var(--brand-primary)", border: "1px solid #BFDBFE", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 600 }}
+              >
+                <MonitorSmartphone size={14} />
+                {loadingId === member.id ? "…" : "כניסה מרחוק"}
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 interface SettingsClientProps {
   profile: any;
@@ -507,6 +585,11 @@ export function SettingsClient({ profile, workdaySettings, teamMembers, workers,
                 </div>
               </div>
             </div>
+
+            {/* Remote access panel — owner only */}
+            {profile?.role === "owner" && teamMembers.filter((m) => m.role !== "owner").length > 0 && (
+              <RemoteAccessPanel teamMembers={teamMembers} />
+            )}
 
             {/* Push notification panel — owner only */}
             {profile?.role === "owner" && (

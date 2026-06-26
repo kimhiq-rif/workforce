@@ -9,6 +9,7 @@ type AppProfile = {
   name_th: string;
   name_en: string;
   must_change_password: boolean;
+  has_set_password: boolean;
 };
 
 function fallbackName(user: AuthUser) {
@@ -33,7 +34,7 @@ export async function getAppUserContext() {
 
   const { data: existingProfile, error: profileError } = await serviceClient
     .from("users")
-    .select("id, auth_id, owner_id, role, name_th, name_en, must_change_password")
+    .select("id, auth_id, owner_id, role, name_th, name_en, must_change_password, has_set_password")
     .eq("auth_id", user.id)
     .maybeSingle();
 
@@ -64,7 +65,7 @@ export async function getAppUserContext() {
       language_mode: "th_en",
       session_timeout_hours: 1,
     })
-    .select("id, auth_id, owner_id, role, name_th, name_en, must_change_password")
+    .select("id, auth_id, owner_id, role, name_th, name_en, must_change_password, has_set_password")
     .single();
 
   if (createError) {
