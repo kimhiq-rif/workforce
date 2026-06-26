@@ -17,7 +17,7 @@ interface SettingsClientProps {
   ownerId: string;
 }
 
-const SECTIONS = [
+const SECTIONS: { key: string; icon: React.ElementType; th: string; en: string; ownerOnly?: boolean }[] = [
   { key: "workday",       icon: Clock,     th: "วันทำงาน",          en: "Workday settings" },
   { key: "admin_code",    icon: KeyRound,  th: "รหัสผู้ดูแล",       en: "Admin code" },
   { key: "security",      icon: Shield,    th: "ห้องเครื่อง",       en: "Engine room" },
