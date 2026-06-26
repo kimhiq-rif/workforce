@@ -715,13 +715,13 @@ export function SettingsClient({ profile, workdaySettings, teamMembers, workers,
             กำหนดตำแหน่ง · Assign role
           </h3>
           <p style={{ fontSize: 13, color: "var(--text-muted)", marginBottom: 16 }}>
-            בחר עובד ותפקיד — המערכת תייצר אימייל + סיסמא זמנית לשליחה ב-WhatsApp · Select worker and role — generates login credentials to share.
+            เลือกพนักงานและตำแหน่ง — ระบบจะสร้างอีเมลและรหัสผ่านชั่วคราว · Select worker and role — generates login credentials to share via WhatsApp.
           </p>
 
           {inviteCredentials ? (
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
               <div style={{ background: "#F0FDF4", border: "1px solid #BBF7D0", borderRadius: 12, padding: "16px" }}>
-                <p style={{ fontSize: 14, fontWeight: 700, color: "#15803D", marginBottom: 12 }}>✓ פרטי כניסה מוכנים · Login credentials ready</p>
+                <p style={{ fontSize: 14, fontWeight: 700, color: "#15803D", marginBottom: 12 }}>✓ ข้อมูลเข้าสู่ระบบพร้อมแล้ว · Login credentials ready</p>
                 <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 8, background: "white", border: "1px solid #BBF7D0", borderRadius: 8, padding: "10px 12px" }}>
                     <span style={{ fontSize: 12, color: "var(--text-muted)", minWidth: 70 }}>Email:</span>
@@ -741,7 +741,7 @@ export function SettingsClient({ profile, workdaySettings, teamMembers, workers,
                   </div>
                 </div>
                 <p style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 10 }}>
-                  ⚠️ אחרי כניסה ראשונה יוצג מסך יצירת סיסמא אישית · After first login, user will be prompted to set their own password
+                  ⚠️ หลังจากเข้าสู่ระบบครั้งแรก จะมีหน้าตั้งรหัสผ่านส่วนตัว · After first login, user will be prompted to set their own password
                 </p>
               </div>
               <a
@@ -749,16 +749,16 @@ export function SettingsClient({ profile, workdaySettings, teamMembers, workers,
                 target="_blank" rel="noopener noreferrer"
                 style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: "12px", background: "#25D366", color: "white", borderRadius: 10, fontSize: 14, fontWeight: 600, textDecoration: "none" }}
               >
-                שלח ב-WhatsApp · Send via WhatsApp
+                ส่งผ่าน WhatsApp · Send via WhatsApp
               </a>
               <button
                 onClick={() => { navigator.clipboard.writeText(`Workforce Login:\nEmail: ${inviteCredentials!.email}\nPassword: ${inviteCredentials!.temp_password}`); showToast("Copied · คัดลอกแล้ว"); }}
                 style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: "11px", background: "#EFF6FF", color: "#1D4ED8", border: "1px solid #BFDBFE", borderRadius: 10, cursor: "pointer", fontSize: 14, fontWeight: 600 }}
               >
-                <Copy size={16} /> העתק הכל · Copy all
+                <Copy size={16} /> คัดลอกทั้งหมด · Copy all
               </button>
               <button onClick={() => { setInviteCredentials(null); setInviteWorkerId(""); }} style={{ fontSize: 13, color: "var(--text-muted)", background: "transparent", border: "none", cursor: "pointer", textDecoration: "underline" }}>
-                הזמן עוד · Invite another
+                เชิญคนอื่น · Invite another
               </button>
             </div>
           ) : (
@@ -794,7 +794,7 @@ export function SettingsClient({ profile, workdaySettings, teamMembers, workers,
                 disabled={!inviteWorkerId || inviting}
               >
                 <UserCog size={16} />
-                {inviting ? "กำลังสร้าง… · Creating…" : "צור פרטי כניסה · Generate credentials"}
+                {inviting ? "กำลังสร้าง… · Creating…" : "สร้างข้อมูลเข้าสู่ระบบ · Generate credentials"}
               </button>
             </div>
           )}
