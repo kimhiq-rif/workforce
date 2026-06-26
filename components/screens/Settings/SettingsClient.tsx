@@ -193,15 +193,13 @@ export function SettingsClient({ profile, workdaySettings, teamMembers, workers,
   const [inviteWorkerId, setInviteWorkerId] = useState("");
   const [inviteRole, setInviteRole] = useState<"field_manager" | "technical_admin">("field_manager");
   const [inviting, setInviting] = useState(false);
-  const [inviteLink, setInviteLink] = useState<string | null>(null);
-  const [inviteSentEmail, setInviteSentEmail] = useState<string | null>(null);
+  const [inviteCredentials, setInviteCredentials] = useState<{ email: string; temp_password: string } | null>(null);
   const [workerList, setWorkerList] = useState(workers);
 
   async function handleCreateInvite() {
     if (!inviteWorkerId) return;
     setInviting(true);
-    setInviteLink(null);
-    setInviteSentEmail(null);
+    setInviteCredentials(null);
     try {
       const res = await fetch("/api/team/invite", {
         method: "POST",
@@ -209,12 +207,15 @@ export function SettingsClient({ profile, workdaySettings, teamMembers, workers,
         body: JSON.stringify({ worker_id: inviteWorkerId, role: inviteRole }),
       });
       const json = await res.json();
-      if (!res.ok) { showToast(json.error ?? "Error"); return; }
-      if (json.sent_by_email) {
-        setInviteSentEmail(json.email);
-      } else {
-        setInviteLink(json.invite_url);
+      if (!res.ok) {
+        if (json.error === "no_email") {
+          showToast("⚠️ הוסף אימייל לעובד זה תחילה · Add email to worker first");
+        } else {
+          showToast(json.error ?? "Error");
+        }
+        return;
       }
+      setInviteCredentials({ email: json.email, temp_password: json.temp_password });
       setWorkerList((prev) => prev.map((w) => w.id === inviteWorkerId ? { ...w, auth_user_id: "granted" } : w));
     } finally {
       setInviting(false);
@@ -714,21 +715,53 @@ export function SettingsClient({ profile, workdaySettings, teamMembers, workers,
             กำหนดตำแหน่ง · Assign role
           </h3>
           <p style={{ fontSize: 13, color: "var(--text-muted)", marginBottom: 16 }}>
-            Select a worker and role — generates a one-time invite link to share via LINE or WhatsApp.
+            בחר עובד ותפקיד — המערכת תייצר אימייל + סיסמא זמנית לשליחה ב-WhatsApp · Select worker and role — generates login credentials to share.
           </p>
 
-          {inviteSentEmail ? (
+          {inviteCredentials ? (
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-              <div style={{ background: "#F0FDF4", border: "1px solid #BBF7D0", borderRadius: 10, padding: "14px 16px" }}>
-                <p style={{ fontSize: 15, fontWeight: 700, color: "#15803D", marginBottom: 4 }}>✉️ อีเมลถูกส่งแล้ว · Email sent</p>
-                <p style={{ fontSize: 13, color: "#166534" }}>{inviteSentEmail}</p>
-                <p style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 6 }}>พนักงานจะได้รับลิงก์เข้าสู่ระบบในอีเมล · Worker will receive login link in their inbox</p>
+              <div style={{ background: "#F0FDF4", border: "1px solid #BBF7D0", borderRadius: 12, padding: "16px" }}>
+                <p style={{ fontSize: 14, fontWeight: 700, color: "#15803D", marginBottom: 12 }}>✓ פרטי כניסה מוכנים · Login credentials ready</p>
+                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, background: "white", border: "1px solid #BBF7D0", borderRadius: 8, padding: "10px 12px" }}>
+                    <span style={{ fontSize: 12, color: "var(--text-muted)", minWidth: 70 }}>Email:</span>
+                    <span style={{ flex: 1, fontSize: 14, fontWeight: 600 }}>{inviteCredentials.email}</span>
+                    <button onClick={() => { navigator.clipboard.writeText(inviteCredentials!.email); showToast("Copied"); }}
+                      style={{ background: "none", border: "none", cursor: "pointer", color: "var(--brand-primary)", padding: 2 }}>
+                      <Copy size={14} />
+                    </button>
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, background: "white", border: "1px solid #BBF7D0", borderRadius: 8, padding: "10px 12px" }}>
+                    <span style={{ fontSize: 12, color: "var(--text-muted)", minWidth: 70 }}>Password:</span>
+                    <span style={{ flex: 1, fontSize: 16, fontWeight: 700, letterSpacing: 1, fontFamily: "monospace" }}>{inviteCredentials.temp_password}</span>
+                    <button onClick={() => { navigator.clipboard.writeText(inviteCredentials!.temp_password); showToast("Copied"); }}
+                      style={{ background: "none", border: "none", cursor: "pointer", color: "var(--brand-primary)", padding: 2 }}>
+                      <Copy size={14} />
+                    </button>
+                  </div>
+                </div>
+                <p style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 10 }}>
+                  ⚠️ אחרי כניסה ראשונה יוצג מסך יצירת סיסמא אישית · After first login, user will be prompted to set their own password
+                </p>
               </div>
-              <button onClick={() => { setInviteSentEmail(null); setInviteWorkerId(""); }} style={{ fontSize: 13, color: "var(--text-muted)", background: "transparent", border: "none", cursor: "pointer", textDecoration: "underline" }}>
-                เชิญคนอื่น · Invite another
+              <a
+                href={`https://wa.me/?text=${encodeURIComponent(`Workforce Login:\nEmail: ${inviteCredentials.email}\nPassword: ${inviteCredentials.temp_password}\n\nPlease install the app first: Add to Home Screen in Safari`)}`}
+                target="_blank" rel="noopener noreferrer"
+                style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: "12px", background: "#25D366", color: "white", borderRadius: 10, fontSize: 14, fontWeight: 600, textDecoration: "none" }}
+              >
+                שלח ב-WhatsApp · Send via WhatsApp
+              </a>
+              <button
+                onClick={() => { navigator.clipboard.writeText(`Workforce Login:\nEmail: ${inviteCredentials!.email}\nPassword: ${inviteCredentials!.temp_password}`); showToast("Copied · คัดลอกแล้ว"); }}
+                style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: "11px", background: "#EFF6FF", color: "#1D4ED8", border: "1px solid #BFDBFE", borderRadius: 10, cursor: "pointer", fontSize: 14, fontWeight: 600 }}
+              >
+                <Copy size={16} /> העתק הכל · Copy all
+              </button>
+              <button onClick={() => { setInviteCredentials(null); setInviteWorkerId(""); }} style={{ fontSize: 13, color: "var(--text-muted)", background: "transparent", border: "none", cursor: "pointer", textDecoration: "underline" }}>
+                הזמן עוד · Invite another
               </button>
             </div>
-          ) : !inviteLink ? (
+          ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
               <select
                 value={inviteWorkerId}
@@ -761,31 +794,7 @@ export function SettingsClient({ profile, workdaySettings, teamMembers, workers,
                 disabled={!inviteWorkerId || inviting}
               >
                 <UserCog size={16} />
-                {inviting ? "กำลังสร้าง… · Creating…" : "สร้างลิงก์เชิญ · Create invite link"}
-              </button>
-            </div>
-          ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-              <div style={{ background: "#F0FDF4", border: "1px solid #BBF7D0", borderRadius: 10, padding: "12px 14px" }}>
-                <p style={{ fontSize: 13, fontWeight: 600, color: "#15803D", marginBottom: 4 }}>✓ Invite link ready · ลิงก์พร้อมแล้ว</p>
-                <p style={{ fontSize: 11, color: "var(--text-muted)", wordBreak: "break-all" }}>{inviteLink.slice(0, 70)}…</p>
-              </div>
-              <button
-                onClick={() => { navigator.clipboard.writeText(inviteLink); showToast("Copied · คัดลอกแล้ว"); }}
-                style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: "11px", background: "#EFF6FF", color: "#1D4ED8", border: "1px solid #BFDBFE", borderRadius: 10, cursor: "pointer", fontSize: 14, fontWeight: 600 }}
-              >
-                <Copy size={16} /> Copy link · คัดลอก
-              </button>
-              <a href={`https://line.me/R/share?text=${encodeURIComponent("Workforce invite: " + inviteLink)}`} target="_blank" rel="noopener noreferrer"
-                style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: "11px", background: "#06C755", color: "white", borderRadius: 10, fontSize: 14, fontWeight: 600, textDecoration: "none" }}>
-                Share via LINE
-              </a>
-              <a href={`https://wa.me/?text=${encodeURIComponent("Workforce invite: " + inviteLink)}`} target="_blank" rel="noopener noreferrer"
-                style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: "11px", background: "#25D366", color: "white", borderRadius: 10, fontSize: 14, fontWeight: 600, textDecoration: "none" }}>
-                Share via WhatsApp
-              </a>
-              <button onClick={() => { setInviteLink(null); setInviteWorkerId(""); }} style={{ fontSize: 13, color: "var(--text-muted)", background: "transparent", border: "none", cursor: "pointer", textDecoration: "underline" }}>
-                New invite · ลิงก์ใหม่
+                {inviting ? "กำลังสร้าง… · Creating…" : "צור פרטי כניסה · Generate credentials"}
               </button>
             </div>
           )}
