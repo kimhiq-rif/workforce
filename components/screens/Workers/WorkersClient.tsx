@@ -624,7 +624,7 @@ function AddWorkerModal({
   const [form, setForm] = useState({
     name_th: "", name_en: "",
     phone: "", daily_wage: "500", assigned_site_id: "", is_temporary: false,
-    email: "", visa_expiry_date: "",
+    email: "", visa_expiry_date: "", age: "",
   });
   const [photoFile, setPhotoFile]       = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
@@ -662,6 +662,7 @@ function AddWorkerModal({
         assigned_site_id: form.assigned_site_id || null, is_temporary: form.is_temporary,
         email: form.email.trim() || null,
         visa_expiry_date: form.visa_expiry_date || null,
+        age: form.age ? Number(form.age) : null,
         photo_url: photoUrl,
       }),
     });
@@ -717,20 +718,20 @@ function AddWorkerModal({
             </label>
           </div>
 
-          {/* Name — Thai */}
-          <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-            <span style={{ fontSize: 13, fontWeight: 600 }}>ชื่อ · Name <span style={{ color: "#EF4444" }}>*</span> <small style={{ fontWeight: 400, color: "var(--text-muted)" }}>(ภาษาไทย · Thai)</small></span>
-            <input value={form.name_th} onChange={(e) => setForm((f) => ({ ...f, name_th: e.target.value }))} placeholder="สมชาย" style={{ padding: "9px 12px", border: "1px solid var(--border)", borderRadius: 8, fontSize: 15 }} />
-          </label>
-
-          {/* Name — English */}
-          <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-            <span style={{ fontSize: 13, fontWeight: 600 }}>ชื่อ · Name <span style={{ color: "#EF4444" }}>*</span> <small style={{ fontWeight: 400, color: "var(--text-muted)" }}>(English)</small></span>
-            <input value={form.name_en} onChange={(e) => setForm((f) => ({ ...f, name_en: e.target.value }))} placeholder="Somchai" style={{ padding: "9px 12px", border: "1px solid var(--border)", borderRadius: 8, fontSize: 15 }} />
-          </label>
-
-          {/* Phone + Wage */}
+          {/* Name + Last name — side by side */}
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+            <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+              <span style={{ fontSize: 13, fontWeight: 600 }}>ชื่อ · Name <span style={{ color: "#EF4444" }}>*</span></span>
+              <input value={form.name_th} onChange={(e) => setForm((f) => ({ ...f, name_th: e.target.value }))} placeholder="สมชาย" style={{ padding: "9px 12px", border: "1px solid var(--border)", borderRadius: 8, fontSize: 15 }} />
+            </label>
+            <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+              <span style={{ fontSize: 13, fontWeight: 600 }}>นามสกุล · Last name <span style={{ color: "#EF4444" }}>*</span></span>
+              <input value={form.name_en} onChange={(e) => setForm((f) => ({ ...f, name_en: e.target.value }))} placeholder="ใจดี" style={{ padding: "9px 12px", border: "1px solid var(--border)", borderRadius: 8, fontSize: 15 }} />
+            </label>
+          </div>
+
+          {/* Phone + Wage + Age */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 80px", gap: 10 }}>
             <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
               <span style={{ fontSize: 13, fontWeight: 600 }}>เบอร์โทร · Phone</span>
               <input value={form.phone} onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))} placeholder="0812345678" type="tel" style={{ padding: "9px 12px", border: "1px solid var(--border)", borderRadius: 8, fontSize: 14 }} />
@@ -738,6 +739,10 @@ function AddWorkerModal({
             <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
               <span style={{ fontSize: 13, fontWeight: 600 }}>ค่าแรง/วัน · Wage ฿</span>
               <input value={form.daily_wage} onChange={(e) => setForm((f) => ({ ...f, daily_wage: e.target.value }))} type="number" min="0" step="50" style={{ padding: "9px 12px", border: "1px solid var(--border)", borderRadius: 8, fontSize: 14 }} />
+            </label>
+            <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+              <span style={{ fontSize: 13, fontWeight: 600 }}>อายุ · Age</span>
+              <input value={form.age} onChange={(e) => setForm((f) => ({ ...f, age: e.target.value }))} type="number" min="15" max="80" placeholder="30" style={{ padding: "9px 12px", border: "1px solid var(--border)", borderRadius: 8, fontSize: 14 }} />
             </label>
           </div>
 
