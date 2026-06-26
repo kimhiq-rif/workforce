@@ -25,7 +25,6 @@ const SECTIONS = [
   { key: "users",         icon: Users,     th: "ผู้ใช้งาน",         en: "Users & team" },
   { key: "language",      icon: Languages, th: "ภาษา",              en: "Language mode" },
   { key: "password",      icon: KeyRound,  th: "เปลี่ยนรหัสผ่าน",  en: "Change password" },
-  { key: "notifications", icon: Bell,      th: "ส่งการแจ้งเตือน",   en: "Send notification", ownerOnly: true },
 ];
 
 export function SettingsClient({ profile, workdaySettings, teamMembers, workers, ownerId }: SettingsClientProps) {
@@ -509,13 +508,68 @@ export function SettingsClient({ profile, workdaySettings, teamMembers, workers,
               </div>
             </div>
 
+            {/* Push notification panel — owner only */}
+            {profile?.role === "owner" && (
+              <div style={{ border: "1px solid #BFDBFE", borderRadius: 12, background: "#F8FAFF", padding: 16 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
+                  <span style={{ width: 36, height: 36, borderRadius: 9, background: "#EFF6FF", color: "var(--brand-primary)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                    <Bell size={18} />
+                  </span>
+                  <div>
+                    <h3 style={{ fontSize: 15, fontWeight: 700, margin: 0, color: "var(--brand-primary)" }}>ส่งการแจ้งเตือน · Send notification</h3>
+                    <p style={{ fontSize: 12, color: "var(--text-muted)", margin: 0 }}>Push to app users</p>
+                  </div>
+                </div>
+
+                <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                  <input
+                    value={pushTitle}
+                    onChange={(e) => setPushTitle(e.target.value)}
+                    placeholder="หัวข้อ · Title"
+                    style={{ padding: "10px 12px", border: "1px solid var(--border)", borderRadius: 8, fontSize: 14, background: "white" }}
+                  />
+                  <textarea
+                    value={pushBody}
+                    onChange={(e) => setPushBody(e.target.value)}
+                    placeholder="เนื้อหา · Body (optional)"
+                    rows={2}
+                    style={{ padding: "10px 12px", border: "1px solid var(--border)", borderRadius: 8, fontSize: 13, resize: "vertical", background: "white" }}
+                  />
+                  <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                    <span style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)" }}>ผู้รับ · Recipients</span>
+                    <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                      {([
+                        { value: "owners",          th: "เจ้าของ",          en: "Owner" },
+                        { value: "owners_managers", th: "เจ้าของ + จัดการ", en: "Owners + FMs" },
+                        { value: "everyone",        th: "ทุกคน",            en: "Everyone" },
+                      ] as const).map((opt) => (
+                        <label key={opt.value} style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 12px", border: `2px solid ${pushRecipient === opt.value ? "var(--brand-primary)" : "var(--border)"}`, borderRadius: 20, cursor: "pointer", background: pushRecipient === opt.value ? "#EFF6FF" : "white", fontSize: 13, fontWeight: pushRecipient === opt.value ? 700 : 400 }}>
+                          <input type="radio" name="push-recipient-er" value={opt.value} checked={pushRecipient === opt.value} onChange={() => setPushRecipient(opt.value)} style={{ display: "none" }} />
+                          <span className="th-text">{opt.th}</span>
+                          <span className="en-text">{opt.en}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                  <button
+                    onClick={handleSendNotification}
+                    disabled={pushSending || !pushTitle.trim()}
+                    className="btn-primary"
+                    style={{ alignSelf: "flex-start", minHeight: 40 }}
+                  >
+                    <Bell size={16} />
+                    {pushSending ? "กำลังส่ง… · Sending…" : "ส่ง · Send"}
+                  </button>
+                </div>
+              </div>
+            )}
+
             {[
               { icon: "🖥️", th: "System status", en: "System health & uptime" },
               { icon: "👥", th: "Users & sessions", en: "Active sessions, force logout" },
               { icon: "🔄", th: "Sync queue", en: "Pending syncs, retry failed" },
               { icon: "📤", th: "Failed uploads", en: "Photos, receipts, QR" },
               { icon: "📍", th: "GPS issues", en: "Missing GPS, manual correction" },
-              { icon: "🔔", th: "Push notifications", en: "Test push, subscription status" },
               { icon: "🧾", th: "Receipts / QR queue", en: "Stuck payments, pending QR" },
               { icon: "🛠️", th: "Attendance repair", en: "Fix attendance records" },
               { icon: "🏗️", th: "Project tools", en: "Stage reports, project close assist" },
@@ -796,64 +850,6 @@ export function SettingsClient({ profile, workdaySettings, teamMembers, workers,
       </div>
     ),
 
-    notifications: profile?.role === "owner" ? (
-      <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-        <h2 style={{ fontSize: 22, fontWeight: 700 }}>
-          <span className="th-text">ส่งการแจ้งเตือน</span>
-          <span className="en-text" style={{ fontSize: 14, fontWeight: 400, color: "var(--text-muted)" }}>Send Notification</span>
-        </h2>
-
-        <div style={{ display: "flex", flexDirection: "column", gap: 14, maxWidth: 480 }}>
-          <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-            <span style={{ fontSize: 13, fontWeight: 600 }}>หัวข้อ <small style={{ fontWeight: 400, color: "var(--text-muted)" }}>Title</small></span>
-            <input
-              value={pushTitle}
-              onChange={(e) => setPushTitle(e.target.value)}
-              placeholder="ชื่อการแจ้งเตือน · Notification title"
-              style={{ padding: "10px 12px", border: "1px solid var(--border)", borderRadius: 8, fontSize: 15 }}
-            />
-          </label>
-
-          <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-            <span style={{ fontSize: 13, fontWeight: 600 }}>เนื้อหา <small style={{ fontWeight: 400, color: "var(--text-muted)" }}>Body</small></span>
-            <textarea
-              value={pushBody}
-              onChange={(e) => setPushBody(e.target.value)}
-              placeholder="รายละเอียดการแจ้งเตือน · Notification body"
-              rows={3}
-              style={{ padding: "10px 12px", border: "1px solid var(--border)", borderRadius: 8, fontSize: 14, resize: "vertical" }}
-            />
-          </label>
-
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            <span style={{ fontSize: 13, fontWeight: 600 }}>ผู้รับ <small style={{ fontWeight: 400, color: "var(--text-muted)" }}>Recipients</small></span>
-            {([
-              { value: "owners",          th: "เจ้าของเท่านั้น",     en: "Owners only" },
-              { value: "owners_managers", th: "เจ้าของ + ผู้จัดการ", en: "Owners + Field Managers" },
-              { value: "everyone",        th: "ทุกคน",               en: "Everyone" },
-            ] as const).map((opt) => (
-              <label key={opt.value} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", border: `2px solid ${pushRecipient === opt.value ? "var(--brand-primary)" : "var(--border)"}`, borderRadius: 10, cursor: "pointer", background: pushRecipient === opt.value ? "#EFF6FF" : "white" }}>
-                <input type="radio" name="push-recipient" value={opt.value} checked={pushRecipient === opt.value} onChange={() => setPushRecipient(opt.value)} style={{ accentColor: "var(--brand-primary)" }} />
-                <span>
-                  <span className="th-text" style={{ display: "block", fontSize: 14, fontWeight: 600 }}>{opt.th}</span>
-                  <span className="en-text" style={{ display: "block", fontSize: 12, color: "var(--text-muted)" }}>{opt.en}</span>
-                </span>
-              </label>
-            ))}
-          </div>
-
-          <button
-            onClick={handleSendNotification}
-            disabled={pushSending || !pushTitle.trim()}
-            className="btn-primary"
-            style={{ alignSelf: "flex-start" }}
-          >
-            <Bell size={18} />
-            {pushSending ? "กำลังส่ง… · Sending…" : "ส่งการแจ้งเตือน · Send"}
-          </button>
-        </div>
-      </div>
-    ) : null,
   };
 
   return (
