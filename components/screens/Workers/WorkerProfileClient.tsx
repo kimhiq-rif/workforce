@@ -589,7 +589,8 @@ function DeleteWorkerModal({ workerName, workerNameEn, onCancel, onExportAndDele
             onClick={onCancel}
             style={{ padding: "10px", borderRadius: 11, border: "1px solid #E5E7EB", background: "white", color: "#6B7280", fontSize: 14, cursor: busy ? "not-allowed" : "pointer" }}
           >
-            ยกเลิก · Cancel
+            <span className="th-text">ยกเลิก</span>
+            <span className="en-text">Cancel</span>
           </button>
         </div>
       </div>
@@ -953,11 +954,14 @@ function EditWorkerModal({ worker, onClose, onSaved }: {
 
         <div style={{ display: "flex", gap: 12, marginTop: 22 }}>
           <button onClick={onClose} style={{ flex: 1, padding: "11px", border: "1px solid var(--border)", borderRadius: 10, background: "white", cursor: "pointer", fontSize: 14 }}>
-            ยกเลิก · Cancel
+            <span className="th-text">ยกเลิก</span>
+            <span className="en-text">Cancel</span>
           </button>
           <button onClick={handleSave} disabled={saving} className="btn-primary" style={{ flex: 2, justifyContent: "center" }}>
             <Check size={16} />
-            {saving ? "Saving…" : "บันทึก · Save"}
+            {saving
+              ? <><span className="th-text">กำลังบันทึก…</span><span className="en-text">Saving…</span></>
+              : <><span className="th-text">บันทึก</span><span className="en-text">Save</span></>}
           </button>
         </div>
       </div>
@@ -1036,10 +1040,13 @@ function AddAdvanceModal({ worker, ownerId, onClose, onAdded }: {
 
         <div style={{ display: "flex", gap: 12, marginTop: 22 }}>
           <button onClick={onClose} style={{ flex: 1, padding: "11px", border: "1px solid var(--border)", borderRadius: 10, background: "white", cursor: "pointer", fontSize: 14 }}>
-            ยกเลิก · Cancel
+            <span className="th-text">ยกเลิก</span>
+            <span className="en-text">Cancel</span>
           </button>
           <button onClick={handleSave} disabled={saving} className="btn-primary" style={{ flex: 2, justifyContent: "center", background: "#F59E0B" }}>
-            {saving ? "กำลังบันทึก…" : "บันทึก · Save"}
+            {saving
+              ? <><span className="th-text">กำลังบันทึก…</span><span className="en-text">Saving…</span></>
+              : <><span className="th-text">บันทึก</span><span className="en-text">Save</span></>}
           </button>
         </div>
       </div>

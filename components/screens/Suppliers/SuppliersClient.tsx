@@ -1081,8 +1081,14 @@ function DriverManagerMobile({ receipts, onAddReceipt, myBalance, today }: {
       <style>{BRAND_KEYFRAMES}</style>
       <div className="mobile-topbar">
         <div style={{ flex: 1 }}>
-          <h1 style={{ color: "white" }}>ใบเสร็จ</h1>
-          <p style={{ color: "rgba(255,255,255,0.75)" }}>Receipts · Driver Manager</p>
+          <h1 style={{ color: "white" }}>
+            <span className="th-text">ใบเสร็จ</span>
+            <span className="en-text">Receipts</span>
+          </h1>
+          <p style={{ color: "rgba(255,255,255,0.75)" }}>
+            <span className="th-text">Driver Manager</span>
+            <span className="en-text">Driver Manager</span>
+          </p>
         </div>
       </div>
 
@@ -1096,14 +1102,17 @@ function DriverManagerMobile({ receipts, onAddReceipt, myBalance, today }: {
           }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
               <Wallet size={18} />
-              <span style={{ fontSize: 13, opacity: 0.85 }}>มีเงินในมือ · Cash on hand</span>
+              <span style={{ fontSize: 13, opacity: 0.85 }}>
+                <span className="th-text">มีเงินในมือ</span>
+                <span className="en-text">Cash on hand</span>
+              </span>
             </div>
             <div style={{ fontSize: 34, fontWeight: 800, lineHeight: 1 }}>
               ฿{formatCurrency(myBalance.balance)}
             </div>
             <div style={{ display: "flex", gap: 20, marginTop: 10, paddingTop: 10, borderTop: "1px solid rgba(255,255,255,0.2)", fontSize: 12, opacity: 0.85 }}>
-              <span>ได้รับ ฿{formatCurrency(myBalance.totalGiven)}</span>
-              <span>ใช้แล้ว ฿{formatCurrency(myBalance.totalSpent)}</span>
+              <span><span className="th-text">ได้รับ</span><span className="en-text">Received</span> ฿{formatCurrency(myBalance.totalGiven)}</span>
+              <span><span className="th-text">ใช้แล้ว</span><span className="en-text">Spent</span> ฿{formatCurrency(myBalance.totalSpent)}</span>
             </div>
           </div>
         )}
@@ -1130,20 +1139,25 @@ function DriverManagerMobile({ receipts, onAddReceipt, myBalance, today }: {
           >
             <Camera size={30} />
             <div style={{ textAlign: "left" }}>
-              <div style={{ fontSize: 18, fontWeight: 800 }}>ถ่ายรูปใบเสร็จ</div>
-              <div style={{ fontSize: 12, opacity: 0.8 }}>Capture Receipt · OCR auto-fill</div>
+              <div style={{ fontSize: 18, fontWeight: 800 }}>
+                <span className="th-text">ถ่ายรูปใบเสร็จ</span>
+                <span className="en-text">Capture Receipt</span>
+              </div>
+              <div style={{ fontSize: 12, opacity: 0.8 }}>OCR auto-fill</div>
             </div>
           </button>
         </div>
 
         <h3 style={{ fontSize: 14, fontWeight: 600, color: "var(--text-muted)", marginBottom: 10 }}>
-          ใบเสร็จวันนี้ · Today's submissions
+          <span className="th-text">ใบเสร็จวันนี้</span>
+          <span className="en-text">Today's submissions</span>
         </h3>
 
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
           {todayReceipts.length === 0 ? (
             <div style={{ textAlign: "center", padding: "32px", color: "var(--text-muted)", fontSize: 14 }}>
-              ยังไม่มีใบเสร็จวันนี้ · No submissions today
+              <span className="th-text">ยังไม่มีใบเสร็จวันนี้</span>
+              <span className="en-text">No submissions today</span>
             </div>
           ) : (
             todayReceipts.map((r) => (

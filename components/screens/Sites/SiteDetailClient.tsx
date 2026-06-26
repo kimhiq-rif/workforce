@@ -876,7 +876,8 @@ export function SiteDetailClient({
               className="btn-primary"
               style={{ background: "rgba(255,255,255,0.15)", flex: 1 }}
             >
-              ยกเลิก · Cancel
+              <span className="th-text">ยกเลิก</span>
+              <span className="en-text">Cancel</span>
             </button>
             <button
               onClick={capturePhoto}
@@ -885,7 +886,9 @@ export function SiteDetailClient({
               style={{ flex: 2, justifyContent: "center" }}
             >
               <Camera size={20} />
-              {capturing ? "กำลังบันทึก…" : "ถ่ายภาพ · Capture"}
+              {capturing
+                ? <><span className="th-text">กำลังบันทึก…</span><span className="en-text">Saving…</span></>
+                : <><span className="th-text">ถ่ายภาพ</span><span className="en-text">Capture</span></>}
             </button>
           </div>
 
@@ -953,7 +956,10 @@ export function SiteDetailClient({
           }}
         >
           <div style={{ color: "white", padding: "20px 16px", textAlign: "center", width: "100%" }}>
-            <div style={{ fontSize: 18, fontWeight: 700 }}>เปลี่ยนรูปไซต์ · Update Site Photo</div>
+            <div style={{ fontSize: 18, fontWeight: 700 }}>
+              <span className="th-text">เปลี่ยนรูปไซต์</span>
+              <span className="en-text">Update Site Photo</span>
+            </div>
             <div style={{ fontSize: 13, opacity: 0.7, marginTop: 4 }}>{site.name_th}</div>
           </div>
           <video
@@ -972,7 +978,8 @@ export function SiteDetailClient({
               className="btn-primary"
               style={{ background: "rgba(255,255,255,0.15)", flex: 1, justifyContent: "center" }}
             >
-              ยกเลิก · Cancel
+              <span className="th-text">ยกเลิก</span>
+              <span className="en-text">Cancel</span>
             </button>
             <button
               onClick={captureSitePhoto}
@@ -981,7 +988,9 @@ export function SiteDetailClient({
               style={{ flex: 2, justifyContent: "center" }}
             >
               <Camera size={20} />
-              {sitePhotoCapturing ? "กำลังบันทึก…" : "ถ่ายภาพ · Capture"}
+              {sitePhotoCapturing
+                ? <><span className="th-text">กำลังบันทึก…</span><span className="en-text">Saving…</span></>
+                : <><span className="th-text">ถ่ายภาพ</span><span className="en-text">Capture</span></>}
             </button>
           </div>
         </div>
@@ -1137,7 +1146,8 @@ export function SiteDetailClient({
                 onClick={() => setMoveStageModal(false)}
                 style={{ flex: 1, padding: "12px 0", borderRadius: 10, border: "1px solid #D1D5DB", background: "white", fontSize: 15, cursor: "pointer" }}
               >
-                ยกเลิก · Cancel
+                <span className="th-text">ยกเลิก</span>
+              <span className="en-text">Cancel</span>
               </button>
               <button
                 onClick={handleMoveStage}
@@ -1233,7 +1243,8 @@ export function SiteDetailClient({
                 className="btn-primary"
                 style={{ flex: 1, justifyContent: "center", background: "transparent", border: "1px solid var(--border)", color: "var(--text-primary)" }}
               >
-                ยกเลิก · Cancel
+                <span className="th-text">ยกเลิก</span>
+              <span className="en-text">Cancel</span>
               </button>
               {rainStatus !== "blocked" && (
                 <button
@@ -1242,7 +1253,8 @@ export function SiteDetailClient({
                   style={{ flex: 2, justifyContent: "center", background: "#3B82F6" }}
                 >
                   <Check size={18} />
-                  ยืนยัน · Confirm
+                  <span className="th-text">ยืนยัน</span>
+                  <span className="en-text">Confirm</span>
                 </button>
               )}
             </div>
@@ -1273,8 +1285,13 @@ function TransferWorkerModal({
       <div style={{ background: "white", borderRadius: 16, padding: "24px", width: "100%", maxWidth: 400, maxHeight: "80dvh", overflow: "hidden", display: "flex", flexDirection: "column" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
           <div>
-            <h2 style={{ fontSize: 19, fontWeight: 700 }}>ย้ายพนักงาน · Transfer</h2>
-            <small style={{ color: "var(--text-muted)", fontSize: 13 }}>{worker.name_th} → เลือกไซต์ · Select site</small>
+            <h2 style={{ fontSize: 19, fontWeight: 700 }}>
+              <span className="th-text">ย้ายพนักงาน</span>
+              <span className="en-text">Transfer worker</span>
+            </h2>
+            <small style={{ color: "var(--text-muted)", fontSize: 13 }}>
+              {worker.name_th} → <span className="th-text">เลือกไซต์</span><span className="en-text">Select site</span>
+            </small>
           </div>
           <button onClick={onClose} style={{ background: "transparent", border: "none", cursor: "pointer", padding: 4 }}>
             <XIcon size={22} color="var(--text-muted)" />
@@ -1283,7 +1300,10 @@ function TransferWorkerModal({
 
         <div style={{ overflowY: "auto", flex: 1, marginTop: 12 }}>
           {targetSites.length === 0 ? (
-            <p style={{ color: "var(--text-muted)", textAlign: "center", padding: "20px 0", fontSize: 14 }}>ไม่มีไซต์อื่น · No other active sites</p>
+            <p style={{ color: "var(--text-muted)", textAlign: "center", padding: "20px 0", fontSize: 14 }}>
+              <span className="th-text">ไม่มีไซต์อื่น</span>
+              <span className="en-text">No other active sites</span>
+            </p>
           ) : (
             targetSites.map((s) => (
               <button
@@ -1899,7 +1919,8 @@ function AttendanceReportFlow({
             className="btn-primary"
             style={{ background: "rgba(255,255,255,0.15)", flex: 1, justifyContent: "center" }}
           >
-            ยกเลิก · Cancel
+            <span className="th-text">ยกเลิก</span>
+            <span className="en-text">Cancel</span>
           </button>
           <button
             onClick={capturePhoto}
@@ -1908,7 +1929,9 @@ function AttendanceReportFlow({
             style={{ flex: 2, justifyContent: "center" }}
           >
             <Camera size={20} />
-            {capturing ? "กำลังบันทึก…" : "ถ่ายภาพ · Capture"}
+            {capturing
+              ? <><span className="th-text">กำลังบันทึก…</span><span className="en-text">Saving…</span></>
+              : <><span className="th-text">ถ่ายภาพ</span><span className="en-text">Capture</span></>}
           </button>
         </div>
       </div>

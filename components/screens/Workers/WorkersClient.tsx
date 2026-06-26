@@ -725,7 +725,8 @@ function AddWorkerModal({
               שלח בוואצאפ · Send via WhatsApp
             </button>
             <button onClick={() => onAdded(savedWorker)} className="btn-primary" style={{ justifyContent: "center" }}>
-              เสร็จสิ้น · Done
+              <span className="th-text">เสร็จสิ้น</span>
+              <span className="en-text">Done</span>
             </button>
           </div>
         </div>
@@ -858,10 +859,13 @@ function AddWorkerModal({
 
         <div style={{ display: "flex", gap: 12, marginTop: 24 }}>
           <button onClick={onClose} style={{ flex: 1, padding: "11px", border: "1px solid var(--border)", borderRadius: 10, background: "white", cursor: "pointer", fontSize: 14 }}>
-            ยกเลิก · Cancel
+            <span className="th-text">ยกเลิก</span>
+            <span className="en-text">Cancel</span>
           </button>
           <button onClick={handleSave} disabled={saving} className="btn-primary" style={{ flex: 2, justifyContent: "center" }}>
-            {saving ? "กำลังบันทึก…" : "บันทึก · Save"}
+            {saving
+              ? <><span className="th-text">กำลังบันทึก…</span><span className="en-text">Saving…</span></>
+              : <><span className="th-text">บันทึก</span><span className="en-text">Save</span></>}
           </button>
         </div>
       </div>
