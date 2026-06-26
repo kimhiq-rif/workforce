@@ -257,9 +257,9 @@ function MobileFinance({ todayWageTotal, pendingReceiptTotal, pendingAdvanceTota
 
       <div style={{ padding: "12px 16px", display: "flex", flexDirection: "column", gap: 12 }}>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>
-          <div className="mini-stat"><strong>฿{formatCurrency(todayWageTotal)}</strong><span>ค่าแรง</span><small>Wages</small></div>
-          <div className="mini-stat"><strong style={{ color: "#F97316" }}>฿{formatCurrency(pendingReceiptTotal)}</strong><span>ใบเสร็จ</span><small>Receipts</small></div>
-          <div className="mini-stat"><strong style={{ color: "#F59E0B" }}>฿{formatCurrency(pendingAdvanceTotal)}</strong><span>เบิกค้าง</span><small>Advances</small></div>
+          <div className="mini-stat"><strong>฿{formatCurrency(todayWageTotal)}</strong><span className="th-text">ค่าแรง</span><span className="en-text">Wages</span></div>
+          <div className="mini-stat"><strong style={{ color: "#F97316" }}>฿{formatCurrency(pendingReceiptTotal)}</strong><span className="th-text">ใบเสร็จ</span><span className="en-text">Receipts</span></div>
+          <div className="mini-stat"><strong style={{ color: "#F59E0B" }}>฿{formatCurrency(pendingAdvanceTotal)}</strong><span className="th-text">เบิกค้าง</span><span className="en-text">Advances</span></div>
         </div>
 
         {pendingReceipts.length > 0 && (

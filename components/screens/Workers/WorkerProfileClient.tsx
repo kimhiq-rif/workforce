@@ -377,11 +377,11 @@ export function WorkerProfileClient({ worker: initialWorker, attendanceHistory, 
 
             <div className="table-card">
               <div className="table-header" style={{ gridTemplateColumns: "1.4fr 1.2fr 110px 110px 100px" }}>
-                <span>วันที่ <small>Date</small></span>
-                <span>ไซต์ <small>Site</small></span>
-                <span>เวลาเข้า <small>Arrival</small></span>
-                <span>สถานะ <small>Status</small></span>
-                <span>ค่าแรง <small>Wage</small></span>
+                <span><span className="th-text">วันที่</span><span className="en-text">Date</span></span>
+                <span><span className="th-text">ไซต์</span><span className="en-text">Site</span></span>
+                <span><span className="th-text">เวลาเข้า</span><span className="en-text">Arrival</span></span>
+                <span><span className="th-text">สถานะ</span><span className="en-text">Status</span></span>
+                <span><span className="th-text">ค่าแรง</span><span className="en-text">Wage</span></span>
               </div>
 
               {attendanceHistory.length === 0 ? (
@@ -694,25 +694,25 @@ function MobileWorkerProfile({ worker, attendanceHistory, advances, stats, onAdd
         <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 10 }}>
           <div className="mini-stat">
             <strong>{stats.daysWorked}</strong>
-            <span>วันทำงาน</span>
-            <small>Days</small>
+            <span className="th-text">วันทำงาน</span>
+            <span className="en-text">Days</span>
           </div>
           <div className="mini-stat">
             <strong style={{ color: "#F97316" }}>{stats.lateDays}</strong>
-            <span>มาสาย</span>
-            <small>Late</small>
+            <span className="th-text">มาสาย</span>
+            <span className="en-text">Late</span>
           </div>
           <div className="mini-stat">
             <strong>฿{formatCurrency(stats.totalEarned)}</strong>
-            <span>รายได้รวม</span>
-            <small>Earned</small>
+            <span className="th-text">รายได้รวม</span>
+            <span className="en-text">Earned</span>
           </div>
           <div className="mini-stat">
             <strong style={{ color: stats.pendingAdvances > 0 ? "#EF4444" : "#22C55E" }}>
               {stats.pendingAdvances > 0 ? `฿${formatCurrency(stats.pendingAdvances)}` : "-"}
             </strong>
-            <span>เบิกค้างจ่าย</span>
-            <small>Advance</small>
+            <span className="th-text">เบิกค้างจ่าย</span>
+            <span className="en-text">Advance</span>
           </div>
         </div>
 

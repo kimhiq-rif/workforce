@@ -277,12 +277,12 @@ export function WorkersClient({ workers: initialWorkers, todayAttendance, sites,
           {/* Workers table */}
           <div className="table-card">
             <div className="table-header" style={{ gridTemplateColumns: "2.2fr 1.2fr 110px 110px 90px 180px" }}>
-              <span>พนักงาน <small>Worker</small></span>
-              <span>ไซต์ <small>Site</small></span>
-              <span>เวลาเข้า <small>Arrival</small></span>
-              <span>สถานะ <small>Status</small></span>
-              <span>ค่าแรง <small>Wage</small></span>
-              <span>פעולות <small>Actions</small></span>
+              <span><span className="th-text">พนักงาน</span><span className="en-text">Worker</span></span>
+              <span><span className="th-text">ไซต์</span><span className="en-text">Site</span></span>
+              <span><span className="th-text">เวลาเข้า</span><span className="en-text">Arrival</span></span>
+              <span><span className="th-text">สถานะ</span><span className="en-text">Status</span></span>
+              <span><span className="th-text">ค่าแรง</span><span className="en-text">Wage</span></span>
+              <span><span className="th-text">การจัดการ</span><span className="en-text">Actions</span></span>
             </div>
 
             {filtered.length === 0 ? (
@@ -492,18 +492,18 @@ function MobileWorkers({
         <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>
           <div className="mini-stat">
             <strong style={{ color: "#22C55E" }}>{stats.onSite}</strong>
-            <span>On site</span>
-            <small>On site</small>
+            <span className="th-text">อยู่ในไซต์</span>
+            <span className="en-text">On site</span>
           </div>
           <div className="mini-stat">
             <strong style={{ color: "#F97316" }}>{stats.late}</strong>
-            <span>Late</span>
-            <small>Late</small>
+            <span className="th-text">สาย</span>
+            <span className="en-text">Late</span>
           </div>
           <div className="mini-stat">
             <strong style={{ color: "#EF4444" }}>{stats.missing}</strong>
-            <span>Missing</span>
-            <small>Missing</small>
+            <span className="th-text">ขาด</span>
+            <span className="en-text">Missing</span>
           </div>
         </div>
 

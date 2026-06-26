@@ -219,11 +219,11 @@ export function SitesClient({ sites: initialSites, ownerId }: SitesClientProps) 
         className="table-header"
         style={{ gridTemplateColumns: "2fr 1.2fr 80px 80px 70px 50px" }}
       >
-        <span>ไซต์ <small>Site</small></span>
-        <span>สถานะ <small>Status</small></span>
-        <span>รายงาน <small>Reported</small></span>
-        <span>คนงาน <small>Workers</small></span>
-        <span>ล่าสุด <small>Last</small></span>
+        <span><span className="th-text">ไซต์</span><span className="en-text">Site</span></span>
+        <span><span className="th-text">สถานะ</span><span className="en-text">Status</span></span>
+        <span><span className="th-text">รายงาน</span><span className="en-text">Reported</span></span>
+        <span><span className="th-text">คนงาน</span><span className="en-text">Workers</span></span>
+        <span><span className="th-text">ล่าสุด</span><span className="en-text">Last</span></span>
         <span />
       </div>
       {filtered.length === 0 ? (

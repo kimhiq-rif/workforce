@@ -638,22 +638,22 @@ export function SiteDetailClient({
       <div className="metric-grid" style={{ gridTemplateColumns: "repeat(4, 1fr)", marginBottom: 20 }}>
         <div className="metric-card blue">
           <div className="metric-icon blue"><Users size={28} strokeWidth={1.8} /></div>
-          <div className="metric-label"><strong>รายงานแล้ว</strong><small>Reported</small></div>
+          <div className="metric-label"><strong className="th-text">รายงานแล้ว</strong><span className="en-text">Reported</span></div>
           <div className="metric-value">{reported}<small>/{workers.length}</small></div>
         </div>
         <div className="metric-card green">
           <div className="metric-icon green"><UserCheck size={28} strokeWidth={1.8} /></div>
-          <div className="metric-label"><strong>กำลังทำงาน</strong><small>On site</small></div>
+          <div className="metric-label"><strong className="th-text">กำลังทำงาน</strong><span className="en-text">On site</span></div>
           <div className="metric-value" style={{ color: "#22C55E" }}>{onSite}</div>
         </div>
         <div className="metric-card orange">
           <div className="metric-icon orange"><Clock size={28} strokeWidth={1.8} /></div>
-          <div className="metric-label"><strong>มาสาย</strong><small>Late</small></div>
+          <div className="metric-label"><strong className="th-text">มาสาย</strong><span className="en-text">Late</span></div>
           <div className="metric-value" style={{ color: "#F97316" }}>{late}</div>
         </div>
         <div className="metric-card teal">
           <div className="metric-icon teal"><Zap size={28} strokeWidth={1.8} /></div>
-          <div className="metric-label"><strong>ค่าแรงวันนี้</strong><small>Today wages</small></div>
+          <div className="metric-label"><strong className="th-text">ค่าแรงวันนี้</strong><span className="en-text">Today wages</span></div>
           <div className="metric-value" style={{ fontSize: 18 }}>฿{formatCurrency(totalWage)}</div>
         </div>
       </div>
@@ -680,11 +680,11 @@ export function SiteDetailClient({
             className="table-header"
             style={{ gridTemplateColumns: "2fr 100px 120px 120px 110px" }}
           >
-            <span>พนักงาน <small>Worker</small></span>
-            <span>เวลาเข้า <small>Arrival</small></span>
-            <span>สถานะ <small>Status</small></span>
-            <span>ค่าแรง <small>Wage reason</small></span>
-            <span>ยอด <small>Amount</small></span>
+            <span><span className="th-text">พนักงาน</span><span className="en-text">Worker</span></span>
+            <span><span className="th-text">เวลาเข้า</span><span className="en-text">Arrival</span></span>
+            <span><span className="th-text">สถานะ</span><span className="en-text">Status</span></span>
+            <span><span className="th-text">ค่าแรง</span><span className="en-text">Wage reason</span></span>
+            <span><span className="th-text">ยอด</span><span className="en-text">Amount</span></span>
           </div>
 
           {workers.length === 0 ? (
@@ -1413,18 +1413,18 @@ function MobileSiteDetail({
         <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>
           <div className="mini-stat">
             <strong>{reported}/{workers.length}</strong>
-            <span>รายงาน</span>
-            <small>Reported</small>
+            <span className="th-text">รายงาน</span>
+            <span className="en-text">Reported</span>
           </div>
           <div className="mini-stat">
             <strong style={{ color: "#F97316" }}>{late}</strong>
-            <span>สาย</span>
-            <small>Late</small>
+            <span className="th-text">สาย</span>
+            <span className="en-text">Late</span>
           </div>
           <div className="mini-stat">
             <strong>฿{formatCurrency(totalWage)}</strong>
-            <span>ค่าแรง</span>
-            <small>Wages</small>
+            <span className="th-text">ค่าแรง</span>
+            <span className="en-text">Wages</span>
           </div>
         </div>
 

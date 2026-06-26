@@ -517,12 +517,12 @@ export function SuppliersClient({
               </div>
               <div className="table-card">
                 <div className="table-header" style={{ gridTemplateColumns: "1.5fr 1.2fr 80px 120px 100px 80px" }}>
-                  <span>ซัพพลายเออร์ <small>Supplier</small></span>
-                  <span>ไซต์ <small>Site</small></span>
-                  <span>หมวดหมู่ <small>Category</small></span>
-                  <span>ยอด <small>Amount</small></span>
-                  <span>สถานะ <small>Status</small></span>
-                  <span>วันที่ <small>Date</small></span>
+                  <span><span className="th-text">ซัพพลายเออร์</span><span className="en-text">Supplier</span></span>
+                  <span><span className="th-text">ไซต์</span><span className="en-text">Site</span></span>
+                  <span><span className="th-text">หมวดหมู่</span><span className="en-text">Category</span></span>
+                  <span><span className="th-text">ยอด</span><span className="en-text">Amount</span></span>
+                  <span><span className="th-text">สถานะ</span><span className="en-text">Status</span></span>
+                  <span><span className="th-text">วันที่</span><span className="en-text">Date</span></span>
                 </div>
                 {filteredReceipts.length === 0 ? (
                   <div style={{ padding: "32px", textAlign: "center", color: "var(--text-muted)", fontSize: 14 }}>
@@ -1457,9 +1457,9 @@ function MobileSuppliers({ suppliers, receipts, allReceipts, stats, tab, setTab,
       {mobileView === "receipts" ? (
         <div style={{ padding: "12px 16px", display: "flex", flexDirection: "column", gap: 10 }}>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>
-            <div className="mini-stat"><strong>{stats.total}</strong><span>Receipts</span><small>Total</small></div>
-            <div className="mini-stat"><strong style={{ color: "#F97316" }}>{stats.pending}</strong><span>Pending</span><small>Review</small></div>
-            <div className="mini-stat"><strong>฿{formatCurrency(stats.totalAmount)}</strong><span>Total</span><small>Amount</small></div>
+            <div className="mini-stat"><strong>{stats.total}</strong><span className="th-text">ใบเสร็จ</span><span className="en-text">Receipts</span></div>
+            <div className="mini-stat"><strong style={{ color: "#F97316" }}>{stats.pending}</strong><span className="th-text">รอตรวจ</span><span className="en-text">Pending</span></div>
+            <div className="mini-stat"><strong>฿{formatCurrency(stats.totalAmount)}</strong><span className="th-text">ยอดรวม</span><span className="en-text">Amount</span></div>
           </div>
           <label className="search-box">
             <Search size={20} color="var(--text-muted)" />
