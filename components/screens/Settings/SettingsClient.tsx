@@ -209,7 +209,7 @@ export function SettingsClient({ profile, workdaySettings, teamMembers, workers,
       const json = await res.json();
       if (!res.ok) {
         if (json.error === "no_email") {
-          showToast("⚠️ הוסף אימייל לעובד זה תחילה · Add email to worker first");
+          showToast("⚠️ กรุณาเพิ่มอีเมลให้พนักงานนี้ก่อน · Add email to worker first");
         } else {
           showToast(json.error ?? "Error");
         }

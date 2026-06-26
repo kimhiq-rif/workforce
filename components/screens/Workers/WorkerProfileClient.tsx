@@ -802,10 +802,11 @@ function EditWorkerModal({ worker, onClose, onSaved }: {
   const supabase = createClient();
   const [nameTh, setNameTh] = useState(worker.name_th ?? "");
   const [nameEn, setNameEn] = useState(worker.name_en ?? "");
-  const [roleTh, setRoleTh] = useState(worker.role_th ?? "");
-  const [roleEn, setRoleEn] = useState(worker.role_en ?? "");
   const [phone, setPhone] = useState(worker.phone ?? "");
   const [wage, setWage] = useState(String(worker.daily_wage ?? ""));
+  const [age, setAge] = useState(String((worker as any).age ?? ""));
+  const [email, setEmail] = useState((worker as any).email ?? "");
+  const [visaExpiry, setVisaExpiry] = useState((worker as any).visa_expiry_date ?? "");
   const [isTemp, setIsTemp] = useState(worker.is_temporary ?? false);
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(worker.photo_url ?? null);
@@ -813,12 +814,11 @@ function EditWorkerModal({ worker, onClose, onSaved }: {
   const [error, setError] = useState("");
 
   async function handleSave() {
-    if (!nameTh.trim()) { setError("ต้องกรอกชื่อภาษาไทย · Thai name required"); return; }
+    if (!nameTh.trim()) { setError("ต้องกรอกชื่อ · Name required"); return; }
     const wageNum = Number(wage);
     if (!wageNum || wageNum <= 0) { setError("ค่าแรงต้องมากกว่า 0"); return; }
     setSaving(true);
 
-    // Upload new photo if selected
     let newPhotoUrl: string | undefined = undefined;
     if (photoFile) {
       const ext = photoFile.type === "image/png" ? "png" : "jpg";
@@ -831,25 +831,15 @@ function EditWorkerModal({ worker, onClose, onSaved }: {
       }
     }
 
-    const patch: Partial<Worker> = {
-      name_th: nameTh.trim(),
-      name_en: nameEn.trim() || undefined,
-      role_th: roleTh.trim() || undefined,
-      role_en: roleEn.trim() || undefined,
-      phone: phone.trim() || undefined,
-      daily_wage: wageNum,
-      is_temporary: isTemp,
-      ...(newPhotoUrl ? { photo_url: newPhotoUrl } : {}),
-    };
-
     const dbPatch = {
-      name_th: patch.name_th,
-      name_en: patch.name_en ?? null,
-      role_th: patch.role_th ?? null,
-      role_en: patch.role_en ?? null,
-      phone: patch.phone ?? null,
-      daily_wage: patch.daily_wage,
-      is_temporary: patch.is_temporary,
+      name_th: nameTh.trim(),
+      name_en: nameEn.trim() || null,
+      phone: phone.trim() || null,
+      daily_wage: wageNum,
+      age: age ? Number(age) : null,
+      email: email.trim() || null,
+      visa_expiry_date: visaExpiry || null,
+      is_temporary: isTemp,
       ...(newPhotoUrl ? { photo_url: newPhotoUrl } : {}),
     };
 
@@ -860,7 +850,7 @@ function EditWorkerModal({ worker, onClose, onSaved }: {
 
     setSaving(false);
     if (dbError) { setError("เกิดข้อผิดพลาด · " + dbError.message); return; }
-    onSaved(patch);
+    onSaved(dbPatch as Partial<Worker>);
   }
 
   const field = (label: string, value: string, onChange: (v: string) => void, opts?: { type?: string; placeholder?: string }) => (
@@ -924,23 +914,20 @@ function EditWorkerModal({ worker, onClose, onSaved }: {
             </label>
           </div>
 
-          {field("ชื่อภาษาไทย · Thai name *", nameTh, setNameTh, { placeholder: "ชื่อ นามสกุล" })}
-          {field("ชื่อภาษาอังกฤษ · English name", nameEn, setNameEn, { placeholder: "First Last" })}
-          {field("ตำแหน่งภาษาไทย · Thai job title", roleTh, setRoleTh, { placeholder: "ช่างปูน" })}
-          {field("ตำแหน่งภาษาอังกฤษ · English job title", roleEn, setRoleEn, { placeholder: "Mason" })}
-          {field("เบอร์โทร · Phone", phone, setPhone, { type: "tel", placeholder: "+66 8X XXX XXXX" })}
-          {field("ค่าแรง/วัน · Daily wage (฿) *", wage, setWage, { type: "number", placeholder: "400" })}
+          {/* Name row */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+            {field("ชื่อ · Name *", nameTh, setNameTh, { placeholder: "สมชาย" })}
+            {field("นามสกุล · Last name", nameEn, setNameEn, { placeholder: "Smith" })}
+          </div>
 
-          {worker.login_email && (
-            <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-              <span style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)" }}>🔐 App Login Email</span>
-              <div style={{ padding: "9px 12px", border: "1px solid var(--border)", borderRadius: 8, fontSize: 14, background: "#F9FAFB", color: "#6B7280", fontFamily: "monospace" }}>
-                {worker.login_email}
-              </div>
-              <span style={{ fontSize: 11, color: "#9CA3AF" }}>To change email — use App Access in worker profile</span>
-            </label>
-          )}
+          {/* Phone / Wage / Age row */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 80px", gap: 10 }}>
+            {field("เบอร์โทร · Phone", phone, setPhone, { type: "tel", placeholder: "08X-XXX-XXXX" })}
+            {field("ค่าแรง/วัน · Wage (฿) *", wage, setWage, { type: "number", placeholder: "500" })}
+            {field("อายุ · Age", age, setAge, { type: "number", placeholder: "25" })}
+          </div>
 
+          {/* Temporary toggle */}
           <label style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer", padding: "10px 12px", border: "1px solid var(--border)", borderRadius: 8 }}>
             <input
               type="checkbox"
@@ -950,6 +937,12 @@ function EditWorkerModal({ worker, onClose, onSaved }: {
             />
             <span style={{ fontSize: 14 }}>ชั่วคราว · Temporary</span>
           </label>
+
+          {/* Email */}
+          {field("อีเมล · Email (optional)", email, setEmail, { type: "email", placeholder: "worker@email.com" })}
+
+          {/* Visa expiry */}
+          {field("สิ้นสุดวีซ่า · Visa expiry (optional)", visaExpiry, setVisaExpiry, { type: "date" })}
         </div>
 
         <div style={{ display: "flex", gap: 12, marginTop: 22 }}>
