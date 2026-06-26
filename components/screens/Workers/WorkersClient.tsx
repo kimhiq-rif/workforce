@@ -622,8 +622,9 @@ function AddWorkerModal({
 }) {
   const supabase = createClient();
   const [form, setForm] = useState({
-    name_th: "", name_en: "", role_th: "", role_en: "",
+    name_th: "", name_en: "",
     phone: "", daily_wage: "500", assigned_site_id: "", is_temporary: false,
+    email: "", visa_expiry_date: "",
   });
   const [photoFile, setPhotoFile]       = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
@@ -657,9 +658,10 @@ function AddWorkerModal({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         name_th: form.name_th, name_en: form.name_en,
-        role_th: form.role_th || null, role_en: form.role_en || null,
         phone: form.phone || null, daily_wage: Number(form.daily_wage) || 500,
         assigned_site_id: form.assigned_site_id || null, is_temporary: form.is_temporary,
+        email: form.email.trim() || null,
+        visa_expiry_date: form.visa_expiry_date || null,
         photo_url: photoUrl,
       }),
     });
@@ -727,18 +729,6 @@ function AddWorkerModal({
             <input value={form.name_en} onChange={(e) => setForm((f) => ({ ...f, name_en: e.target.value }))} placeholder="Somchai" style={{ padding: "9px 12px", border: "1px solid var(--border)", borderRadius: 8, fontSize: 15 }} />
           </label>
 
-          {/* Job role — Thai + English side by side */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-            <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-              <span style={{ fontSize: 13, fontWeight: 600 }}>ตำแหน่ง · Role <small style={{ fontWeight: 400, color: "var(--text-muted)" }}>(ไทย)</small></span>
-              <input value={form.role_th} onChange={(e) => setForm((f) => ({ ...f, role_th: e.target.value }))} placeholder="ช่างปูน" style={{ padding: "9px 12px", border: "1px solid var(--border)", borderRadius: 8, fontSize: 14 }} />
-            </label>
-            <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-              <span style={{ fontSize: 13, fontWeight: 600 }}>ตำแหน่ง · Role <small style={{ fontWeight: 400, color: "var(--text-muted)" }}>(EN)</small></span>
-              <input value={form.role_en} onChange={(e) => setForm((f) => ({ ...f, role_en: e.target.value }))} placeholder="Mason" style={{ padding: "9px 12px", border: "1px solid var(--border)", borderRadius: 8, fontSize: 14 }} />
-            </label>
-          </div>
-
           {/* Phone + Wage */}
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
             <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
@@ -767,6 +757,33 @@ function AddWorkerModal({
               </select>
             </label>
           )}
+
+          {/* Email — optional */}
+          <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+            <span style={{ fontSize: 13, fontWeight: 600 }}>
+              อีเมล · Email <small style={{ fontWeight: 400, color: "var(--text-muted)" }}>(ไม่บังคับ · optional)</small>
+            </span>
+            <input
+              type="email"
+              value={form.email}
+              onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
+              placeholder="worker@email.com"
+              style={{ padding: "9px 12px", border: "1px solid var(--border)", borderRadius: 8, fontSize: 14 }}
+            />
+          </label>
+
+          {/* Visa expiry — optional */}
+          <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+            <span style={{ fontSize: 13, fontWeight: 600 }}>
+              สิ้นสุดวีซ่า · Visa expiry <small style={{ fontWeight: 400, color: "var(--text-muted)" }}>(ไม่บังคับ · optional)</small>
+            </span>
+            <input
+              type="date"
+              value={form.visa_expiry_date}
+              onChange={(e) => setForm((f) => ({ ...f, visa_expiry_date: e.target.value }))}
+              style={{ padding: "9px 12px", border: "1px solid var(--border)", borderRadius: 8, fontSize: 14 }}
+            />
+          </label>
         </div>
 
         <div style={{ display: "flex", gap: 12, marginTop: 24 }}>
