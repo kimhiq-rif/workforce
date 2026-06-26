@@ -46,10 +46,14 @@ export async function GET(req: NextRequest) {
     .not("event_time", "is", null);
 
   if (!events?.length) {
-    return NextResponse.json({ ok: true, date, checked: 0, sent: 0 });
+    console.log(`[calendar-reminder] ${date} ${minutesSinceMidnight}min — no events (push_sent=false)`);
+    return NextResponse.json({ ok: true, date, minutesSinceMidnight, checked: 0, sent: 0 });
   }
 
+  console.log(`[calendar-reminder] ${date} ${minutesSinceMidnight}min — checking ${events.length} events`);
+
   const sentIds: string[] = [];
+  const skippedIds: string[] = [];
 
   for (const event of events) {
     // event_time is stored as "HH:MM:SS"
@@ -61,11 +65,13 @@ export async function GET(req: NextRequest) {
     const windowStart = eventMinutes - reminderMinutes;
     const windowEnd = windowStart + 15;
 
+    console.log(`[calendar-reminder] event "${event.title}" at ${eventMinutes}min, window [${windowStart}-${windowEnd}), now=${minutesSinceMidnight}`);
+
     if (minutesSinceMidnight >= windowStart && minutesSinceMidnight < windowEnd) {
       const icon = event.event_type === "meeting" ? "🤝" : "📋";
       const timeLabel = `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
 
-      await sendOneSignalPush({
+      const pushResult = await sendOneSignalPush({
         externalIds: [event.owner_id],
         title: `${icon} ${event.title}`,
         body: `${timeLabel} · in ${reminderMinutes} min`,
@@ -76,14 +82,19 @@ export async function GET(req: NextRequest) {
         priority: 10,
       });
 
+      console.log(`[calendar-reminder] sendOneSignalPush result:`, JSON.stringify(pushResult));
+
       await supabase
         .from("calendar_events")
         .update({ push_sent: true })
         .eq("id", event.id);
 
       sentIds.push(event.id);
+    } else {
+      skippedIds.push(event.id);
     }
   }
 
-  return NextResponse.json({ ok: true, date, checked: events.length, sent: sentIds.length });
+  console.log(`[calendar-reminder] done — sent=${sentIds.length} skipped=${skippedIds.length}`);
+  return NextResponse.json({ ok: true, date, minutesSinceMidnight, checked: events.length, sent: sentIds.length, skipped: skippedIds.length });
 }
