@@ -301,8 +301,10 @@ export function WorkersClient({ workers: initialWorkers, todayAttendance, sites,
                     onClick={() => setSelectedWorker(worker)}
                   >
                     <span style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                      <div className="avatar" style={{ width: 36, height: 36, fontSize: 12, flexShrink: 0 }}>
-                        {worker.name_th[0]}
+                      <div className="avatar" style={{ width: 36, height: 36, fontSize: 12, flexShrink: 0, overflow: "hidden", padding: 0 }}>
+                        {(worker as any).photo_url
+                          ? <img src={(worker as any).photo_url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                          : worker.name_th[0]}
                       </div>
                       <span>
                         <span className="cell-th">{worker.name_th}</span>
@@ -556,8 +558,10 @@ function MobileWorkers({
                 className="mobile-worker-card"
                 style={{ textDecoration: "none", color: "inherit" }}
               >
-                <div className="avatar" style={{ width: 40, height: 40, fontSize: 14, flexShrink: 0 }}>
-                  {worker.name_th[0]}
+                <div className="avatar" style={{ width: 40, height: 40, fontSize: 14, flexShrink: 0, overflow: "hidden", padding: 0 }}>
+                  {(worker as any).photo_url
+                    ? <img src={(worker as any).photo_url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                    : worker.name_th[0]}
                 </div>
                 <div style={{ flex: 1 }}>
                   <strong className="cell-th" style={{ display: "block" }}>{worker.name_th}</strong>
