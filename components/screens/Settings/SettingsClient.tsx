@@ -813,7 +813,7 @@ export function SettingsClient({ profile, workdaySettings, teamMembers, workers,
                   <small style={{ display: "block", color: "var(--text-muted)", fontSize: 12 }}>{w.name_en}{w.phone ? ` · ${w.phone}` : ""}</small>
                 </div>
                 <button
-                  onClick={() => { setInviteWorkerId(w.id); setInviteLink(null); handleCreateInvite(); }}
+                  onClick={() => { setInviteWorkerId(w.id); setInviteCredentials(null); handleCreateInvite(); }}
                   style={{ fontSize: 12, padding: "4px 10px", background: "#EFF6FF", color: "#1D4ED8", border: "1px solid #BFDBFE", borderRadius: 6, cursor: "pointer", fontWeight: 600 }}
                 >
                   New link
