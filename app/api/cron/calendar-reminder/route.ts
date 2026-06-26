@@ -84,10 +84,15 @@ export async function GET(req: NextRequest) {
 
       console.log(`[calendar-reminder] sendOneSignalPush result:`, JSON.stringify(pushResult));
 
-      await supabase
-        .from("calendar_events")
-        .update({ push_sent: true })
-        .eq("id", event.id);
+      // Mark sent only if delivered to at least 1 subscriber, OR if the event
+      // time has already passed (to avoid retrying stale notifications).
+      const eventPassed = minutesSinceMidnight >= eventMinutes;
+      if (pushResult.sent > 0 || eventPassed) {
+        await supabase
+          .from("calendar_events")
+          .update({ push_sent: true })
+          .eq("id", event.id);
+      }
 
       sentIds.push(event.id);
     } else {
