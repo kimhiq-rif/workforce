@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { DashboardShell } from "@/components/layout/DashboardShell";
 import { getBilingualLabel, useLangMode } from "@/components/layout/useLangMode";
-import { Clock, Shield, Phone, Users, Languages, ChevronDown, ChevronLeft, ChevronRight, Check, LogOut, Eye, EyeOff, UserCog, Copy, KeyRound, Building2, Image as ImageIcon, Trash2, Upload } from "lucide-react";
+import { Clock, Shield, Phone, Users, Languages, ChevronDown, ChevronLeft, ChevronRight, Check, LogOut, Eye, EyeOff, UserCog, Copy, KeyRound, Building2, Image as ImageIcon, Trash2, Upload, Bell } from "lucide-react";
 import { formatCurrency } from "@/lib/format";
 
 interface SettingsClientProps {
@@ -18,13 +18,14 @@ interface SettingsClientProps {
 }
 
 const SECTIONS = [
-  { key: "workday",    icon: Clock,     th: "วันทำงาน",         en: "Workday settings" },
-  { key: "admin_code", icon: KeyRound,  th: "รหัสผู้ดูแล",      en: "Admin code" },
-  { key: "security",   icon: Shield,    th: "ห้องเครื่อง",      en: "Engine room" },
-  { key: "support",    icon: Phone,     th: "ติดต่อสนับสนุน",   en: "Support" },
-  { key: "users",      icon: Users,     th: "ผู้ใช้งาน",        en: "Users & team" },
-  { key: "language",   icon: Languages, th: "ภาษา",             en: "Language mode" },
-  { key: "password",   icon: KeyRound,  th: "เปลี่ยนรหัสผ่าน", en: "Change password" },
+  { key: "workday",       icon: Clock,     th: "วันทำงาน",          en: "Workday settings" },
+  { key: "admin_code",    icon: KeyRound,  th: "รหัสผู้ดูแล",       en: "Admin code" },
+  { key: "security",      icon: Shield,    th: "ห้องเครื่อง",       en: "Engine room" },
+  { key: "support",       icon: Phone,     th: "ติดต่อสนับสนุน",    en: "Support" },
+  { key: "users",         icon: Users,     th: "ผู้ใช้งาน",         en: "Users & team" },
+  { key: "language",      icon: Languages, th: "ภาษา",              en: "Language mode" },
+  { key: "password",      icon: KeyRound,  th: "เปลี่ยนรหัสผ่าน",  en: "Change password" },
+  { key: "notifications", icon: Bell,      th: "ส่งการแจ้งเตือน",   en: "Send notification", ownerOnly: true },
 ];
 
 export function SettingsClient({ profile, workdaySettings, teamMembers, workers, ownerId }: SettingsClientProps) {
@@ -65,6 +66,12 @@ export function SettingsClient({ profile, workdaySettings, teamMembers, workers,
   const [pwShow, setPwShow] = useState(false);
   const [pwSaving, setPwSaving] = useState(false);
 
+  // Push notification panel state (owner only)
+  const [pushTitle, setPushTitle] = useState("");
+  const [pushBody, setPushBody] = useState("");
+  const [pushRecipient, setPushRecipient] = useState<"owners" | "owners_managers" | "everyone">("everyone");
+  const [pushSending, setPushSending] = useState(false);
+
   async function changePassword() {
     if (pwNew.length < 8) { showToast("รหัสผ่านต้องมีอย่างน้อย 8 ตัวอักษร · Min 8 characters"); return; }
     if (pwNew !== pwConfirm) { showToast("รหัสผ่านไม่ตรงกัน · Passwords do not match"); return; }
@@ -74,6 +81,28 @@ export function SettingsClient({ profile, workdaySettings, teamMembers, workers,
     if (error) { showToast("เกิดข้อผิดพลาด · " + error.message); return; }
     setPwNew(""); setPwConfirm("");
     showToast("เปลี่ยนรหัสผ่านสำเร็จ · Password changed successfully");
+  }
+
+  async function handleSendNotification() {
+    if (!pushTitle.trim()) return;
+    setPushSending(true);
+    try {
+      const res = await fetch("/api/notifications/manual", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title: pushTitle.trim(), body: pushBody.trim(), recipient: pushRecipient }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        showToast("เกิดข้อผิดพลาด · Failed to send");
+        return;
+      }
+      showToast(`ส่งแล้ว · Sent to ${data.sent} users`);
+      setPushTitle("");
+      setPushBody("");
+    } finally {
+      setPushSending(false);
+    }
   }
 
   // Language mode — persist in localStorage (useEffect avoids SSR mismatch)
@@ -749,6 +778,65 @@ export function SettingsClient({ profile, workdaySettings, teamMembers, workers,
         </div>
       </div>
     ),
+
+    notifications: profile?.role === "owner" ? (
+      <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+        <h2 style={{ fontSize: 22, fontWeight: 700 }}>
+          <span className="th-text">ส่งการแจ้งเตือน</span>
+          <span className="en-text" style={{ fontSize: 14, fontWeight: 400, color: "var(--text-muted)" }}>Send Notification</span>
+        </h2>
+
+        <div style={{ display: "flex", flexDirection: "column", gap: 14, maxWidth: 480 }}>
+          <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            <span style={{ fontSize: 13, fontWeight: 600 }}>หัวข้อ <small style={{ fontWeight: 400, color: "var(--text-muted)" }}>Title</small></span>
+            <input
+              value={pushTitle}
+              onChange={(e) => setPushTitle(e.target.value)}
+              placeholder="ชื่อการแจ้งเตือน · Notification title"
+              style={{ padding: "10px 12px", border: "1px solid var(--border)", borderRadius: 8, fontSize: 15 }}
+            />
+          </label>
+
+          <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            <span style={{ fontSize: 13, fontWeight: 600 }}>เนื้อหา <small style={{ fontWeight: 400, color: "var(--text-muted)" }}>Body</small></span>
+            <textarea
+              value={pushBody}
+              onChange={(e) => setPushBody(e.target.value)}
+              placeholder="รายละเอียดการแจ้งเตือน · Notification body"
+              rows={3}
+              style={{ padding: "10px 12px", border: "1px solid var(--border)", borderRadius: 8, fontSize: 14, resize: "vertical" }}
+            />
+          </label>
+
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            <span style={{ fontSize: 13, fontWeight: 600 }}>ผู้รับ <small style={{ fontWeight: 400, color: "var(--text-muted)" }}>Recipients</small></span>
+            {([
+              { value: "owners",          th: "เจ้าของเท่านั้น",     en: "Owners only" },
+              { value: "owners_managers", th: "เจ้าของ + ผู้จัดการ", en: "Owners + Field Managers" },
+              { value: "everyone",        th: "ทุกคน",               en: "Everyone" },
+            ] as const).map((opt) => (
+              <label key={opt.value} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", border: `2px solid ${pushRecipient === opt.value ? "var(--brand-primary)" : "var(--border)"}`, borderRadius: 10, cursor: "pointer", background: pushRecipient === opt.value ? "#EFF6FF" : "white" }}>
+                <input type="radio" name="push-recipient" value={opt.value} checked={pushRecipient === opt.value} onChange={() => setPushRecipient(opt.value)} style={{ accentColor: "var(--brand-primary)" }} />
+                <span>
+                  <span className="th-text" style={{ display: "block", fontSize: 14, fontWeight: 600 }}>{opt.th}</span>
+                  <span className="en-text" style={{ display: "block", fontSize: 12, color: "var(--text-muted)" }}>{opt.en}</span>
+                </span>
+              </label>
+            ))}
+          </div>
+
+          <button
+            onClick={handleSendNotification}
+            disabled={pushSending || !pushTitle.trim()}
+            className="btn-primary"
+            style={{ alignSelf: "flex-start" }}
+          >
+            <Bell size={18} />
+            {pushSending ? "กำลังส่ง… · Sending…" : "ส่งการแจ้งเตือน · Send"}
+          </button>
+        </div>
+      </div>
+    ) : null,
   };
 
   return (
@@ -766,7 +854,7 @@ export function SettingsClient({ profile, workdaySettings, teamMembers, workers,
           <div style={{ display: "grid", gridTemplateColumns: "220px 1fr", gap: 20 }}>
             {/* Section nav */}
             <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-              {SECTIONS.map((s) => {
+              {SECTIONS.filter((s) => !s.ownerOnly || profile?.role === "owner").map((s) => {
                 const Icon = s.icon;
                 return (
                   <button
@@ -807,7 +895,7 @@ export function SettingsClient({ profile, workdaySettings, teamMembers, workers,
         {/* Mobile */}
         <div className="mobile-only">
           <MobileSettings
-            sections={SECTIONS}
+            sections={SECTIONS.filter((s) => !s.ownerOnly || profile?.role === "owner")}
             sectionContent={sectionContent}
             profile={profile}
             onSignOut={handleSignOut}
