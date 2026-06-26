@@ -625,14 +625,10 @@ function AddWorkerModal({
     name_th: "", name_en: "", role_th: "", role_en: "",
     phone: "", daily_wage: "500", assigned_site_id: "", is_temporary: false,
   });
-  const [photoFile, setPhotoFile]     = useState<File | null>(null);
+  const [photoFile, setPhotoFile]       = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
-  const [appEmail, setAppEmail]       = useState("");
-  const [appRole, setAppRole]         = useState<"field_manager" | "technical_admin">("field_manager");
-  const [saving, setSaving]           = useState(false);
-  const [error, setError]             = useState("");
-  const [tempCreds, setTempCreds]     = useState<{ email: string; password: string } | null>(null);
-  const [savedWorker, setSavedWorker] = useState<any>(null);
+  const [saving, setSaving]             = useState(false);
+  const [error, setError]               = useState("");
 
   async function handleSave() {
     if (!form.name_th || !form.name_en) {
@@ -672,66 +668,8 @@ function AddWorkerModal({
 
     const newWorker = workerResult.data;
 
-    // Step 2: set up app access if email provided
-    if (appEmail.trim()) {
-      const accessRes = await fetch("/api/team/set-access", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ worker_id: newWorker.id, email: appEmail.trim(), role: appRole }),
-      });
-      const accessResult = await accessRes.json();
-      if (!accessRes.ok) { setError("Worker created but access failed: " + (accessResult.error ?? "")); setSaving(false); return; }
-      setSavedWorker(newWorker);
-      setTempCreds({ email: appEmail.trim(), password: accessResult.temp_password });
-    } else {
-      onAdded(newWorker);
-    }
-
+    onAdded(newWorker);
     setSaving(false);
-  }
-
-  // Step 2: show credentials
-  if (tempCreds) {
-    return (
-      <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 998, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
-        <div style={{ background: "white", borderRadius: 16, padding: "28px 24px", width: "100%", maxWidth: 420 }}>
-          <div style={{ textAlign: "center", marginBottom: 20 }}>
-            <div style={{ fontSize: 40, marginBottom: 8 }}>✅</div>
-            <h2 style={{ fontSize: 18, fontWeight: 700 }}>สร้างบัญชีสำเร็จ · Account created</h2>
-            <p style={{ fontSize: 13, color: "#6B7280", marginTop: 4 }}>แชร์ข้อมูลนี้กับพนักงาน · Share these login details with the worker</p>
-          </div>
-          <div style={{ background: "#F0F9FF", border: "1px solid #BAE6FD", borderRadius: 10, padding: "14px 16px", marginBottom: 16 }}>
-            <div style={{ fontSize: 13, marginBottom: 6 }}>
-              <span style={{ color: "#6B7280" }}>Email: </span>
-              <strong style={{ fontFamily: "monospace" }}>{tempCreds.email}</strong>
-            </div>
-            <div style={{ fontSize: 13 }}>
-              <span style={{ color: "#6B7280" }}>Password: </span>
-              <strong style={{ fontFamily: "monospace", fontSize: 15, letterSpacing: 1 }}>{tempCreds.password}</strong>
-            </div>
-          </div>
-          <p style={{ fontSize: 12, color: "#F97316", marginBottom: 16, textAlign: "center" }}>
-            ⚠️ พนักงานจะต้องเปลี่ยนรหัสผ่านเมื่อเข้าครั้งแรก<br/>Worker must change password on first login
-          </p>
-          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-            <button
-              onClick={() => {
-                const text = `🏗️ Workforce App\n\nEmail: ${tempCreds!.email}\nPassword: ${tempCreds!.password}\n\nLink: https://workforce-ivory-delta.vercel.app\n\n⚠️ Please change your password on first login`;
-                window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank");
-              }}
-              style={{ width: "100%", padding: "12px", border: "none", borderRadius: 10, background: "#25D366", color: "white", cursor: "pointer", fontSize: 15, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}
-            >
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="white"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
-              שלח בוואצאפ · Send via WhatsApp
-            </button>
-            <button onClick={() => onAdded(savedWorker)} className="btn-primary" style={{ justifyContent: "center" }}>
-              <span className="th-text">เสร็จสิ้น</span>
-              <span className="en-text">Done</span>
-            </button>
-          </div>
-        </div>
-      </div>
-    );
   }
 
   return (
@@ -747,7 +685,7 @@ function AddWorkerModal({
         )}
 
         <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-          {/* Photo picker */}
+          {/* Photo */}
           <div style={{ display: "flex", justifyContent: "center" }}>
             <label style={{ cursor: "pointer" }}>
               <div style={{
@@ -777,84 +715,58 @@ function AddWorkerModal({
             </label>
           </div>
 
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+          {/* Name — Thai */}
+          <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+            <span style={{ fontSize: 13, fontWeight: 600 }}>ชื่อ · Name <span style={{ color: "#EF4444" }}>*</span> <small style={{ fontWeight: 400, color: "var(--text-muted)" }}>(ภาษาไทย · Thai)</small></span>
+            <input value={form.name_th} onChange={(e) => setForm((f) => ({ ...f, name_th: e.target.value }))} placeholder="สมชาย" style={{ padding: "9px 12px", border: "1px solid var(--border)", borderRadius: 8, fontSize: 15 }} />
+          </label>
+
+          {/* Name — English */}
+          <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+            <span style={{ fontSize: 13, fontWeight: 600 }}>ชื่อ · Name <span style={{ color: "#EF4444" }}>*</span> <small style={{ fontWeight: 400, color: "var(--text-muted)" }}>(English)</small></span>
+            <input value={form.name_en} onChange={(e) => setForm((f) => ({ ...f, name_en: e.target.value }))} placeholder="Somchai" style={{ padding: "9px 12px", border: "1px solid var(--border)", borderRadius: 8, fontSize: 15 }} />
+          </label>
+
+          {/* Job role — Thai + English side by side */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
             <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-              <span style={{ fontSize: 13, fontWeight: 600 }}>ชื่อภาษาไทย *</span>
-              <input value={form.name_th} onChange={(e) => setForm((f) => ({ ...f, name_th: e.target.value }))} placeholder="สมชาย" style={{ padding: "9px 12px", border: "1px solid var(--border)", borderRadius: 8, fontSize: 14 }} />
-            </label>
-            <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-              <span style={{ fontSize: 13, fontWeight: 600 }}>Name (English) *</span>
-              <input value={form.name_en} onChange={(e) => setForm((f) => ({ ...f, name_en: e.target.value }))} placeholder="Somchai" style={{ padding: "9px 12px", border: "1px solid var(--border)", borderRadius: 8, fontSize: 14 }} />
-            </label>
-          </div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-            <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-              <span style={{ fontSize: 13, fontWeight: 600 }}>ตำแหน่ง (ไทย)</span>
+              <span style={{ fontSize: 13, fontWeight: 600 }}>ตำแหน่ง · Role <small style={{ fontWeight: 400, color: "var(--text-muted)" }}>(ไทย)</small></span>
               <input value={form.role_th} onChange={(e) => setForm((f) => ({ ...f, role_th: e.target.value }))} placeholder="ช่างปูน" style={{ padding: "9px 12px", border: "1px solid var(--border)", borderRadius: 8, fontSize: 14 }} />
             </label>
             <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-              <span style={{ fontSize: 13, fontWeight: 600 }}>Role (English)</span>
+              <span style={{ fontSize: 13, fontWeight: 600 }}>ตำแหน่ง · Role <small style={{ fontWeight: 400, color: "var(--text-muted)" }}>(EN)</small></span>
               <input value={form.role_en} onChange={(e) => setForm((f) => ({ ...f, role_en: e.target.value }))} placeholder="Mason" style={{ padding: "9px 12px", border: "1px solid var(--border)", borderRadius: 8, fontSize: 14 }} />
             </label>
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+
+          {/* Phone + Wage */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
             <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-              <span style={{ fontSize: 13, fontWeight: 600 }}>เบอร์โทร Phone</span>
+              <span style={{ fontSize: 13, fontWeight: 600 }}>เบอร์โทร · Phone</span>
               <input value={form.phone} onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))} placeholder="0812345678" type="tel" style={{ padding: "9px 12px", border: "1px solid var(--border)", borderRadius: 8, fontSize: 14 }} />
             </label>
             <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-              <span style={{ fontSize: 13, fontWeight: 600 }}>ค่าแรง/วัน Daily wage ฿</span>
+              <span style={{ fontSize: 13, fontWeight: 600 }}>ค่าแรง/วัน · Wage ฿</span>
               <input value={form.daily_wage} onChange={(e) => setForm((f) => ({ ...f, daily_wage: e.target.value }))} type="number" min="0" step="50" style={{ padding: "9px 12px", border: "1px solid var(--border)", borderRadius: 8, fontSize: 14 }} />
             </label>
           </div>
-          {sites.length > 0 && (
+
+          {/* Temporary worker toggle */}
+          <label style={{ display: "flex", alignItems: "center", gap: 12, cursor: "pointer", padding: "10px 12px", borderRadius: 10, border: `2px solid ${form.is_temporary ? "var(--brand-violet)" : "var(--border)"}`, background: form.is_temporary ? "#F2F4FF" : "white" }}>
+            <input type="checkbox" checked={form.is_temporary} onChange={(e) => setForm((f) => ({ ...f, is_temporary: e.target.checked, assigned_site_id: e.target.checked ? f.assigned_site_id : "" }))} style={{ width: 18, height: 18, accentColor: "var(--brand-violet)", flexShrink: 0 }} />
+            <span style={{ fontSize: 14, fontWeight: 600 }}>พนักงานชั่วคราว · Temporary worker</span>
+          </label>
+
+          {/* Site — only for temporary workers */}
+          {form.is_temporary && sites.length > 0 && (
             <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-              <span style={{ fontSize: 13, fontWeight: 600 }}>ไซต์ที่ทำงาน Site</span>
+              <span style={{ fontSize: 13, fontWeight: 600 }}>ไซต์ที่ทำงาน · Site</span>
               <select value={form.assigned_site_id} onChange={(e) => setForm((f) => ({ ...f, assigned_site_id: e.target.value }))} style={{ padding: "9px 12px", border: "1px solid var(--border)", borderRadius: 8, fontSize: 14, appearance: "none" }}>
                 <option value="">ยังไม่กำหนด · Not assigned</option>
                 {sites.map((s) => <option key={s.id} value={s.id}>{s.name_th} · {s.name_en}</option>)}
               </select>
             </label>
           )}
-          <label style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer" }}>
-            <input type="checkbox" checked={form.is_temporary} onChange={(e) => setForm((f) => ({ ...f, is_temporary: e.target.checked }))} style={{ width: 18, height: 18, accentColor: "var(--brand-primary)" }} />
-            <span style={{ fontSize: 14 }}><strong>พนักงานชั่วคราว</strong><small style={{ display: "block", color: "var(--text-muted)", fontSize: 12 }}>Temporary worker</small></span>
-          </label>
-
-          {/* App Access section */}
-          <div style={{ borderTop: "1px solid var(--border)", paddingTop: 14, marginTop: 2 }}>
-            <div style={{ fontSize: 13, fontWeight: 700, color: "#1E3A8A", marginBottom: 10 }}>
-              🔐 การเข้าถึงแอป · App Access <small style={{ fontWeight: 400, color: "var(--text-muted)" }}>(optional)</small>
-            </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-              <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                <span style={{ fontSize: 13, fontWeight: 600 }}>Email</span>
-                <input
-                  type="email"
-                  value={appEmail}
-                  onChange={(e) => setAppEmail(e.target.value)}
-                  placeholder="worker@email.com"
-                  style={{ padding: "9px 12px", border: "1px solid var(--border)", borderRadius: 8, fontSize: 14 }}
-                />
-              </label>
-              <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                <span style={{ fontSize: 13, fontWeight: 600 }}>Role</span>
-                <select
-                  value={appRole}
-                  onChange={(e) => setAppRole(e.target.value as "field_manager" | "technical_admin")}
-                  style={{ padding: "9px 12px", border: "1px solid var(--border)", borderRadius: 8, fontSize: 14, appearance: "none" }}
-                >
-                  <option value="field_manager">Field Manager — מנהל שטח</option>
-                  <option value="technical_admin">Driver Manager — מנהל נהג</option>
-                </select>
-              </label>
-              {appEmail && (
-                <div style={{ fontSize: 12, color: "#6B7280", background: "#F9FAFB", borderRadius: 6, padding: "8px 10px" }}>
-                  ระบบจะสร้างรหัสผ่านชั่วคราวให้ · System generates a temp password to share with worker
-                </div>
-              )}
-            </div>
-          </div>
         </div>
 
         <div style={{ display: "flex", gap: 12, marginTop: 24 }}>
