@@ -165,11 +165,11 @@ export function WorkerPeriodDetailClient({ worker, periodStart, periodEnd, atten
         <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
           <div style={{
             width: 56, height: 56, borderRadius: "50%",
-            background: "#DBEAFE", color: "#1E40AF",
+            background: worker.photo_url ? "transparent" : "#DBEAFE", color: "#1E40AF",
             display: "flex", alignItems: "center", justifyContent: "center",
-            fontSize: 22, fontWeight: 700, flexShrink: 0,
+            fontSize: 22, fontWeight: 700, flexShrink: 0, overflow: "hidden",
           }}>
-            {worker.name_th[0]}
+            {worker.photo_url ? <img src={worker.photo_url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : worker.name_th[0]}
           </div>
           <div>
             <h1 style={{ fontSize: 28, fontWeight: 700, marginBottom: 2 }}>{worker.name_th}</h1>

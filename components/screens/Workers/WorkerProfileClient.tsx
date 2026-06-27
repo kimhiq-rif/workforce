@@ -287,7 +287,9 @@ export function WorkerProfileClient({ worker: initialWorker, attendanceHistory, 
 
           {/* Profile header */}
           <div style={{ display: "flex", alignItems: "center", gap: 20, marginBottom: 28 }}>
-            <div className="avatar" style={{ width: 72, height: 72, fontSize: 26 }}>{worker.name_th[0]}</div>
+            <div className="avatar" style={{ width: 72, height: 72, fontSize: 26, overflow: "hidden", padding: worker.photo_url ? 0 : undefined }}>
+              {worker.photo_url ? <img src={worker.photo_url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : worker.name_th[0]}
+            </div>
             <div style={{ flex: 1 }}>
               <h1 style={{ fontSize: 31, fontWeight: 700, marginBottom: 2 }}>{worker.name_th}</h1>
               <p style={{ fontSize: 14, color: "var(--text-muted)" }}>{worker.name_en} · {worker.role_th ?? worker.role_en ?? "ไม่ระบุตำแหน่ง"}</p>
