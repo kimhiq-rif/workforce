@@ -41,23 +41,23 @@ function RemoteAccessPanel({ teamMembers }: { teamMembers: any[] }) {
           <MonitorSmartphone size={18} />
         </span>
         <div>
-          <h3 style={{ fontSize: 15, fontWeight: 700, margin: 0, color: "var(--brand-primary)" }}>כניסה מרחוק · Remote access</h3>
-          <p style={{ fontSize: 12, color: "var(--text-muted)", margin: 0 }}>כניסה לחשבון משתמש לתמיכה טכנית</p>
+          <h3 style={{ fontSize: 15, fontWeight: 700, margin: 0, color: "var(--brand-primary)" }}><span className="th-text">เข้าถึงระยะไกล</span><span className="en-text">Remote access</span></h3>
+          <p style={{ fontSize: 12, color: "var(--text-muted)", margin: 0 }}><span className="th-text">เข้าสู่บัญชีผู้ใช้เพื่อสนับสนุนด้านเทคนิค</span><span className="en-text">Access user account for technical support</span></p>
         </div>
       </div>
 
       {accessUrl ? (
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
           <div style={{ background: "#FFFBEB", border: "1px solid #FDE68A", borderRadius: 10, padding: "12px 14px" }}>
-            <p style={{ fontSize: 13, fontWeight: 600, color: "#92400E", marginBottom: 4 }}>⚡ לינק חד-פעמי ל: {accessName}</p>
-            <p style={{ fontSize: 11, color: "var(--text-muted)" }}>תקף 5 דקות בלבד · Valid for 5 minutes only</p>
+            <p style={{ fontSize: 13, fontWeight: 600, color: "#92400E", marginBottom: 4 }}>⚡ <span className="th-text">ลิงก์ครั้งเดียวสำหรับ:</span><span className="en-text">One-time link for:</span> {accessName}</p>
+            <p style={{ fontSize: 11, color: "var(--text-muted)" }}><span className="th-text">ใช้ได้ 5 นาทีเท่านั้น</span><span className="en-text">Valid for 5 minutes only</span></p>
           </div>
           <a href={accessUrl} target="_blank" rel="noopener noreferrer"
             style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: "11px", background: "var(--brand-primary)", color: "white", borderRadius: 10, fontSize: 14, fontWeight: 600, textDecoration: "none" }}>
-            <MonitorSmartphone size={16} /> כנס כ-{accessName}
+            <MonitorSmartphone size={16} /> <span className="th-text">เข้าในฐานะ</span><span className="en-text">Enter as</span> {accessName}
           </a>
           <button onClick={() => setAccessUrl(null)} style={{ fontSize: 13, color: "var(--text-muted)", background: "transparent", border: "none", cursor: "pointer", textDecoration: "underline" }}>
-            בחר משתמש אחר
+            <span className="th-text">เลือกผู้ใช้อื่น</span><span className="en-text">Select another user</span>
           </button>
         </div>
       ) : (
@@ -68,7 +68,7 @@ function RemoteAccessPanel({ teamMembers }: { teamMembers: any[] }) {
                 <strong style={{ fontSize: 14 }}>{member.name_th} · {member.name_en}</strong>
                 <small style={{ display: "block", color: "var(--text-muted)", fontSize: 12 }}>
                   {member.role === "field_manager" ? "Field Manager" : "Driver Manager"}
-                  {member.has_set_password ? " · ✓ הגדיר סיסמא" : " · ⏳ טרם הגדיר סיסמא"}
+                  {member.has_set_password ? " · ✓ Password set" : " · ⏳ Password not set"}
                 </small>
               </div>
               <button
@@ -77,7 +77,7 @@ function RemoteAccessPanel({ teamMembers }: { teamMembers: any[] }) {
                 style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 14px", background: "#EFF6FF", color: "var(--brand-primary)", border: "1px solid #BFDBFE", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 600 }}
               >
                 <MonitorSmartphone size={14} />
-                {loadingId === member.id ? "…" : "כניסה מרחוק"}
+                {loadingId === member.id ? "…" : <><span className="th-text">เข้าระยะไกล</span><span className="en-text">Remote access</span></>}
               </button>
             </div>
           ))}
@@ -459,7 +459,7 @@ export function SettingsClient({ profile, workdaySettings, teamMembers, workers,
               <strong>What is the code?</strong> — The admin code is the same PIN/password you use to log in. It is set once and stored securely. If you have never set a custom code, contact Technical Admin to recover it.
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: 8, maxWidth: 320 }}>
-              <label style={{ fontSize: 13, fontWeight: 600 }}>Admin code · הזן קוד כניסה</label>
+              <label style={{ fontSize: 13, fontWeight: 600 }}><span className="th-text">รหัสผู้ดูแล</span><span className="en-text">Admin code</span></label>
               <div style={{ position: "relative" }}>
                 <input
                   type={showCurrentCode ? "text" : "password"}

@@ -19,6 +19,7 @@ export async function POST(req: NextRequest) {
       role_th: body.role_th || null,
       role_en: body.role_en || null,
       phone: body.phone || null,
+      email: body.email?.trim() || null,
       daily_wage: Number(body.daily_wage) || 500,
       assigned_site_id: body.assigned_site_id || null,
       is_temporary: Boolean(body.is_temporary),
