@@ -1,10 +1,10 @@
 ﻿"use client";
 // Copyright © 2026 Workforce. All rights reserved.
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { DashboardShell } from "@/components/layout/DashboardShell";
 import { formatCurrency } from "@/lib/format";
-import { ChevronLeft, ChevronRight, CirclePlus, Check, X, CalendarDays, Users, Bell } from "lucide-react";
+import { ChevronLeft, ChevronRight, CirclePlus, Check, X, CalendarDays, Users, Bell, Camera, Loader2 } from "lucide-react";
 
 const THAI_MONTHS = [
   "มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน",
@@ -344,6 +344,37 @@ function AddEventModal({ initialDate, sites, onClose, onAdded }: {
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [ocrLoading, setOcrLoading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  async function handleCameraOCR(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setOcrLoading(true);
+    const reader = new FileReader();
+    reader.onload = async () => {
+      const base64 = (reader.result as string).split(",")[1];
+      try {
+        const res = await fetch("/api/ocr", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ image: base64, mimeType: file.type }),
+        });
+        const data = await res.json();
+        const text: string = data.text?.trim() ?? "";
+        const lines = text.split("\n").map((l: string) => l.trim()).filter(Boolean);
+        const title = lines[0] ?? "";
+        const notes = lines.slice(1).join("\n");
+        setForm((f) => ({ ...f, title, notes }));
+      } catch {
+        // silent fail — user can type manually
+      } finally {
+        setOcrLoading(false);
+        if (fileInputRef.current) fileInputRef.current.value = "";
+      }
+    };
+    reader.readAsDataURL(file);
+  }
 
   async function handleSave() {
     if (!form.title.trim()) { setError("Title is required · กรอกชื่อกิจกรรม"); return; }
@@ -410,7 +441,18 @@ function AddEventModal({ initialDate, sites, onClose, onAdded }: {
 
           {/* Title */}
           <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-            <span style={{ fontSize: 13, fontWeight: 600 }}><span className="th-text">ชื่อกิจกรรม *</span><span className="en-text">Title *</span></span>
+            <span style={{ fontSize: 13, fontWeight: 600, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <span><span className="th-text">ชื่อกิจกรรม *</span><span className="en-text">Title *</span></span>
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={ocrLoading}
+                style={{ background: "none", border: "none", cursor: "pointer", color: "var(--brand-primary)", display: "flex", alignItems: "center", gap: 4, fontSize: 12 }}
+              >
+                {ocrLoading ? <Loader2 size={16} style={{ animation: "spin 1s linear infinite" }} /> : <Camera size={16} />}
+                <span>{ocrLoading ? "Reading..." : "📷 Scan"}</span>
+              </button>
+            </span>
             <input
               value={form.title}
               onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
@@ -419,6 +461,14 @@ function AddEventModal({ initialDate, sites, onClose, onAdded }: {
               style={{ padding: "10px 12px", border: "1px solid var(--border)", borderRadius: 8, fontSize: 15 }}
             />
           </label>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            capture="environment"
+            style={{ display: "none" }}
+            onChange={handleCameraOCR}
+          />
 
           {/* Date + Time */}
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
