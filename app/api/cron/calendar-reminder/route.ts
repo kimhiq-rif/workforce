@@ -75,7 +75,7 @@ export async function GET(req: NextRequest) {
         externalIds: [event.owner_id],
         title: `${icon} ${event.title}`,
         body: `${timeLabel} · in ${reminderMinutes} min`,
-        url: "/calendar",
+        url: `/calendar?event=${event.id}`,
         tag: `calendar-${event.id}`,
         iosSound: "chime.caf",
         androidSound: "chime",

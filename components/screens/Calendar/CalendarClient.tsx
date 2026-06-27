@@ -1,10 +1,10 @@
-﻿"use client";
+"use client";
 // Copyright © 2026 Workforce. All rights reserved.
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { DashboardShell } from "@/components/layout/DashboardShell";
 import { formatCurrency } from "@/lib/format";
-import { ChevronLeft, ChevronRight, CirclePlus, Check, X, CalendarDays, Users, Bell, Camera, Loader2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, CirclePlus, Check, X, CalendarDays, Users, Bell, Camera, Loader2, MapPin } from "lucide-react";
 
 const THAI_MONTHS = [
   "มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน",
@@ -44,6 +44,10 @@ interface CalendarEvent {
   notes: string | null;
   reminder_minutes: number;
   is_done: boolean;
+  image_url: string | null;
+  image_lat: number | null;
+  image_lng: number | null;
+  image_taken_at: string | null;
 }
 
 interface CalendarClientProps {
@@ -66,6 +70,17 @@ export function CalendarClient({ dayStatuses, wageByDay, calendarEvents: initial
   const [showAddModal, setShowAddModal] = useState(false);
   const [addForDate, setAddForDate] = useState<string | null>(null);
   const [toast, setToast] = useState("");
+  const [detailEvent, setDetailEvent] = useState<CalendarEvent | null>(null);
+
+  // Deep link: /calendar?event=<id> — opened from push notification
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const eventId = params.get("event");
+    if (eventId) {
+      const ev = initialEvents.find((e) => e.id === eventId);
+      if (ev) setDetailEvent(ev);
+    }
+  }, []);
 
   function showToast(msg: string) {
     setToast(msg);
@@ -151,16 +166,24 @@ export function CalendarClient({ dayStatuses, wageByDay, calendarEvents: initial
           {selectedEvents.length > 0 && (
             <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 10 }}>
               {selectedEvents.map((ev) => (
-                <div key={ev.id} style={{ display: "flex", alignItems: "flex-start", gap: 8, padding: "8px 10px", background: ev.is_done ? "#F0FDF4" : ev.event_type === "meeting" ? "#FFF7ED" : "#EFF6FF", borderRadius: 8, border: `1px solid ${ev.is_done ? "#BBF7D0" : ev.event_type === "meeting" ? "#FED7AA" : "#BFDBFE"}` }}>
-                  <button onClick={() => toggleDone(ev.id, ev.is_done)} style={{ flexShrink: 0, width: 20, height: 20, borderRadius: "50%", border: `2px solid ${ev.is_done ? "#22C55E" : "#CBD5E1"}`, background: ev.is_done ? "#22C55E" : "white", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", marginTop: 2 }}>
+                <div
+                  key={ev.id}
+                  onClick={() => setDetailEvent(ev)}
+                  style={{ display: "flex", alignItems: "flex-start", gap: 8, padding: "8px 10px", background: ev.is_done ? "#F0FDF4" : ev.event_type === "meeting" ? "#FFF7ED" : "#EFF6FF", borderRadius: 8, border: `1px solid ${ev.is_done ? "#BBF7D0" : ev.event_type === "meeting" ? "#FED7AA" : "#BFDBFE"}`, cursor: "pointer" }}
+                >
+                  <button
+                    onClick={(e) => { e.stopPropagation(); toggleDone(ev.id, ev.is_done); }}
+                    style={{ flexShrink: 0, width: 20, height: 20, borderRadius: "50%", border: `2px solid ${ev.is_done ? "#22C55E" : "#CBD5E1"}`, background: ev.is_done ? "#22C55E" : "white", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", marginTop: 2 }}
+                  >
                     {ev.is_done && <Check size={11} color="white" />}
                   </button>
                   <div style={{ flex: 1 }}>
                     <strong style={{ fontSize: 13, textDecoration: ev.is_done ? "line-through" : "none", color: ev.is_done ? "var(--text-muted)" : "var(--text-primary)" }}>{ev.title}</strong>
-                    <div style={{ display: "flex", gap: 6, marginTop: 3, flexWrap: "wrap" }}>
+                    <div style={{ display: "flex", gap: 6, marginTop: 3, flexWrap: "wrap", alignItems: "center" }}>
                       {ev.event_time && <small style={{ color: "var(--text-muted)", fontSize: 11 }}>⏰ {ev.event_time.slice(0, 5)}</small>}
                       <small style={{ fontSize: 11, fontWeight: 600, color: ev.event_type === "meeting" ? "#C2410C" : "#1D4ED8" }}>{ev.event_type === "meeting" ? "Meeting" : "Task"}</small>
                       {ev.reminder_minutes > 0 && <small style={{ color: "var(--text-muted)", fontSize: 11 }}>🔔 {ev.reminder_minutes}m</small>}
+                      {ev.image_url && <Camera size={11} color="var(--text-muted)" />}
                     </div>
                     {ev.notes && <small style={{ display: "block", color: "var(--text-muted)", fontSize: 11, marginTop: 2 }}>{ev.notes}</small>}
                   </div>
@@ -298,9 +321,14 @@ export function CalendarClient({ dayStatuses, wageByDay, calendarEvents: initial
               <div style={{ marginTop: 12, background: "white", borderRadius: 10, padding: "14px", border: "1px solid var(--border)" }}>
                 {selectedData && <strong style={{ fontSize: 15 }}>฿{formatCurrency(selectedData.wage)} <span className="th-text">ค่าแรง</span><span className="en-text">wages</span></strong>}
                 {selectedEvents.map((ev) => (
-                  <div key={ev.id} style={{ fontSize: 13, color: "var(--text-muted)", marginTop: 6, display: "flex", alignItems: "center", gap: 6 }}>
+                  <div
+                    key={ev.id}
+                    onClick={() => setDetailEvent(ev)}
+                    style={{ fontSize: 13, color: "var(--text-muted)", marginTop: 6, display: "flex", alignItems: "center", gap: 6, cursor: "pointer" }}
+                  >
                     <span style={{ width: 8, height: 8, borderRadius: "50%", background: ev.event_type === "meeting" ? "#F97316" : "#1D4ED8", display: "inline-block", flexShrink: 0 }} />
                     {ev.title} {ev.event_time ? `· ${ev.event_time.slice(0, 5)}` : ""}
+                    {ev.image_url && <Camera size={11} />}
                   </div>
                 ))}
               </div>
@@ -323,7 +351,84 @@ export function CalendarClient({ dayStatuses, wageByDay, calendarEvents: initial
           }}
         />
       )}
+
+      {detailEvent && (
+        <EventDetailModal
+          event={detailEvent}
+          onClose={() => setDetailEvent(null)}
+        />
+      )}
     </>
+  );
+}
+
+function EventDetailModal({ event, onClose }: { event: CalendarEvent; onClose: () => void }) {
+  const isMeeting = event.event_type === "meeting";
+  const accentColor = isMeeting ? "#EA580C" : "#1D4ED8";
+
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.55)", zIndex: 999, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
+      <div style={{ background: "white", borderRadius: 16, width: "100%", maxWidth: 480, maxHeight: "90vh", overflowY: "auto" }}>
+        {event.image_url && (
+          <div style={{ position: "relative" }}>
+            <img src={event.image_url} alt="Event photo" style={{ width: "100%", maxHeight: 260, objectFit: "cover", borderRadius: "16px 16px 0 0", display: "block" }} />
+            <button onClick={onClose} style={{ position: "absolute", top: 12, right: 12, background: "rgba(0,0,0,0.45)", border: "none", borderRadius: "50%", width: 34, height: 34, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <X size={18} color="white" />
+            </button>
+          </div>
+        )}
+
+        <div style={{ padding: "20px 24px 24px" }}>
+          {!event.image_url && (
+            <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 8 }}>
+              <button onClick={onClose} style={{ background: "transparent", border: "none", cursor: "pointer" }}><X size={24} /></button>
+            </div>
+          )}
+
+          <span style={{ fontSize: 11, fontWeight: 700, color: accentColor, textTransform: "uppercase", letterSpacing: 1 }}>
+            {isMeeting ? "🤝 Meeting" : "📋 Task"}
+          </span>
+          <h2 style={{ fontSize: 20, fontWeight: 700, marginTop: 4, marginBottom: 14, color: "var(--text-primary)" }}>{event.title}</h2>
+
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            <div style={{ display: "flex", gap: 16, fontSize: 13, color: "var(--text-muted)" }}>
+              <span>📅 {new Date(event.event_date + "T00:00:00").toLocaleDateString("en-US", { weekday: "short", month: "long", day: "numeric" })}</span>
+              {event.event_time && <span>⏰ {event.event_time.slice(0, 5)}</span>}
+            </div>
+
+            {event.reminder_minutes > 0 && (
+              <div style={{ fontSize: 13, color: "var(--text-muted)" }}>
+                🔔 Reminder {event.reminder_minutes}m before
+              </div>
+            )}
+
+            {event.notes && (
+              <div style={{ background: "var(--surface)", borderRadius: 8, padding: "10px 12px", fontSize: 13, color: "var(--text-primary)", whiteSpace: "pre-wrap", marginTop: 4 }}>
+                {event.notes}
+              </div>
+            )}
+
+            {(event.image_lat && event.image_lng) && (
+              <a
+                href={`https://www.google.com/maps?q=${event.image_lat},${event.image_lng}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, color: "var(--brand-primary)", textDecoration: "none", marginTop: 4 }}
+              >
+                <MapPin size={14} />
+                {event.image_lat.toFixed(5)}, {event.image_lng.toFixed(5)}
+              </a>
+            )}
+
+            {event.image_taken_at && (
+              <small style={{ color: "var(--text-muted)", fontSize: 11 }}>
+                📷 Photo taken {new Date(event.image_taken_at).toLocaleString("en-US", { timeZone: "Asia/Bangkok", dateStyle: "medium", timeStyle: "short" })}
+              </small>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -341,6 +446,10 @@ function AddEventModal({ initialDate, sites, onClose, onAdded }: {
     site_id: "",
     notes: "",
     reminder_minutes: 15,
+    image_url: "",
+    image_lat: null as number | null,
+    image_lng: null as number | null,
+    image_taken_at: "",
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -351,29 +460,53 @@ function AddEventModal({ initialDate, sites, onClose, onAdded }: {
     const file = e.target.files?.[0];
     if (!file) return;
     setOcrLoading(true);
-    const reader = new FileReader();
-    reader.onload = async () => {
-      const base64 = (reader.result as string).split(",")[1];
-      try {
-        const res = await fetch("/api/ocr", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ image: base64, mimeType: file.type }),
-        });
-        const data = await res.json();
-        const text: string = data.text?.trim() ?? "";
-        const lines = text.split("\n").map((l: string) => l.trim()).filter(Boolean);
-        const title = lines[0] ?? "";
-        const notes = lines.slice(1).join("\n");
-        setForm((f) => ({ ...f, title, notes }));
-      } catch {
-        setError("OCR failed — please type manually · OCR ล้มเหลว");
-      } finally {
-        setOcrLoading(false);
-        if (fileInputRef.current) fileInputRef.current.value = "";
-      }
-    };
-    reader.readAsDataURL(file);
+    const takenAt = new Date().toISOString();
+
+    try {
+      const [base64, coords] = await Promise.all([
+        new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve((reader.result as string).split(",")[1]);
+          reader.onerror = reject;
+          reader.readAsDataURL(file);
+        }),
+        new Promise<{ lat: number; lng: number } | null>((resolve) => {
+          if (!navigator.geolocation) { resolve(null); return; }
+          navigator.geolocation.getCurrentPosition(
+            (pos) => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+            () => resolve(null),
+            { timeout: 5000 }
+          );
+        }),
+      ]);
+
+      const res = await fetch("/api/ocr", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ image: base64, mimeType: file.type }),
+      });
+      const data = await res.json();
+      if (!res.ok) { setError(data.error ?? "OCR failed — please type manually"); return; }
+
+      const text: string = data.text?.trim() ?? "";
+      const lines = text.split("\n").map((l: string) => l.trim()).filter(Boolean);
+      const title = lines[0] ?? "";
+      const notes = lines.slice(1).join("\n");
+      setForm((f) => ({
+        ...f,
+        title,
+        notes,
+        image_url: data.imageUrl ?? "",
+        image_lat: coords?.lat ?? null,
+        image_lng: coords?.lng ?? null,
+        image_taken_at: takenAt,
+      }));
+    } catch {
+      setError("OCR failed — please type manually · OCR ล้มเหลว");
+    } finally {
+      setOcrLoading(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
   }
 
   async function handleSave() {
@@ -468,6 +601,25 @@ function AddEventModal({ initialDate, sites, onClose, onAdded }: {
             style={{ display: "none" }}
             onChange={handleCameraOCR}
           />
+
+          {/* Image preview after OCR */}
+          {form.image_url && (
+            <div style={{ position: "relative" }}>
+              <img src={form.image_url} alt="Scanned" style={{ width: "100%", borderRadius: 8, maxHeight: 160, objectFit: "cover" }} />
+              {form.image_lat && form.image_lng && (
+                <div style={{ display: "flex", alignItems: "center", gap: 4, marginTop: 4, fontSize: 11, color: "var(--text-muted)" }}>
+                  <MapPin size={11} /> {form.image_lat.toFixed(5)}, {form.image_lng.toFixed(5)}
+                </div>
+              )}
+              <button
+                type="button"
+                onClick={() => setForm((f) => ({ ...f, image_url: "", image_lat: null, image_lng: null, image_taken_at: "" }))}
+                style={{ position: "absolute", top: 6, right: 6, background: "rgba(0,0,0,0.45)", border: "none", borderRadius: "50%", width: 26, height: 26, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
+              >
+                <X size={14} color="white" />
+              </button>
+            </div>
+          )}
 
           {/* Date + Time */}
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>

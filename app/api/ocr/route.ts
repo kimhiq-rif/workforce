@@ -5,7 +5,7 @@ export const maxDuration = 30;
 
 export async function POST(req: NextRequest) {
   try {
-    const { user: authUser } = await getAppUserContext();
+    const { user: authUser, serviceClient } = await getAppUserContext();
     if (!authUser) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
@@ -22,38 +22,58 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "ANTHROPIC_API_KEY not configured" }, { status: 500 });
     }
 
-    const claudeRes = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "x-api-key": apiKey,
-        "anthropic-version": "2023-06-01",
-        "content-type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "claude-haiku-4-5-20251001",
-        max_tokens: 512,
-        messages: [{
-          role: "user",
-          content: [
-            {
-              type: "image",
-              source: {
-                type: "base64",
-                media_type: mimeType ?? "image/jpeg",
-                data: image,
+    // Run OCR and storage upload in parallel
+    const [claudeRes, imageUrl] = await Promise.all([
+      fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: {
+          "x-api-key": apiKey,
+          "anthropic-version": "2023-06-01",
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "claude-haiku-4-5-20251001",
+          max_tokens: 512,
+          messages: [{
+            role: "user",
+            content: [
+              {
+                type: "image",
+                source: {
+                  type: "base64",
+                  media_type: mimeType ?? "image/jpeg",
+                  data: image,
+                },
               },
-            },
-            {
-              type: "text",
-              text: `Read all text from this handwritten or printed note.
+              {
+                type: "text",
+                text: `Read all text from this handwritten or printed note.
 Return the text exactly as written, preserving line breaks.
 First line = event title, remaining lines = notes/details.
 Do not add any explanation — return only the raw text.`,
-            },
-          ],
-        }],
+              },
+            ],
+          }],
+        }),
       }),
-    });
+      (async (): Promise<string | null> => {
+        try {
+          const ext = (mimeType ?? "image/jpeg").split("/")[1] ?? "jpg";
+          const fileName = `calendar/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+          const buffer = Buffer.from(image, "base64");
+          const { error } = await serviceClient.storage
+            .from("calendar-photos")
+            .upload(fileName, buffer, { contentType: mimeType ?? "image/jpeg" });
+          if (error) return null;
+          const { data } = serviceClient.storage
+            .from("calendar-photos")
+            .getPublicUrl(fileName);
+          return data.publicUrl;
+        } catch {
+          return null;
+        }
+      })(),
+    ]);
 
     if (!claudeRes.ok) {
       const err = await claudeRes.json().catch(() => ({}));
@@ -65,7 +85,7 @@ Do not add any explanation — return only the raw text.`,
 
     const data = await claudeRes.json();
     const text = data.content?.[0]?.text ?? "";
-    return NextResponse.json({ text });
+    return NextResponse.json({ text, imageUrl });
 
   } catch (err: any) {
     return NextResponse.json({ error: err.message ?? "Unexpected error" }, { status: 500 });

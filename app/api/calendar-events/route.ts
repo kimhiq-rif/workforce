@@ -7,7 +7,8 @@ export async function POST(req: NextRequest) {
   if (!user || !ownerId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const body = await req.json();
-  const { title, event_type, event_date, event_time, site_id, notes, reminder_minutes } = body;
+  const { title, event_type, event_date, event_time, site_id, notes, reminder_minutes,
+          image_url, image_lat, image_lng, image_taken_at } = body;
 
   if (!title || !event_date) {
     return NextResponse.json({ error: "Title and date are required" }, { status: 400 });
@@ -24,6 +25,10 @@ export async function POST(req: NextRequest) {
       site_id: site_id || null,
       notes: notes || null,
       reminder_minutes: Number(reminder_minutes) || 15,
+      image_url: image_url || null,
+      image_lat: image_lat ?? null,
+      image_lng: image_lng ?? null,
+      image_taken_at: image_taken_at || null,
     })
     .select("*")
     .single();
