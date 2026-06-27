@@ -465,7 +465,6 @@ function AddEventModal({ initialDate, sites, onClose, onAdded }: {
             ref={fileInputRef}
             type="file"
             accept="image/*"
-            capture="environment"
             style={{ display: "none" }}
             onChange={handleCameraOCR}
           />
