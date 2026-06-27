@@ -460,53 +460,29 @@ function AddEventModal({ initialDate, sites, onClose, onAdded }: {
     const file = e.target.files?.[0];
     if (!file) return;
     setOcrLoading(true);
-    const takenAt = new Date().toISOString();
-
-    try {
-      const [base64, coords] = await Promise.all([
-        new Promise<string>((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onload = () => resolve((reader.result as string).split(",")[1]);
-          reader.onerror = reject;
-          reader.readAsDataURL(file);
-        }),
-        new Promise<{ lat: number; lng: number } | null>((resolve) => {
-          if (!navigator.geolocation) { resolve(null); return; }
-          navigator.geolocation.getCurrentPosition(
-            (pos) => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
-            () => resolve(null),
-            { timeout: 5000 }
-          );
-        }),
-      ]);
-
-      const res = await fetch("/api/ocr", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ image: base64, mimeType: file.type }),
-      });
-      const data = await res.json();
-      if (!res.ok) { setError(data.error ?? "OCR failed — please type manually"); return; }
-
-      const text: string = data.text?.trim() ?? "";
-      const lines = text.split("\n").map((l: string) => l.trim()).filter(Boolean);
-      const title = lines[0] ?? "";
-      const notes = lines.slice(1).join("\n");
-      setForm((f) => ({
-        ...f,
-        title,
-        notes,
-        image_url: data.imageUrl ?? "",
-        image_lat: coords?.lat ?? null,
-        image_lng: coords?.lng ?? null,
-        image_taken_at: takenAt,
-      }));
-    } catch {
-      setError("OCR failed — please type manually · OCR ล้มเหลว");
-    } finally {
-      setOcrLoading(false);
-      if (fileInputRef.current) fileInputRef.current.value = "";
-    }
+    const reader = new FileReader();
+    reader.onload = async () => {
+      const base64 = (reader.result as string).split(",")[1];
+      try {
+        const res = await fetch("/api/ocr", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ image: base64, mimeType: file.type }),
+        });
+        const data = await res.json();
+        const text: string = data.text?.trim() ?? "";
+        const lines = text.split("\n").map((l: string) => l.trim()).filter(Boolean);
+        const title = lines[0] ?? "";
+        const notes = lines.slice(1).join("\n");
+        setForm((f) => ({ ...f, title, notes }));
+      } catch {
+        setError("OCR failed — please type manually · OCR ล้มเหลว");
+      } finally {
+        setOcrLoading(false);
+        if (fileInputRef.current) fileInputRef.current.value = "";
+      }
+    };
+    reader.readAsDataURL(file);
   }
 
   async function handleSave() {
