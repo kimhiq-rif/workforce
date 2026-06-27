@@ -213,8 +213,8 @@ export function FinanceClient({ todayAttendance, pendingReceipts: initReceipts, 
               <div className="table-card">
                 {pendingAdvances.map((a) => (
                   <div key={a.id} style={{ display: "flex", alignItems: "center", gap: 14, padding: "12px 20px", borderBottom: "1px solid var(--border)" }}>
-                    <div className="avatar" style={{ width: 34, height: 34, fontSize: 11, flexShrink: 0 }}>
-                      {a.worker?.name_th?.[0] ?? "?"}
+                    <div className="avatar" style={{ width: 34, height: 34, fontSize: 11, flexShrink: 0, overflow: "hidden", padding: a.worker?.photo_url ? 0 : undefined }}>
+                      {a.worker?.photo_url ? <img src={a.worker.photo_url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : (a.worker?.name_th?.[0] ?? "?")}
                     </div>
                     <div style={{ flex: 1 }}>
                       <strong style={{ fontSize: 15 }}>{a.worker?.name_th ?? "?"}</strong>
@@ -553,7 +553,7 @@ function MobileFinance({ todayWageTotal, pendingReceiptTotal, pendingAdvanceTota
             </div>
             {pendingAdvances.slice(0, 5).map((a: any) => (
               <div key={a.id} style={{ background: "white", borderRadius: 8, padding: "12px 14px", marginBottom: 6, border: "1px solid var(--border)", display: "flex", alignItems: "center", gap: 10 }}>
-                <div className="avatar" style={{ width: 32, height: 32, fontSize: 11, flexShrink: 0 }}>{a.worker?.name_th?.[0] ?? "?"}</div>
+                <div className="avatar" style={{ width: 32, height: 32, fontSize: 11, flexShrink: 0, overflow: "hidden", padding: a.worker?.photo_url ? 0 : undefined }}>{a.worker?.photo_url ? <img src={a.worker.photo_url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : (a.worker?.name_th?.[0] ?? "?")}</div>
                 <div style={{ flex: 1 }}>
                   <strong style={{ fontSize: 14 }}>{a.worker?.name_th ?? "?"}</strong>
                   <small style={{ display: "block", color: "var(--text-muted)", fontSize: 12 }}>{a.reason ?? "เบิกเงิน"}</small>

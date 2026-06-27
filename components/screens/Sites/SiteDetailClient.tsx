@@ -752,8 +752,8 @@ export function SiteDetailClient({
                   style={{ gridTemplateColumns: "2fr 100px 120px 120px 110px", display: "grid", padding: "12px 20px", gap: 12, textDecoration: "none", color: "inherit" }}
                 >
                   <span style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                    <div className="avatar" style={{ width: 34, height: 34, fontSize: 11, flexShrink: 0 }}>
-                      {worker.name_th[0]}
+                    <div className="avatar" style={{ width: 34, height: 34, fontSize: 11, flexShrink: 0, overflow: "hidden", padding: worker.photo_url ? 0 : undefined }}>
+                      {worker.photo_url ? <img src={worker.photo_url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : worker.name_th[0]}
                     </div>
                     <span>
                       <span className="cell-th">{worker.name_th}</span>
@@ -1616,8 +1616,8 @@ function MobileSiteDetail({
                   className="mobile-worker-card"
                   style={{ textDecoration: "none", color: "inherit" }}
                 >
-                  <div className="avatar" style={{ width: 40, height: 40, fontSize: 14, flexShrink: 0 }}>
-                    {worker.name_th[0]}
+                  <div className="avatar" style={{ width: 40, height: 40, fontSize: 14, flexShrink: 0, overflow: "hidden", padding: worker.photo_url ? 0 : undefined }}>
+                    {worker.photo_url ? <img src={worker.photo_url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : worker.name_th[0]}
                   </div>
                   <div style={{ flex: 1 }}>
                     <strong style={{ display: "block", fontSize: 15 }}>{worker.name_th}</strong>
@@ -2133,12 +2133,12 @@ function AttendanceReportFlow({
                   >
                     <div style={{
                       width: 42, height: 42, borderRadius: "50%",
-                      background: isYesterday ? "var(--brand-primary)" : "#E5E7EB",
+                      background: worker.photo_url ? "transparent" : isYesterday ? "var(--brand-primary)" : "#E5E7EB",
                       color: isYesterday ? "white" : "var(--text-muted)",
                       display: "flex", alignItems: "center", justifyContent: "center",
-                      fontSize: 16, fontWeight: 700, flexShrink: 0,
+                      fontSize: 16, fontWeight: 700, flexShrink: 0, overflow: "hidden",
                     }}>
-                      {worker.name_th[0]}
+                      {worker.photo_url ? <img src={worker.photo_url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : worker.name_th[0]}
                     </div>
                     <div style={{ flex: 1 }}>
                       <div style={{ fontSize: 16, fontWeight: 600, color: "var(--text-primary)" }}>
@@ -2173,8 +2173,8 @@ function AttendanceReportFlow({
                     display: "flex", alignItems: "center", gap: 12, padding: "12px 12px",
                     borderRadius: 12, border: "1px solid #BBF7D0", background: "#F0FDF4", marginBottom: 8,
                   }}>
-                    <div style={{ width: 42, height: 42, borderRadius: "50%", background: "#22C55E", color: "white", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, fontWeight: 700, flexShrink: 0 }}>
-                      {worker.name_th[0]}
+                    <div style={{ width: 42, height: 42, borderRadius: "50%", background: worker.photo_url ? "transparent" : "#22C55E", color: "white", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, fontWeight: 700, flexShrink: 0, overflow: "hidden" }}>
+                      {worker.photo_url ? <img src={worker.photo_url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : worker.name_th[0]}
                     </div>
                     <div style={{ flex: 1 }}>
                       <div style={{ fontSize: 16, fontWeight: 600 }}>{worker.name_th}</div>

@@ -628,13 +628,14 @@ export function AttendanceReportFlow({
                       <div style={{ position: "relative", flexShrink: 0 }}>
                         <div style={{
                           width: 44, height: 44, borderRadius: "50%",
-                          background: worker.isYesterday ? "#DBEAFE" : "var(--surface)",
+                          background: worker.photo_url ? "transparent" : worker.isYesterday ? "#DBEAFE" : "var(--surface)",
                           border: `2px solid ${worker.isYesterday ? "#3B82F6" : "var(--border)"}`,
                           display: "flex", alignItems: "center", justifyContent: "center",
                           fontSize: 17, fontWeight: 700,
                           color: worker.isYesterday ? "#1D4ED8" : "var(--text-primary)",
+                          overflow: "hidden",
                         }}>
-                          {worker.name_th[0]}
+                          {worker.photo_url ? <img src={worker.photo_url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : worker.name_th[0]}
                         </div>
                         {/* Transfer dot */}
                         {worker.isOtherSite && worker.fromSiteColor && (
@@ -954,11 +955,11 @@ export function AttendanceReportFlow({
                   <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 10 }}>
                     <div style={{
                       width: 40, height: 40, borderRadius: "50%",
-                      background: "var(--surface)", border: "1px solid var(--border)",
+                      background: worker.photo_url ? "transparent" : "var(--surface)", border: "1px solid var(--border)",
                       display: "flex", alignItems: "center", justifyContent: "center",
-                      fontSize: 15, fontWeight: 700, flexShrink: 0,
+                      fontSize: 15, fontWeight: 700, flexShrink: 0, overflow: "hidden",
                     }}>
-                      {worker.name_th[0]}
+                      {worker.photo_url ? <img src={worker.photo_url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : worker.name_th[0]}
                     </div>
                     <div>
                       <div style={{ fontSize: 15, fontWeight: 600 }}>{worker.name_th}</div>

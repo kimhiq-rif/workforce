@@ -39,7 +39,7 @@ export default async function FinancePage() {
   // Outstanding advances
   const { data: pendingAdvances } = await supabase
     .from("advances")
-    .select("id, amount, reason, created_at, worker:worker_id(name_th, name_en)")
+    .select("id, amount, reason, created_at, worker:worker_id(name_th, name_en, photo_url)")
     .eq("owner_id", ownerId)
     .eq("status", "pending")
     .order("created_at", { ascending: false })

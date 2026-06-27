@@ -42,7 +42,7 @@ function RemoteAccessPanel({ teamMembers }: { teamMembers: any[] }) {
         </span>
         <div>
           <h3 style={{ fontSize: 15, fontWeight: 700, margin: 0, color: "var(--brand-primary)" }}><span className="th-text">เข้าถึงระยะไกล</span><span className="en-text">Remote access</span></h3>
-          <p style={{ fontSize: 12, color: "var(--text-muted)", margin: 0 }}><span className="th-text">เข้าสู่บัญชีผู้ใช้เพื่อสนับสนุนด้านเทคนิค</span><span className="en-text">Access user account for technical support</span></p>
+          <p style={{ fontSize: 12, color: "var(--text-muted)", margin: 0 }}><span className="th-text">เข้าบัญชีผู้ใช้เพื่อช่วยเหลือด้านเทคนิค</span><span className="en-text">Access user account for technical support</span></p>
         </div>
       </div>
 
@@ -745,14 +745,14 @@ export function SettingsClient({ profile, workdaySettings, teamMembers, workers,
                 </p>
               </div>
               <a
-                href={`https://wa.me/?text=${encodeURIComponent(`Workforce Login:\nEmail: ${inviteCredentials.email}\nPassword: ${inviteCredentials.temp_password}\n\nPlease install the app first: Add to Home Screen in Safari`)}`}
+                href={`https://wa.me/?text=${encodeURIComponent(`Workforce Login:\nอีเมล · Email: ${inviteCredentials.email}\nรหัสผ่าน · Password: ${inviteCredentials.temp_password}\n\nกรุณาติดตั้งแอปก่อน · Please install the app first:\nกด Share แล้วเลือก "เพิ่มที่หน้าจอหลัก" · Tap Share → "Add to Home Screen" in Safari`)}`}
                 target="_blank" rel="noopener noreferrer"
                 style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: "12px", background: "#25D366", color: "white", borderRadius: 10, fontSize: 14, fontWeight: 600, textDecoration: "none" }}
               >
                 ส่งผ่าน WhatsApp · Send via WhatsApp
               </a>
               <button
-                onClick={() => { navigator.clipboard.writeText(`Workforce Login:\nEmail: ${inviteCredentials!.email}\nPassword: ${inviteCredentials!.temp_password}`); showToast("Copied · คัดลอกแล้ว"); }}
+                onClick={() => { navigator.clipboard.writeText(`Workforce Login:\nอีเมล · Email: ${inviteCredentials!.email}\nรหัสผ่าน · Password: ${inviteCredentials!.temp_password}\n\nกรุณาติดตั้งแอปก่อน · Please install the app first:\nกด Share แล้วเลือก "เพิ่มที่หน้าจอหลัก" · Tap Share → "Add to Home Screen" in Safari`); showToast("Copied · คัดลอกแล้ว"); }}
                 style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: "11px", background: "#EFF6FF", color: "#1D4ED8", border: "1px solid #BFDBFE", borderRadius: 10, cursor: "pointer", fontSize: 14, fontWeight: 600 }}
               >
                 <Copy size={16} /> คัดลอกทั้งหมด · Copy all
