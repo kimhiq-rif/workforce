@@ -367,7 +367,7 @@ function AddEventModal({ initialDate, sites, onClose, onAdded }: {
         const notes = lines.slice(1).join("\n");
         setForm((f) => ({ ...f, title, notes }));
       } catch {
-        // silent fail — user can type manually
+        setError("OCR failed — please type manually · OCR ล้มเหลว");
       } finally {
         setOcrLoading(false);
         if (fileInputRef.current) fileInputRef.current.value = "";
