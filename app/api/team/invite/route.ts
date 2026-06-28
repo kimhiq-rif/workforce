@@ -45,9 +45,14 @@ export async function POST(req: NextRequest) {
   const email = worker.email.trim();
   const tempPassword = generateTempPassword();
 
-  // If worker already has an auth account — reset their temp password
+  // If worker already has an auth account — reset temp password and fix role/owner_id
   if (worker.auth_user_id) {
-    await supabase.from("users").update({ role, has_set_password: false }).eq("auth_id", worker.auth_user_id);
+    await supabase.from("users")
+      .upsert(
+        { auth_id: worker.auth_user_id, owner_id: ownerId, role, has_set_password: false,
+          name_th: worker.name_th, name_en: worker.name_en, phone: worker.phone, session_timeout_hours: 8 },
+        { onConflict: "auth_id" }
+      );
     await supabase.auth.admin.updateUserById(worker.auth_user_id, { password: tempPassword });
     return NextResponse.json({ email, temp_password: tempPassword });
   }
