@@ -3,9 +3,10 @@
 // Driver Manager screen — technical_admin only.
 // Two flows: Cash receipt and Payment request.
 
-import { useState, useRef } from "react";
+import { useState, useRef, type ChangeEvent } from "react";
+import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { Camera, QrCode, ChevronLeft, Check, X, MapPin, RefreshCw, AlertTriangle } from "lucide-react";
+import { Camera, QrCode, ChevronLeft, Check, MapPin, RefreshCw, Building2 } from "lucide-react";
 
 type Site = { id: string; name_th: string; name_en: string; status: string };
 type Supplier = { id: string; name_th: string; name_en: string; category: string | null; ocr_fingerprints?: string[] | null };
@@ -31,6 +32,7 @@ interface CapturedPhoto {
 
 export function DriverClient({ userId, ownerId, driverName, sites, suppliers }: Props) {
   const supabase = createClient();
+  const router = useRouter();
   const [flow, setFlow] = useState<Flow>("home");
   const [receiptType, setReceiptType] = useState<ReceiptType>("cash");
   const [receiptPhoto, setReceiptPhoto] = useState<CapturedPhoto | null>(null);
@@ -45,6 +47,69 @@ export function DriverClient({ userId, ownerId, driverName, sites, suppliers }: 
   const streamRef = useRef<MediaStream | null>(null);
   const geoCoordsRef = useRef<{ lat: number; lng: number } | null>(null);
   const geoLoadingRef = useRef(false);
+  const cashFileRef = useRef<HTMLInputElement>(null);
+  const qrReceiptFileRef = useRef<HTMLInputElement>(null);
+  const qrCodeFileRef = useRef<HTMLInputElement>(null);
+
+  function isMobile() {
+    if (typeof navigator === "undefined") return false;
+    return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+  }
+
+  function startGeo() {
+    geoCoordsRef.current = null;
+    geoLoadingRef.current = true;
+    navigator.geolocation?.getCurrentPosition(
+      (pos) => { geoCoordsRef.current = { lat: pos.coords.latitude, lng: pos.coords.longitude }; geoLoadingRef.current = false; },
+      () => { geoLoadingRef.current = false; },
+      { timeout: 8000 },
+    );
+  }
+
+  async function fileToPhoto(file: File): Promise<CapturedPhoto> {
+    const dataUrl = await new Promise<string>((res) => {
+      const r = new FileReader();
+      r.onload = (e) => res(e.target!.result as string);
+      r.readAsDataURL(file);
+    });
+    let lat: number | null = null, lng: number | null = null;
+    try {
+      const pos = await new Promise<GeolocationPosition>((resolve, reject) =>
+        navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 5000 })
+      );
+      lat = pos.coords.latitude; lng = pos.coords.longitude;
+    } catch {}
+    return { blob: file, dataUrl, lat, lng };
+  }
+
+  async function handleMobileCashFile(e: ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]; e.target.value = "";
+    if (!file) return;
+    const photo = await fileToPhoto(file);
+    const url = await uploadPhoto(photo, "receipts/cash");
+    photo.uploadedUrl = url ?? undefined;
+    setReceiptPhoto(photo); setFlow("cash_preview");
+    if (url) runOCR(photo);
+  }
+
+  async function handleMobileQrReceiptFile(e: ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]; e.target.value = "";
+    if (!file) return;
+    const photo = await fileToPhoto(file);
+    const url = await uploadPhoto(photo, "receipts/qr");
+    photo.uploadedUrl = url ?? undefined;
+    setReceiptPhoto(photo); setFlow("qr_receipt_preview");
+    if (url) runOCR(photo);
+  }
+
+  async function handleMobileQrCodeFile(e: ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]; e.target.value = "";
+    if (!file) return;
+    const photo = await fileToPhoto(file);
+    const url = await uploadPhoto(photo, "receipts/qr_code");
+    photo.uploadedUrl = url ?? undefined;
+    setQrPhoto(photo); setFlow("qr_qr_preview");
+  }
 
   function showToast(msg: string) {
     setToast(msg);
@@ -54,13 +119,7 @@ export function DriverClient({ userId, ownerId, driverName, sites, suppliers }: 
   // ── Camera helpers ──────────────────────────────────────────────────────────
 
   async function startCamera() {
-    geoCoordsRef.current = null;
-    geoLoadingRef.current = true;
-    navigator.geolocation?.getCurrentPosition(
-      (pos) => { geoCoordsRef.current = { lat: pos.coords.latitude, lng: pos.coords.longitude }; geoLoadingRef.current = false; },
-      () => { geoLoadingRef.current = false; },
-      { timeout: 8000 },
-    );
+    startGeo();
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment", width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false });
       streamRef.current = stream;
@@ -284,13 +343,26 @@ export function DriverClient({ userId, ownerId, driverName, sites, suppliers }: 
     const isQrStep = flow === "qr_qr_preview";
     const onConfirm = () => {
       if (flow === "cash_preview") setFlow("cash_site");
-      else if (flow === "qr_receipt_preview") { setFlow("qr_qr_camera"); startCamera(); }
+      else if (flow === "qr_receipt_preview") {
+        if (isMobile()) { qrCodeFileRef.current?.click(); }
+        else { setFlow("qr_qr_camera"); startCamera(); }
+      }
       else setFlow("qr_site");
     };
     const onRetake = () => {
-      if (flow === "cash_preview") { setFlow("cash_camera"); startCamera(); }
-      else if (flow === "qr_receipt_preview") { setReceiptPhoto(null); setFlow("qr_receipt_camera"); startCamera(); }
-      else { setQrPhoto(null); setFlow("qr_qr_camera"); startCamera(); }
+      if (flow === "cash_preview") {
+        setReceiptPhoto(null);
+        if (isMobile()) cashFileRef.current?.click();
+        else { setFlow("cash_camera"); startCamera(); }
+      } else if (flow === "qr_receipt_preview") {
+        setReceiptPhoto(null);
+        if (isMobile()) qrReceiptFileRef.current?.click();
+        else { setFlow("qr_receipt_camera"); startCamera(); }
+      } else {
+        setQrPhoto(null);
+        if (isMobile()) qrCodeFileRef.current?.click();
+        else { setFlow("qr_qr_camera"); startCamera(); }
+      }
     };
 
     return (
@@ -425,7 +497,11 @@ export function DriverClient({ userId, ownerId, driverName, sites, suppliers }: 
       <div style={{ flex: 1, padding: "0 24px", display: "flex", flexDirection: "column", gap: 16, justifyContent: "center" }}>
         {/* Cash receipt */}
         <button
-          onClick={() => { setReceiptType("cash"); setFlow("cash_camera"); startCamera(); }}
+          onClick={() => {
+            setReceiptType("cash");
+            if (isMobile()) { cashFileRef.current?.click(); }
+            else { setFlow("cash_camera"); startCamera(); }
+          }}
           style={{
             background: "white", borderRadius: 18, padding: "28px 24px",
             border: "none", cursor: "pointer", textAlign: "left",
@@ -442,7 +518,11 @@ export function DriverClient({ userId, ownerId, driverName, sites, suppliers }: 
 
         {/* Payment request */}
         <button
-          onClick={() => { setReceiptType("payment_request"); setFlow("qr_receipt_camera"); startCamera(); }}
+          onClick={() => {
+            setReceiptType("payment_request");
+            if (isMobile()) { qrReceiptFileRef.current?.click(); }
+            else { setFlow("qr_receipt_camera"); startCamera(); }
+          }}
           style={{
             background: "linear-gradient(135deg, #7C3AED, #6D28D9)", borderRadius: 18, padding: "28px 24px",
             border: "none", cursor: "pointer", textAlign: "left",
@@ -456,11 +536,35 @@ export function DriverClient({ userId, ownerId, driverName, sites, suppliers }: 
           <div style={{ fontSize: 14, color: "rgba(255,255,255,0.75)" }}>Payment request · ส่ง QR ให้เจ้าของ</div>
           <div style={{ fontSize: 12, color: "rgba(255,255,255,0.55)", marginTop: 4 }}>Receipt → QR code → Select site → Send</div>
         </button>
+
+        {/* Orange button → field manager sites view */}
+        <button
+          onClick={() => router.push("/sites")}
+          style={{
+            background: "linear-gradient(135deg, #F97316, #EA580C)", borderRadius: 18, padding: "20px 24px",
+            border: "none", cursor: "pointer", textAlign: "left",
+            boxShadow: "0 8px 32px rgba(0,0,0,0.25)",
+            display: "flex", alignItems: "center", gap: 16,
+          }}
+        >
+          <div style={{ width: 48, height: 48, borderRadius: 14, background: "rgba(255,255,255,0.2)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+            <Building2 size={26} color="white" />
+          </div>
+          <div>
+            <div style={{ fontSize: 18, fontWeight: 700, color: "white", marginBottom: 2 }}>ไซต์งาน · Sites</div>
+            <div style={{ fontSize: 13, color: "rgba(255,255,255,0.75)" }}>รายงานการเข้างาน · Attendance report</div>
+          </div>
+        </button>
       </div>
 
       <div style={{ padding: "16px 24px 48px", textAlign: "center" }}>
         <div style={{ fontSize: 12, color: "rgba(255,255,255,0.4)" }}>Workforce · Driver Panel · 24/7</div>
       </div>
+
+      {/* Hidden file inputs for mobile camera (still photo, no video) */}
+      <input ref={cashFileRef} type="file" accept="image/*" capture="environment" style={{ display: "none" }} onChange={handleMobileCashFile} />
+      <input ref={qrReceiptFileRef} type="file" accept="image/*" capture="environment" style={{ display: "none" }} onChange={handleMobileQrReceiptFile} />
+      <input ref={qrCodeFileRef} type="file" accept="image/*" capture="environment" style={{ display: "none" }} onChange={handleMobileQrCodeFile} />
 
       {toast && (
         <div style={{ position: "fixed", bottom: 80, left: "50%", transform: "translateX(-50%)", background: "#EF4444", color: "white", padding: "10px 20px", borderRadius: 10, fontSize: 14, zIndex: 2000 }}>
