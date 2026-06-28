@@ -50,7 +50,7 @@ function RemoteAccessPanel({ teamMembers }: { teamMembers: any[] }) {
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
           <div style={{ background: "#FFFBEB", border: "1px solid #FDE68A", borderRadius: 10, padding: "12px 14px" }}>
             <p style={{ fontSize: 13, fontWeight: 600, color: "#92400E", marginBottom: 4 }}>⚡ <span className="th-text">ลิงก์ครั้งเดียวสำหรับ:</span><span className="en-text">One-time link for:</span> {accessName}</p>
-            <p style={{ fontSize: 11, color: "var(--text-muted)" }}><span className="th-text">ใช้ได้ 5 นาทีเท่านั้น</span><span className="en-text">Valid for 5 minutes only</span></p>
+            <p style={{ fontSize: 11, color: "var(--text-muted)" }}><span className="th-text">ใช้ได้ 5 นาทีเท่านั้น · เปิดในแท็บ Incognito เพื่อป้องกันการผสม session</span><span className="en-text">Valid 5 min · Open in Incognito tab to avoid session conflict</span></p>
           </div>
           <a href={accessUrl} target="_blank" rel="noopener noreferrer"
             style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: "11px", background: "var(--brand-primary)", color: "white", borderRadius: 10, fontSize: 14, fontWeight: 600, textDecoration: "none" }}>
