@@ -53,6 +53,23 @@ export async function getAppUserContext() {
     };
   }
 
+  // Only auto-create an owner profile when no profile exists AND the user has
+  // no email domain that suggests they're a worker account. Workers are always
+  // invited via /api/team/invite which creates their users row before first login.
+  // If we reach here for a worker (invite DB insert failed), return null so the
+  // app shows an error rather than silently granting owner access.
+  const { data: workerCheck } = await serviceClient
+    .from("workers")
+    .select("id")
+    .eq("auth_user_id", user.id)
+    .maybeSingle();
+
+  if (workerCheck) {
+    // Worker auth account exists but users row is missing — broken invite state.
+    // Don't auto-create; return null so the caller can redirect to an error page.
+    return { user: null, profile: null, ownerId: null, authClient, serviceClient };
+  }
+
   const name = fallbackName(user);
   const { data: createdProfile, error: createError } = await serviceClient
     .from("users")
