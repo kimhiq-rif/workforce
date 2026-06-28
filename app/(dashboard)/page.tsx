@@ -10,6 +10,11 @@ export default async function DashboardPage() {
   const { user, profile, ownerId, serviceClient: supabase } = await getAppUserContext();
   if (!user || !profile || !ownerId) redirect("/login");
 
+  // Technical admin (driver): go straight to driver screen
+  if (profile.role === "technical_admin") {
+    redirect("/driver");
+  }
+
   // Field Manager: go straight to their assigned site
   if (profile.role === "field_manager") {
     const { data: linkedWorker } = await supabase
@@ -21,6 +26,8 @@ export default async function DashboardPage() {
     if (linkedWorker?.assigned_site_id) {
       redirect(`/sites/${linkedWorker.assigned_site_id}`);
     }
+    // Field manager without assigned site — show waiting screen
+    redirect("/no-assignment");
   }
 
   // Fetch all sites with today's attendance stats
