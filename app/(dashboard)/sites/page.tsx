@@ -6,7 +6,7 @@ import { redirect } from "next/navigation";
 export const dynamic = "force-dynamic";
 
 export default async function SitesPage() {
-  const { user, ownerId, serviceClient: supabase } = await getAppUserContext();
+  const { user, profile, ownerId, serviceClient: supabase } = await getAppUserContext();
   if (!user || !ownerId) redirect("/login");
 
   const { data: sites } = await supabase
@@ -16,5 +16,5 @@ export default async function SitesPage() {
     .eq("is_active", true)
     .order("created_at", { ascending: true });
 
-  return <SitesClient sites={sites ?? []} ownerId={ownerId} />;
+  return <SitesClient sites={sites ?? []} ownerId={ownerId} isDriver={profile?.role === "technical_admin"} />;
 }

@@ -126,6 +126,7 @@ export default async function SiteDetailPage({ params }: Props) {
       userId={profile?.id ?? undefined}
       userRole={profile?.role ?? undefined}
       stages={stages ?? []}
+      isDriver={profile?.role === "technical_admin"}
     />
   );
 }

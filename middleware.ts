@@ -82,6 +82,17 @@ export async function middleware(request: NextRequest) {
         return redirect;
       }
 
+      // Driver route restriction: technical_admin may only access /driver, /sites, /sites/[id]
+      if (profile.role === "technical_admin") {
+        const isDriverAllowed =
+          pathname === "/driver" ||
+          pathname === "/sites" ||
+          pathname.startsWith("/sites/");
+        if (!isDriverAllowed) {
+          return NextResponse.redirect(new URL("/driver", request.url));
+        }
+      }
+
       // Update last_seen_at — fire-and-forget
       supabase
         .from("users")
