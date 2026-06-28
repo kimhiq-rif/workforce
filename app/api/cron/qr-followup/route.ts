@@ -1,14 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
 import { sendOneSignalPush } from "@/lib/send-push";
+import { getAppUserContext } from "@/lib/auth-context";
 
 export const dynamic = "force-dynamic";
 
-// Called 90 minutes after a QR is scanned — sends push to owner if still unpaid
+// Called 90 minutes after a QR is scanned — sends push to owner if still unpaid.
+// Accepts CRON_SECRET bearer token (server cron) OR valid Supabase session (browser call).
 export async function POST(req: NextRequest) {
   const authHeader = req.headers.get("authorization");
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const isCron = authHeader === `Bearer ${process.env.CRON_SECRET}`;
+  if (!isCron) {
+    const { user } = await getAppUserContext();
+    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   const { receipt_id, owner_id } = await req.json();
