@@ -37,7 +37,7 @@ export function DashboardShell({
               <span>กลับ · Back</span>
             </Link>
           </div>
-          <div style={{ flex: 1, overflowY: "auto" }}>{children}</div>
+          <div style={{ flex: 1, minHeight: 0, overflowY: "auto" }}>{children}</div>
         </div>
       </>
     );
@@ -70,7 +70,7 @@ export function DashboardShell({
         className="mobile-only"
         style={{ display: "flex", flexDirection: "column", height: "100dvh", overflow: "hidden", background: "var(--surface)" }}
       >
-        <div style={{ flex: 1, overflowY: "auto" }}>{children}</div>
+        <div style={{ flex: 1, minHeight: 0, overflowY: "auto" }}>{children}</div>
         <BottomNav />
       </div>
     </>
