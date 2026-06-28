@@ -212,6 +212,21 @@ export function DriverClient({ userId, ownerId, driverName, sites, suppliers }: 
     });
     setSending(false);
     if (error) { showToast("เกิดข้อผิดพลาด · Error"); return; }
+
+    // Push to owner
+    const site = sites.find((s) => s.id === selectedSiteId);
+    const amount = ocrResult?.amount ? `฿${ocrResult.amount.toLocaleString()}` : "";
+    fetch("/api/push", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        owner_id: ownerId,
+        title: "🧾 ใบเสร็จเงินสด · Cash receipt",
+        body: `${driverName} · ${site?.name_th ?? ""} ${amount}`.trim(),
+        url: "/suppliers",
+      }),
+    }).catch(() => {});
+
     setReceiptPhoto(null);
     setOcrResult(null);
     setFlow("success");

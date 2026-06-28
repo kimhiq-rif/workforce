@@ -35,12 +35,19 @@ export async function sendOneSignalPush(args: SendPushArgs): Promise<SendPushRes
   const ids = Array.from(new Set(args.externalIds.filter(Boolean)));
   if (ids.length === 0) return { ok: true, sent: 0 };
 
+  // OneSignal requires absolute URLs for reliable deep-linking when the app
+  // is not open (mobile push). Relative paths (/page) are resolved against
+  // NEXT_PUBLIC_APP_URL; already-absolute URLs are passed through unchanged.
+  const appUrl = (process.env.NEXT_PUBLIC_APP_URL ?? "").replace(/\/$/, "");
+  const rawUrl = args.url ?? "/";
+  const absoluteUrl = rawUrl.startsWith("/") ? `${appUrl}${rawUrl}` : rawUrl;
+
   const payload: Record<string, unknown> = {
     app_id: appId,
     target_channel: "push",
     headings: { en: args.title },
     contents: { en: args.body ?? "" },
-    url: args.url ?? "/",
+    url: absoluteUrl,
     include_aliases: { external_id: ids },
   };
   if (args.tag) payload.web_push_topic = args.tag;
