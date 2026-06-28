@@ -1,7 +1,7 @@
 "use client";
 // Copyright © 2026 Workforce. All rights reserved.
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Bell, Calendar, ChevronDown, LogIn, LogOut, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -270,8 +270,8 @@ function CalendarPanel() {
 
 // ── Main SystemBar ────────────────────────────────────────────────────────────
 export function SystemBar({
-  userInitials = "SK",
-  userName = "เจ้าของ",
+  userInitials: _userInitials = "SK",
+  userName: _userName = "เจ้าของ",
   notificationCount = 0,
 }: SystemBarProps) {
   const router = useRouter();
@@ -284,6 +284,10 @@ export function SystemBar({
   const [authSuccess, setAuthSuccess] = useState("");
   const [authLoading, setAuthLoading] = useState(false);
   const [connectedEmail, setConnectedEmail] = useState<string | null>(null);
+  const [displayName, setDisplayName] = useState(_userName);
+  const [displayInitials, setDisplayInitials] = useState(_userInitials);
+  const [dropdownPos, setDropdownPos] = useState<{ top: number; right: number } | null>(null);
+  const profileBtnRef = useRef<HTMLButtonElement>(null);
   const now = new Date();
 
   // Bangkok workday progress (08:00–17:00)
@@ -301,6 +305,29 @@ export function SystemBar({
   useEffect(() => {
     const timer = setInterval(() => setTime(nowBangkok()), 30_000);
     return () => clearInterval(timer);
+  }, []);
+
+  // Fetch the actual logged-in user's name on mount
+  useEffect(() => {
+    async function fetchUserName() {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const { data: profile } = await supabase
+        .from("users")
+        .select("name_th, name_en")
+        .eq("auth_id", user.id)
+        .single();
+      if (!profile) return;
+      const name = profile.name_th || profile.name_en || _userName;
+      setDisplayName(name);
+      const parts = name.trim().split(/\s+/);
+      const initials = parts.length >= 2
+        ? (parts[0][0] + parts[1][0]).toUpperCase()
+        : name.slice(0, 2).toUpperCase();
+      setDisplayInitials(initials);
+    }
+    fetchUserName();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -431,7 +458,14 @@ export function SystemBar({
         </button>
 
         <button
-          onClick={() => setDrawerOpen((v) => !v)}
+          ref={profileBtnRef}
+          onClick={() => {
+            const rect = profileBtnRef.current?.getBoundingClientRect();
+            if (rect) {
+              setDropdownPos({ top: rect.bottom + 10, right: window.innerWidth - rect.right });
+            }
+            setDrawerOpen((v) => !v);
+          }}
           style={{
             border: "none",
             background: "transparent",
@@ -445,20 +479,20 @@ export function SystemBar({
           aria-expanded={drawerOpen}
           aria-label="Owner account menu"
         >
-          <div className="avatar">{userInitials}</div>
+          <div className="avatar">{displayInitials}</div>
           <div style={{ textAlign: "left" }}>
-            <strong style={{ display: "block", fontSize: 14, fontWeight: 600 }}>{userName}</strong>
+            <strong style={{ display: "block", fontSize: 14, fontWeight: 600 }}>{displayName}</strong>
             <small style={{ fontSize: 11, color: "var(--text-muted)" }}>Owner</small>
           </div>
           <ChevronDown size={16} color="var(--text-muted)" />
         </button>
 
-        {drawerOpen && (
+        {drawerOpen && dropdownPos && (
           <div
             style={{
-              position: "absolute",
-              top: "calc(100% + 10px)",
-              right: 0,
+              position: "fixed",
+              top: dropdownPos.top,
+              right: dropdownPos.right,
               width: 320,
               maxHeight: "calc(100vh - 120px)",
               overflowY: "auto",
@@ -489,9 +523,9 @@ export function SystemBar({
 
             {/* User info */}
             <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 14, padding: "10px 0", borderTop: "1px solid var(--border)", borderBottom: "1px solid var(--border)" }}>
-              <div className="avatar" style={{ width: 36, height: 36, fontSize: 13 }}>{userInitials}</div>
+              <div className="avatar" style={{ width: 36, height: 36, fontSize: 13 }}>{displayInitials}</div>
               <div>
-                <strong style={{ display: "block", fontSize: 14 }}>{userName}</strong>
+                <strong style={{ display: "block", fontSize: 14 }}>{displayName}</strong>
                 <small style={{ color: "var(--text-muted)", fontSize: 12 }}>
                   {connectedEmail ? `Connected: ${connectedEmail}` : "No owner email loaded"}
                 </small>
