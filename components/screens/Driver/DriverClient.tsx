@@ -197,36 +197,23 @@ export function DriverClient({ userId, ownerId, driverName, sites, suppliers }: 
     if (!receiptPhoto || !selectedSiteId) return;
     setSending(true);
     const photoUrl = receiptPhoto.uploadedUrl ?? await uploadPhoto(receiptPhoto, "receipts/cash");
-    const { error } = await supabase.from("receipts").insert({
-      owner_id: ownerId,
-      submitted_by: userId,
-      site_id: selectedSiteId,
-      photo_url: photoUrl,
-      photo_lat: receiptPhoto.lat,
-      photo_lng: receiptPhoto.lng,
-      payment_method: "cash",
-      status: "pending_review",
-      amount: ocrResult?.amount ?? null,
-      description: ocrResult?.suggestedSupplierName ?? null,
-      ocr_supplier_hint: ocrResult?.suggestedSupplierName ?? null,
-    });
-    setSending(false);
-    if (error) { showToast("เกิดข้อผิดพลาด · Error"); return; }
-
-    // Push to owner
     const site = sites.find((s) => s.id === selectedSiteId);
-    const amount = ocrResult?.amount ? `฿${ocrResult.amount.toLocaleString()}` : "";
-    fetch("/api/push", {
+    const res = await fetch("/api/receipts/cash", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        owner_id: ownerId,
-        title: "🧾 ใบเสร็จเงินสด · Cash receipt",
-        body: `${driverName} · ${site?.name_th ?? ""} ${amount}`.trim(),
-        url: "/suppliers",
+        photo_url: photoUrl ?? null,
+        photo_lat: receiptPhoto.lat ?? null,
+        photo_lng: receiptPhoto.lng ?? null,
+        site_id: selectedSiteId,
+        amount: ocrResult?.amount ?? null,
+        description: ocrResult?.suggestedSupplierName ?? null,
+        ocr_supplier_hint: ocrResult?.suggestedSupplierName ?? null,
+        site_name_th: site?.name_th ?? "",
       }),
-    }).catch(() => {});
-
+    });
+    setSending(false);
+    if (!res.ok) { showToast("เกิดข้อผิดพลาด · Error"); return; }
     setReceiptPhoto(null);
     setOcrResult(null);
     setFlow("success");
