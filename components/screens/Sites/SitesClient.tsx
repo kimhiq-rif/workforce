@@ -26,6 +26,7 @@ const STATUS_OPTIONS: { key: string; th: string; en: string }[] = [
 interface SitesClientProps {
   sites: (Site & { manager?: { name_th: string; name_en: string } | null })[];
   ownerId: string;
+  isDriver?: boolean;
 }
 
 interface StageInput {
@@ -54,7 +55,7 @@ interface AddSiteForm {
   first_stage_target_end_date: string;
 }
 
-export function SitesClient({ sites: initialSites, ownerId }: SitesClientProps) {
+export function SitesClient({ sites: initialSites, ownerId, isDriver = false }: SitesClientProps) {
   const router = useRouter();
   const supabase = createClient();
   const [sites, setSites] = useState(initialSites);
@@ -261,23 +262,25 @@ export function SitesClient({ sites: initialSites, ownerId }: SitesClientProps) 
               <span style={{ fontSize: 14, fontWeight: 600 }}>-</span>
               <span style={{ fontSize: 14, fontWeight: 600 }}>-</span>
             </button>
-            <button
-              onClick={() => handleDelete(site.id)}
-              disabled={deleting === site.id}
-              style={{
-                background: "transparent",
-                border: "none",
-                cursor: "pointer",
-                color: "#EF4444",
-                padding: "8px",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-              aria-label={`Delete ${site.name_en}`}
-            >
-              <Trash2 size={18} />
-            </button>
+            {!isDriver && (
+              <button
+                onClick={() => handleDelete(site.id)}
+                disabled={deleting === site.id}
+                style={{
+                  background: "transparent",
+                  border: "none",
+                  cursor: "pointer",
+                  color: "#EF4444",
+                  padding: "8px",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+                aria-label={`Delete ${site.name_en}`}
+              >
+                <Trash2 size={18} />
+              </button>
+            )}
           </div>
         ))
       )}
@@ -285,7 +288,7 @@ export function SitesClient({ sites: initialSites, ownerId }: SitesClientProps) 
   );
 
   return (
-    <DashboardShell rightPanel={rightPanel}>
+    <DashboardShell rightPanel={isDriver ? undefined : rightPanel} driverMode={isDriver}>
       {/* Desktop */}
       <div className="desktop-only">
         <div className="content-header">
@@ -293,11 +296,13 @@ export function SitesClient({ sites: initialSites, ownerId }: SitesClientProps) 
             <h1>ไซต์</h1>
             <p>Sites management</p>
           </div>
-          <button className="btn-primary" onClick={handleAddSite}>
-            <CirclePlus size={20} />
-            เพิ่มไซต์
-            <small>Add site</small>
-          </button>
+          {!isDriver && (
+            <button className="btn-primary" onClick={handleAddSite}>
+              <CirclePlus size={20} />
+              เพิ่มไซต์
+              <small>Add site</small>
+            </button>
+          )}
         </div>
 
         <div className="filter-row">
@@ -345,6 +350,7 @@ export function SitesClient({ sites: initialSites, ownerId }: SitesClientProps) 
           onAddSite={handleAddSite}
           onDeleteSite={handleDelete}
           deleting={deleting}
+          isDriver={isDriver}
         />
       </div>
 
@@ -577,7 +583,7 @@ export function SitesClient({ sites: initialSites, ownerId }: SitesClientProps) 
 
 function MobileSites({
   sites, search, setSearch, statusFilter, setStatusFilter,
-  onAddSite, onDeleteSite, deleting,
+  onAddSite, onDeleteSite, deleting, isDriver = false,
 }: {
   sites: any[];
   search: string;
@@ -587,6 +593,7 @@ function MobileSites({
   onAddSite: () => void;
   onDeleteSite: (id: string) => void;
   deleting: string | null;
+  isDriver?: boolean;
 }) {
   const SHORT_OPTIONS = [
     { key: "all", th: "ทั้งหมด", en: "All" },
@@ -610,12 +617,14 @@ function MobileSites({
             <span className="en-text">Sites management</span>
           </p>
         </div>
-        <button
-          onClick={onAddSite}
-          style={{ background: "transparent", border: "none", color: "white", cursor: "pointer" }}
-        >
-          <CirclePlus size={24} />
-        </button>
+        {!isDriver && (
+          <button
+            onClick={onAddSite}
+            style={{ background: "transparent", border: "none", color: "white", cursor: "pointer" }}
+          >
+            <CirclePlus size={24} />
+          </button>
+        )}
       </div>
 
       <div style={{ padding: "12px 16px", display: "flex", flexDirection: "column", gap: 10 }}>
@@ -683,20 +692,22 @@ function MobileSites({
                 <SiteStatusBadge status={site.status} small />
                 <ChevronRight size={18} color="var(--text-muted)" />
               </Link>
-              <button
-                onClick={() => onDeleteSite(site.id)}
-                disabled={deleting === site.id}
-                style={{
-                  background: "transparent",
-                  border: "none",
-                  cursor: "pointer",
-                  color: "#EF4444",
-                  padding: "8px 0 8px 8px",
-                  display: "flex",
-                }}
-              >
-                <Trash2 size={18} />
-              </button>
+              {!isDriver && (
+                <button
+                  onClick={() => onDeleteSite(site.id)}
+                  disabled={deleting === site.id}
+                  style={{
+                    background: "transparent",
+                    border: "none",
+                    cursor: "pointer",
+                    color: "#EF4444",
+                    padding: "8px 0 8px 8px",
+                    display: "flex",
+                  }}
+                >
+                  <Trash2 size={18} />
+                </button>
+              )}
             </div>
           ))}
 

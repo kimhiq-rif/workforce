@@ -53,6 +53,7 @@ interface SiteDetailClientProps {
   userRole?: string;
   stages?: SiteStage[];
   dailyNote?: string | null;
+  isDriver?: boolean;
 }
 
 export function SiteDetailClient({
@@ -70,6 +71,7 @@ export function SiteDetailClient({
   userRole,
   stages = [],
   dailyNote = null,
+  isDriver = false,
 }: SiteDetailClientProps) {
   const router = useRouter();
   const supabase = createClient();
@@ -829,7 +831,7 @@ export function SiteDetailClient({
 
   return (
     <>
-      <DashboardShell rightPanel={rightPanel}>
+      <DashboardShell rightPanel={isDriver ? undefined : rightPanel} driverMode={isDriver}>
         <SiteDailyNote
           siteId={site.id}
           initialNote={dailyNote}
