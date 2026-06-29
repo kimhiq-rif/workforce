@@ -1817,8 +1817,7 @@ function AttendanceReportFlow({
 
     let photoUrl: string | null = null;
     if (!uploadError && uploadData) {
-      const { data: urlData } = supabase.storage.from("attendance-photos").getPublicUrl(fileName);
-      photoUrl = urlData?.publicUrl ?? null;
+      photoUrl = fileName;
     }
 
     const now = new Date();
@@ -1932,8 +1931,7 @@ function AttendanceReportFlow({
 
     let photoUrl: string | null = null;
     if (uploadResult.status === "fulfilled" && !uploadResult.value.error) {
-      const { data: urlData } = supabase.storage.from("attendance-photos").getPublicUrl(fileName);
-      photoUrl = urlData?.publicUrl ?? null;
+      photoUrl = fileName;
     }
 
     const now = new Date();

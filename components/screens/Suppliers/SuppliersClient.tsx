@@ -1838,8 +1838,7 @@ function GiveCashModal({ driver, ownerId, userId, onClose, onDone }: {
         .from("receipt-photos")
         .upload(fileName, photoBlob, { contentType: "image/jpeg" });
       if (uploadData) {
-        const { data: urlData } = supabase.storage.from("receipt-photos").getPublicUrl(fileName);
-        storedPhotoUrl = urlData?.publicUrl ?? null;
+        storedPhotoUrl = fileName;
       }
     }
 
@@ -2217,8 +2216,7 @@ function AddReceiptModal({ ownerId, userId, suppliers, sites, defaultSiteId, onC
         .from("receipt-photos")
         .upload(fileName, photoBlob, { contentType: "image/jpeg" });
       if (uploadData) {
-        const { data: urlData } = supabase.storage.from("receipt-photos").getPublicUrl(fileName);
-        storedPhotoUrl = urlData?.publicUrl ?? null;
+        storedPhotoUrl = fileName;
       }
     }
 

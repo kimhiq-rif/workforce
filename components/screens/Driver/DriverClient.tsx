@@ -27,6 +27,7 @@ interface CapturedPhoto {
   dataUrl: string;
   lat: number | null;
   lng: number | null;
+  storagePath?: string;
   uploadedUrl?: string;
 }
 
@@ -86,28 +87,31 @@ export function DriverClient({ userId, ownerId, driverName, sites, suppliers }: 
     const file = e.target.files?.[0]; e.target.value = "";
     if (!file) return;
     const photo = await fileToPhoto(file);
-    const url = await uploadPhoto(photo, "receipts/cash");
-    photo.uploadedUrl = url ?? undefined;
+    const result = await uploadPhoto(photo, "receipts/cash");
+    photo.storagePath = result?.path ?? undefined;
+    photo.uploadedUrl = result?.signedUrl ?? undefined;
     setReceiptPhoto(photo); setFlow("cash_preview");
-    if (url) runOCR(photo);
+    if (result) runOCR(photo);
   }
 
   async function handleMobileQrReceiptFile(e: ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]; e.target.value = "";
     if (!file) return;
     const photo = await fileToPhoto(file);
-    const url = await uploadPhoto(photo, "receipts/qr");
-    photo.uploadedUrl = url ?? undefined;
+    const result = await uploadPhoto(photo, "receipts/qr");
+    photo.storagePath = result?.path ?? undefined;
+    photo.uploadedUrl = result?.signedUrl ?? undefined;
     setReceiptPhoto(photo); setFlow("qr_receipt_preview");
-    if (url) runOCR(photo);
+    if (result) runOCR(photo);
   }
 
   async function handleMobileQrCodeFile(e: ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]; e.target.value = "";
     if (!file) return;
     const photo = await fileToPhoto(file);
-    const url = await uploadPhoto(photo, "receipts/qr_code");
-    photo.uploadedUrl = url ?? undefined;
+    const result = await uploadPhoto(photo, "receipts/qr_code");
+    photo.storagePath = result?.path ?? undefined;
+    photo.uploadedUrl = result?.signedUrl ?? undefined;
     setQrPhoto(photo); setFlow("qr_qr_preview");
   }
 
@@ -154,11 +158,12 @@ export function DriverClient({ userId, ownerId, driverName, sites, suppliers }: 
     return { blob, dataUrl, lat: coords?.lat ?? null, lng: coords?.lng ?? null };
   }
 
-  async function uploadPhoto(photo: CapturedPhoto, folder: string): Promise<string | null> {
+  async function uploadPhoto(photo: CapturedPhoto, folder: string): Promise<{ path: string; signedUrl: string } | null> {
     const fileName = `${folder}/${ownerId}/${Date.now()}.jpg`;
     const { data, error } = await supabase.storage.from("receipt-photos").upload(fileName, photo.blob, { contentType: "image/jpeg" });
     if (error || !data) return null;
-    return supabase.storage.from("receipt-photos").getPublicUrl(fileName).data.publicUrl;
+    const { data: signed } = await supabase.storage.from("receipt-photos").createSignedUrl(fileName, 900);
+    return signed ? { path: fileName, signedUrl: signed.signedUrl } : null;
   }
 
   // ── OCR after receipt photo captured ──────────────────────────────────────
@@ -186,24 +191,29 @@ export function DriverClient({ userId, ownerId, driverName, sites, suppliers }: 
     const photo = await captureFrame();
     if (!photo) return;
     // Upload immediately for OCR
-    const url = await uploadPhoto(photo, "receipts/cash");
-    photo.uploadedUrl = url ?? undefined;
+    const result = await uploadPhoto(photo, "receipts/cash");
+    photo.storagePath = result?.path ?? undefined;
+    photo.uploadedUrl = result?.signedUrl ?? undefined;
     setReceiptPhoto(photo);
     setFlow("cash_preview");
-    if (url) runOCR(photo);
+    if (result) runOCR(photo);
   }
 
   async function handleCashSend() {
     if (!receiptPhoto || !selectedSiteId) return;
     setSending(true);
     try {
-      const photoUrl = receiptPhoto.uploadedUrl ?? await uploadPhoto(receiptPhoto, "receipts/cash");
+      let photoPath = receiptPhoto.storagePath;
+      if (!photoPath) {
+        const result = await uploadPhoto(receiptPhoto, "receipts/cash");
+        photoPath = result?.path ?? undefined;
+      }
       const site = sites.find((s) => s.id === selectedSiteId);
       const res = await fetch("/api/receipts/cash", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          photo_url: photoUrl ?? null,
+          photo_url: photoPath ?? null,
           photo_lat: receiptPhoto.lat ?? null,
           photo_lng: receiptPhoto.lng ?? null,
           site_id: selectedSiteId,
@@ -218,7 +228,6 @@ export function DriverClient({ userId, ownerId, driverName, sites, suppliers }: 
         showToast(`Error ${res.status}: ${body?.error ?? "unknown"}`);
         return;
       }
-      // Debug: show receipt id so we can confirm DB insert
       showToast(`Saved: ${(body?.id ?? "?").slice(0, 8)} push:${body?.pushSent ?? "?"}`);
       setReceiptPhoto(null);
       setOcrResult(null);
@@ -236,18 +245,20 @@ export function DriverClient({ userId, ownerId, driverName, sites, suppliers }: 
   async function handleQRReceiptCapture() {
     const photo = await captureFrame();
     if (!photo) return;
-    const url = await uploadPhoto(photo, "receipts/qr");
-    photo.uploadedUrl = url ?? undefined;
+    const result = await uploadPhoto(photo, "receipts/qr");
+    photo.storagePath = result?.path ?? undefined;
+    photo.uploadedUrl = result?.signedUrl ?? undefined;
     setReceiptPhoto(photo);
     setFlow("qr_receipt_preview");
-    if (url) runOCR(photo);
+    if (result) runOCR(photo);
   }
 
   async function handleQRQRCapture() {
     const photo = await captureFrame();
     if (!photo) return;
-    const url = await uploadPhoto(photo, "receipts/qr_code");
-    photo.uploadedUrl = url ?? undefined;
+    const result = await uploadPhoto(photo, "receipts/qr_code");
+    photo.storagePath = result?.path ?? undefined;
+    photo.uploadedUrl = result?.signedUrl ?? undefined;
     setQrPhoto(photo);
     setFlow("qr_qr_preview");
   }
@@ -255,14 +266,22 @@ export function DriverClient({ userId, ownerId, driverName, sites, suppliers }: 
   async function handlePaymentRequestSend() {
     if (!receiptPhoto || !qrPhoto || !selectedSiteId) return;
     setSending(true);
-    const receiptUrl = receiptPhoto.uploadedUrl ?? await uploadPhoto(receiptPhoto, "receipts/qr");
-    const qrUrl = qrPhoto.uploadedUrl ?? await uploadPhoto(qrPhoto, "receipts/qr_code");
+    let receiptPath = receiptPhoto.storagePath;
+    if (!receiptPath) {
+      const result = await uploadPhoto(receiptPhoto, "receipts/qr");
+      receiptPath = result?.path ?? undefined;
+    }
+    let qrPath = qrPhoto.storagePath;
+    if (!qrPath) {
+      const result = await uploadPhoto(qrPhoto, "receipts/qr_code");
+      qrPath = result?.path ?? undefined;
+    }
     const { error } = await supabase.from("receipts").insert({
       owner_id: ownerId,
       submitted_by: userId,
       site_id: selectedSiteId,
-      photo_url: receiptUrl,
-      qr_photo_url: qrUrl,
+      photo_url: receiptPath ?? null,
+      qr_photo_url: qrPath ?? null,
       photo_lat: receiptPhoto.lat,
       photo_lng: receiptPhoto.lng,
       payment_method: "qr",

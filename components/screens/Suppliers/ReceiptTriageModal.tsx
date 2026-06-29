@@ -2,7 +2,7 @@
 // Copyright © 2026 Workforce. All rights reserved.
 // Owner triage modal: assign receipt from driver to supplier, create new supplier, or sort later.
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { X, Search, Check, Plus, Clock, Truck, ChevronRight } from "lucide-react";
 
@@ -33,6 +33,17 @@ export function ReceiptTriageModal({ receipt, suppliers, ownerId, userId, onClos
   const [search, setSearch] = useState(receipt.ocr_supplier_hint ?? receipt.description ?? "");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [photoDisplayUrl, setPhotoDisplayUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!receipt.photo_url) return;
+    if (receipt.photo_url.startsWith("https://")) {
+      setPhotoDisplayUrl(receipt.photo_url);
+    } else {
+      supabase.storage.from("receipt-photos").createSignedUrl(receipt.photo_url, 3600)
+        .then(({ data }) => setPhotoDisplayUrl(data?.signedUrl ?? null));
+    }
+  }, [receipt.photo_url]);
 
   const filtered = suppliers.filter((s) => {
     const q = search.toLowerCase();
@@ -100,10 +111,10 @@ export function ReceiptTriageModal({ receipt, suppliers, ownerId, userId, onClos
         {step === "choose" ? (
           <>
             {/* Receipt preview */}
-            {receipt.photo_url && (
+            {photoDisplayUrl && (
               <div style={{ padding: "12px 20px 0" }}>
                 <img
-                  src={receipt.photo_url}
+                  src={photoDisplayUrl}
                   alt="receipt"
                   style={{ width: "100%", maxHeight: 180, objectFit: "contain", borderRadius: 10, border: "1px solid var(--border)", background: "#F9FAFB" }}
                 />
