@@ -27,12 +27,12 @@ export default async function FinancePage() {
     .eq("owner_id", ownerId)
     .eq("event_date", today);
 
-  // Pending receipts (not yet paid)
+  // Pending receipts (not yet paid) — includes pending_review from driver cash receipts
   const { data: pendingReceipts } = await supabase
     .from("receipts")
     .select("id, amount, category, description, supplier:supplier_id(name_th), site:site_id(name_th)")
     .eq("owner_id", ownerId)
-    .eq("status", "pending")
+    .in("status", ["pending", "pending_review"])
     .order("created_at", { ascending: false })
     .limit(20);
 
