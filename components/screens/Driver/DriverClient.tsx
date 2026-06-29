@@ -213,11 +213,13 @@ export function DriverClient({ userId, ownerId, driverName, sites, suppliers }: 
           site_name_th: site?.name_th ?? "",
         }),
       });
+      const body = await res.json().catch(() => ({}));
       if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
         showToast(`Error ${res.status}: ${body?.error ?? "unknown"}`);
         return;
       }
+      // Debug: show receipt id so we can confirm DB insert
+      showToast(`Saved: ${(body?.id ?? "?").slice(0, 8)} push:${body?.pushSent ?? "?"}`);
       setReceiptPhoto(null);
       setOcrResult(null);
       setFlow("success");
