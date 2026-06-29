@@ -830,7 +830,7 @@ function ReceiptClosingModal({
   const [error, setError] = useState("");
   const issues = getReceiptClosingIssues(receipt);
 
-  async function handleSave() {
+  async function handleSave(statusOverride?: string) {
     const amount = form.amount.trim() === "" ? null : Number(form.amount);
     if (amount !== null && (!Number.isFinite(amount) || amount < 0)) {
       setError("Enter a valid amount.");
@@ -841,7 +841,7 @@ function ReceiptClosingModal({
       supplier_id: form.supplier_id || null,
       site_id: form.site_id || null,
       amount,
-      status: form.status,
+      status: statusOverride ?? form.status,
       notes: form.notes || null,
     });
     setSaving(false);
@@ -849,7 +849,7 @@ function ReceiptClosingModal({
   }
 
   return (
-    <ModalWrapper title="Receipt closing" subtitle={receipt.receipt_number ?? receipt.id.slice(0, 8)} onClose={onClose}>
+    <ModalWrapper title="ตรวจสอบใบเสร็จ · Review receipt" subtitle={receipt.receipt_number ?? receipt.id.slice(0, 8)} onClose={onClose}>
       {error && <ErrorBox msg={error} />}
       <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
         {issues.map((issue) => (
@@ -878,28 +878,41 @@ function ReceiptClosingModal({
       <FormField label="Amount THB" value={form.amount} onChange={(value) => setForm((prev) => ({ ...prev, amount: value }))} type="number" placeholder="0" />
 
       <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-        <span style={{ fontSize: 13, fontWeight: 600 }}>Status</span>
-        <select value={form.status} onChange={(e) => setForm((prev) => ({ ...prev, status: e.target.value }))} style={{ minHeight: 44, padding: "9px 12px", border: "1px solid var(--border)", borderRadius: 8, fontSize: 14 }}>
-          <option value="approved">Approved</option>
-          <option value="paid">Paid</option>
-          <option value="pending">Pending</option>
-          <option value="pending_qr">Pending QR</option>
-          <option value="needs_review">Needs review</option>
-          <option value="disputed">Disputed</option>
-        </select>
-      </label>
-
-      <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
         <span style={{ fontSize: 13, fontWeight: 600 }}>Owner note</span>
         <textarea
           value={form.notes}
           onChange={(e) => setForm((prev) => ({ ...prev, notes: e.target.value }))}
           placeholder="What was fixed or why this receipt stays pending"
-          style={{ minHeight: 74, padding: "9px 12px", border: "1px solid var(--border)", borderRadius: 8, fontSize: 14, resize: "vertical" }}
+          style={{ minHeight: 60, padding: "9px 12px", border: "1px solid var(--border)", borderRadius: 8, fontSize: 14, resize: "vertical" }}
         />
       </label>
 
-      <ModalActions onCancel={onClose} onSave={handleSave} saving={saving} saveLabel="Save receipt closing" />
+      <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
+        <button
+          onClick={onClose}
+          style={{ flex: 1, padding: "10px 6px", border: "1px solid var(--border)", borderRadius: 10, background: "white", cursor: "pointer", fontSize: 12, lineHeight: 1.3 }}
+        >
+          <div>จัดการทีหลัง</div>
+          <div style={{ color: "var(--text-muted)", fontSize: 11 }}>Handle later</div>
+        </button>
+        <button
+          onClick={() => handleSave("disputed")}
+          disabled={saving}
+          style={{ flex: 1, padding: "10px 6px", border: "2px solid #EF4444", borderRadius: 10, background: "#FEF2F2", cursor: "pointer", fontSize: 12, lineHeight: 1.3, color: "#B91C1C" }}
+        >
+          <div>ยกเลิก</div>
+          <div style={{ fontSize: 11 }}>Cancel receipt</div>
+        </button>
+        <button
+          onClick={() => handleSave("approved")}
+          disabled={saving}
+          className="btn-primary"
+          style={{ flex: 1.5, justifyContent: "center", flexDirection: "column", gap: 2, padding: "10px 6px" }}
+        >
+          <div>{saving ? "กำลังบันทึก…" : "อนุมัติ"}</div>
+          {!saving && <div style={{ fontSize: 11, opacity: 0.85 }}>Approve</div>}
+        </button>
+      </div>
     </ModalWrapper>
   );
 }
