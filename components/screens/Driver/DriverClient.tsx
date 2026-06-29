@@ -196,28 +196,37 @@ export function DriverClient({ userId, ownerId, driverName, sites, suppliers }: 
   async function handleCashSend() {
     if (!receiptPhoto || !selectedSiteId) return;
     setSending(true);
-    const photoUrl = receiptPhoto.uploadedUrl ?? await uploadPhoto(receiptPhoto, "receipts/cash");
-    const site = sites.find((s) => s.id === selectedSiteId);
-    const res = await fetch("/api/receipts/cash", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        photo_url: photoUrl ?? null,
-        photo_lat: receiptPhoto.lat ?? null,
-        photo_lng: receiptPhoto.lng ?? null,
-        site_id: selectedSiteId,
-        amount: ocrResult?.amount ?? null,
-        description: ocrResult?.suggestedSupplierName ?? null,
-        ocr_supplier_hint: ocrResult?.suggestedSupplierName ?? null,
-        site_name_th: site?.name_th ?? "",
-      }),
-    });
-    setSending(false);
-    if (!res.ok) { showToast("เกิดข้อผิดพลาด · Error"); return; }
-    setReceiptPhoto(null);
-    setOcrResult(null);
-    setFlow("success");
-    setTimeout(() => setFlow("home"), 2500);
+    try {
+      const photoUrl = receiptPhoto.uploadedUrl ?? await uploadPhoto(receiptPhoto, "receipts/cash");
+      const site = sites.find((s) => s.id === selectedSiteId);
+      const res = await fetch("/api/receipts/cash", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          photo_url: photoUrl ?? null,
+          photo_lat: receiptPhoto.lat ?? null,
+          photo_lng: receiptPhoto.lng ?? null,
+          site_id: selectedSiteId,
+          amount: ocrResult?.amount ?? null,
+          description: ocrResult?.suggestedSupplierName ?? null,
+          ocr_supplier_hint: ocrResult?.suggestedSupplierName ?? null,
+          site_name_th: site?.name_th ?? "",
+        }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        showToast(`Error ${res.status}: ${body?.error ?? "unknown"}`);
+        return;
+      }
+      setReceiptPhoto(null);
+      setOcrResult(null);
+      setFlow("success");
+      setTimeout(() => setFlow("home"), 2500);
+    } catch (err) {
+      showToast(`Network error: ${err instanceof Error ? err.message : String(err)}`);
+    } finally {
+      setSending(false);
+    }
   }
 
   // ── Payment request flow ───────────────────────────────────────────────────
