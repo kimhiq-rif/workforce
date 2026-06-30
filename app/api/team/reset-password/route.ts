@@ -25,7 +25,7 @@ export async function POST(req: NextRequest) {
     .select("auth_user_id, login_email")
     .eq("id", worker_id)
     .eq("owner_id", ownerId)
-    .single();
+    .maybeSingle();
 
   if (!worker?.auth_user_id) {
     return NextResponse.json({ error: "Worker has no app account" }, { status: 404 });

@@ -106,7 +106,7 @@ export async function DELETE(req: NextRequest) {
     .select("auth_id")
     .eq("id", memberId)
     .eq("owner_id", ownerId)
-    .single();
+    .maybeSingle();
 
   if (!member) return NextResponse.json({ error: "Member not found" }, { status: 404 });
 

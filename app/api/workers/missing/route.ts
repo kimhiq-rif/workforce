@@ -21,7 +21,7 @@ export async function GET(req: NextRequest) {
 
   const supabase = createServiceClient();
   const { data: actor } = await supabase
-    .from("users").select("id, role, owner_id").eq("auth_id", user.id).single();
+    .from("users").select("id, role, owner_id").eq("auth_id", user.id).maybeSingle();
   if (!actor || actor.role !== "owner")
     return NextResponse.json({ error: "Owner only" }, { status: 403 });
 
@@ -79,7 +79,7 @@ export async function POST(req: NextRequest) {
 
   const supabase = createServiceClient();
   const { data: actor } = await supabase
-    .from("users").select("id, role").eq("auth_id", user.id).single();
+    .from("users").select("id, role").eq("auth_id", user.id).maybeSingle();
   if (!actor || actor.role !== "owner")
     return NextResponse.json({ error: "Owner only" }, { status: 403 });
 
@@ -98,7 +98,7 @@ export async function POST(req: NextRequest) {
     .select("assigned_site_id")
     .eq("id", workerId)
     .eq("owner_id", actor.id)
-    .single();
+    .maybeSingle();
 
   if (!worker?.assigned_site_id) {
     return NextResponse.json({ error: "Worker has no assigned site" }, { status: 400 });

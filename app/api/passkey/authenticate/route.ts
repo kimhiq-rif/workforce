@@ -41,7 +41,7 @@ export async function PUT(req: NextRequest) {
     .from("passkeys")
     .select("*")
     .eq("credential_id", body.id)
-    .single();
+    .maybeSingle();
 
   if (!passkey) return NextResponse.json({ error: "Passkey not found" }, { status: 404 });
 

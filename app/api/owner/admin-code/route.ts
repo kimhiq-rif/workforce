@@ -22,7 +22,7 @@ export async function POST(req: NextRequest) {
 
   const supabase = createServiceClient();
   const { data: actor } = await supabase
-    .from("users").select("id, role, admin_code_hash").eq("auth_id", user.id).single();
+    .from("users").select("id, role, admin_code_hash").eq("auth_id", user.id).maybeSingle();
   if (!actor || actor.role !== "owner")
     return NextResponse.json({ error: "Owner only" }, { status: 403 });
 

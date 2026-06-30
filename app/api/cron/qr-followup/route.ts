@@ -26,7 +26,7 @@ export async function POST(req: NextRequest) {
     .from("receipts")
     .select("id, status, amount, description")
     .eq("id", receipt_id)
-    .single();
+    .maybeSingle();
 
   if (!receipt || receipt.status === "approved" || receipt.status === "paid") {
     return NextResponse.json({ skipped: true });

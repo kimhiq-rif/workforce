@@ -23,7 +23,7 @@ export async function PATCH(
     .eq("owner_id", ownerId)
     .eq("is_current", true)
     .select("id, name_en, target_end_date")
-    .single();
+    .maybeSingle();
 
   if (error || !stage) return NextResponse.json({ error: error?.message ?? "Stage not found" }, { status: 404 });
 

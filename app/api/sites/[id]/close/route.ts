@@ -28,7 +28,7 @@ export async function POST(
     .from("users")
     .select("admin_code_hash")
     .eq("id", ownerId)
-    .single();
+    .maybeSingle();
 
   if (!owner?.admin_code_hash)
     return NextResponse.json({ error: "no_code_set" }, { status: 400 });
@@ -42,7 +42,7 @@ export async function POST(
     .select("id, closed_at")
     .eq("id", params.id)
     .eq("owner_id", ownerId)
-    .single();
+    .maybeSingle();
 
   if (!site) return NextResponse.json({ error: "Site not found" }, { status: 404 });
   if (site.closed_at) return NextResponse.json({ error: "Already closed" }, { status: 409 });

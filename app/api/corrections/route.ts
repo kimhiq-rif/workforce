@@ -32,7 +32,7 @@ export async function POST(req: NextRequest) {
     .from("users")
     .select("id, role, owner_id, admin_code_hash")
     .eq("auth_id", user.id)
-    .single();
+    .maybeSingle();
 
   if (!profile) return NextResponse.json({ error: "User not found" }, { status: 404 });
   if (profile.role !== "owner") {

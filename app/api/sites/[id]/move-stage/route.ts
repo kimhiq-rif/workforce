@@ -25,7 +25,7 @@ export async function POST(
     .select("id, owner_id, name_en, name_th, project_type")
     .eq("id", siteId)
     .eq("owner_id", ownerId)
-    .single();
+    .maybeSingle();
 
   if (siteErr || !site) return NextResponse.json({ error: "Site not found" }, { status: 404 });
   if (site.project_type !== "long") {
@@ -38,7 +38,7 @@ export async function POST(
     .select("*")
     .eq("site_id", siteId)
     .eq("is_current", true)
-    .single();
+    .maybeSingle();
 
   if (stageErr || !currentStage) {
     return NextResponse.json({ error: "No active stage found" }, { status: 400 });
@@ -174,7 +174,7 @@ export async function POST(
     .neq("id", currentStage.id)
     .order("position", { ascending: true })
     .limit(1)
-    .single();
+    .maybeSingle();
 
   if (nextStage) {
     await serviceClient

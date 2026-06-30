@@ -23,7 +23,7 @@ export async function POST(req: NextRequest) {
     .from("users")
     .select("id, role, owner_id")
     .eq("auth_id", user.id)
-    .single();
+    .maybeSingle();
 
   if (!actor || actor.role !== "owner") {
     return NextResponse.json({ error: "Owner only" }, { status: 403 });
@@ -87,7 +87,7 @@ export async function PATCH(req: NextRequest) {
     .from("users")
     .select("id, role")
     .eq("auth_id", user.id)
-    .single();
+    .maybeSingle();
 
   if (!actor || actor.role !== "owner") {
     return NextResponse.json({ error: "Owner only" }, { status: 403 });

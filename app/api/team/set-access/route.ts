@@ -33,7 +33,7 @@ export async function POST(req: NextRequest) {
     .select("id, name_th, name_en, phone, auth_user_id")
     .eq("id", worker_id)
     .eq("owner_id", ownerId)
-    .single();
+    .maybeSingle();
 
   if (!worker) return NextResponse.json({ error: "Worker not found" }, { status: 404 });
 

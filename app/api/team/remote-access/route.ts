@@ -21,7 +21,7 @@ export async function POST(req: NextRequest) {
     .select("id, auth_id, role")
     .eq("id", user_id)
     .eq("owner_id", ownerId)
-    .single();
+    .maybeSingle();
 
   if (!member?.auth_id) {
     return NextResponse.json({ error: "Member not found" }, { status: 404 });

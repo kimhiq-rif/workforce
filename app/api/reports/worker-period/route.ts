@@ -20,7 +20,7 @@ export async function GET(req: NextRequest) {
 
   const supabase = createServiceClient();
   const { data: actor } = await supabase
-    .from("users").select("id, role, owner_id").eq("auth_id", user.id).single();
+    .from("users").select("id, role, owner_id").eq("auth_id", user.id).maybeSingle();
   if (!actor) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const ownerId = actor.role === "owner" ? actor.id : actor.owner_id;
@@ -33,7 +33,7 @@ export async function GET(req: NextRequest) {
   const [worker, attendance, overtime, advances] = await Promise.all([
     supabase.from("workers")
       .select("id, name_th, name_en, daily_wage, photo_url, role_th, role_en, site:sites(name_th, name_en)")
-      .eq("id", workerId).eq("owner_id", ownerId).single(),
+      .eq("id", workerId).eq("owner_id", ownerId).maybeSingle(),
     supabase.from("attendance_events")
       .select("event_date, arrival_time, status, is_late, wage_reason, wage_amount, site_id, photo_url, site:sites(name_th)")
       .eq("worker_id", workerId).eq("owner_id", ownerId)

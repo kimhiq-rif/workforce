@@ -26,7 +26,7 @@ export async function POST(req: NextRequest) {
     .from("users")
     .select("id, role, admin_code_hash")
     .eq("auth_id", user.id)
-    .single();
+    .maybeSingle();
 
   if (!actor || actor.role !== "owner")
     return NextResponse.json({ error: "Owner only" }, { status: 403 });
@@ -53,7 +53,7 @@ export async function POST(req: NextRequest) {
     .from("attendance_events")
     .select("id, owner_id, worker_id, late_deduction_baht")
     .eq("id", attendanceId)
-    .single();
+    .maybeSingle();
 
   if (!att || att.owner_id !== actor.id)
     return NextResponse.json({ error: "Not found" }, { status: 404 });
@@ -62,7 +62,7 @@ export async function POST(req: NextRequest) {
     .from("workers")
     .select("daily_wage")
     .eq("id", att.worker_id)
-    .single();
+    .maybeSingle();
 
   const newWage = computeWageAmount(
     worker?.daily_wage ?? 0,
