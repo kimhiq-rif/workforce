@@ -23,7 +23,7 @@ export async function POST(req: NextRequest) {
     .from("workers")
     .select("id, daily_wage, owner_id, is_temporary")
     .eq("id", worker_id)
-    .single();
+    .maybeSingle();
 
   if (!worker) return NextResponse.json({ error: "Worker not found" }, { status: 404 });
 
@@ -31,7 +31,7 @@ export async function POST(req: NextRequest) {
     .from("sites")
     .select("id, status, owner_id")
     .eq("id", site_id)
-    .single();
+    .maybeSingle();
 
   if (!site) return NextResponse.json({ error: "Site not found" }, { status: 404 });
 

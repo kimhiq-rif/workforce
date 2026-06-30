@@ -92,23 +92,6 @@ export async function GET(req: NextRequest) {
 
   const supabase = createServiceClient();
   const today = todayBangkok();
-  const log: string[] = [];
-
-  const { data: existing } = await supabase
-    .from("daily_report_snapshots")
-    .select("id")
-    .eq("report_date", today)
-    .limit(1)
-    .maybeSingle();
-
-  if (existing) {
-    return NextResponse.json({
-      ok: true,
-      skipped: true,
-      date: today,
-      reason: "already ran today",
-    });
-  }
 
   const { data: owners } = await supabase
     .from("users")
@@ -119,87 +102,95 @@ export async function GET(req: NextRequest) {
 
   if (!owners?.length) {
     console.log("[daily-report] finished", new Date().toISOString());
-    return NextResponse.json({ log, date: today });
+    return NextResponse.json({ log: [], date: today });
   }
 
-  for (const owner of owners) {
-    try {
+  const results = await Promise.all(
+    owners.map(async (owner) => {
       const ownerId = owner.id;
+      const ownerLog: string[] = [];
 
-      console.log("[daily-report] owner", ownerId, "building report...");
-      const report = await buildDailyReport(supabase, ownerId, today);
-      console.log("[daily-report] owner", ownerId, "report built, blocked:", report.isBlocked);
+      try {
+        // Per-owner idempotency: skip if this owner's report already ran today
+        const { data: existing } = await supabase
+          .from("daily_report_snapshots")
+          .select("id")
+          .eq("report_date", today)
+          .eq("owner_id", ownerId)
+          .maybeSingle();
 
-    if (report.isBlocked) {
-      // Notify owner that report is blocked
-      const reasons = report.blockReasons.map((r) => r.messageTh).join(", ");
-      await sendPushToOwner(
-        supabase,
-        ownerId,
-        `⛔ รายงานถูกบล็อก · Daily report blocked`,
-        reasons,
-        `/reports/daily`
-      );
-      log.push(`owner ${ownerId} report BLOCKED: ${reasons}`);
-      console.log("[daily-report] owner", ownerId, "done");
-      continue;
-    }
+        if (existing) {
+          return `owner ${ownerId}: already ran today (skipped)`;
+        }
 
-    const pdf = await generateDailyReportPdf(report);
-    const pdfUpload = await uploadDailyReportPdf(supabase, ownerId, today, pdf);
-    if (pdfUpload.error) {
-      log.push(`owner ${ownerId} pdf upload error: ${pdfUpload.error}`);
-    }
+        console.log("[daily-report] owner", ownerId, "building report...");
+        const report = await buildDailyReport(supabase, ownerId, today);
+        console.log("[daily-report] owner", ownerId, "report built, blocked:", report.isBlocked);
 
-    // Save report snapshot to DB
-    const { error: saveError } = await supabase
-      .from("daily_report_snapshots")
-      .upsert({
-        owner_id: ownerId,
-        report_date: today,
-        data: { ...report, pdfUrl: pdfUpload.url },
-        generated_at: report.generatedAt,
-        total_labor_cost: report.totals.totalLaborCost,
-        total_expenses: report.totals.totalExpenses,
-        total_present: report.totals.totalPresent,
-        is_blocked: false,
-      });
+        if (report.isBlocked) {
+          const reasons = report.blockReasons.map((r) => r.messageTh).join(", ");
+          await sendPushToOwner(
+            supabase,
+            ownerId,
+            `⛔ รายงานถูกบล็อก · Daily report blocked`,
+            reasons,
+            `/reports/daily`
+          );
+          ownerLog.push(`BLOCKED: ${reasons}`);
+          console.log("[daily-report] owner", ownerId, "done (blocked)");
+          return ownerLog.join("; ");
+        }
 
-    if (saveError) {
-      log.push(`owner ${ownerId} snapshot save error: ${saveError.message}`);
-    }
+        const pdf = await generateDailyReportPdf(report);
+        const pdfUpload = await uploadDailyReportPdf(supabase, ownerId, today, pdf);
+        if (pdfUpload.error) ownerLog.push(`pdf upload error: ${pdfUpload.error}`);
 
-    // Push summary to owner
-    const { totals } = report;
-    const lineMessage =
-      `Daily Report ${today}\n` +
-      `Workers: ${totals.totalPresent} | Late: ${totals.totalLate}\n` +
-      `Labor: THB ${totals.totalLaborCost.toLocaleString()} | Receipts: THB ${totals.totalReceiptAmount.toLocaleString()}\n` +
-      `Total: THB ${totals.totalExpenses.toLocaleString()}` +
-      (pdfUpload.url ? `\nPDF: ${pdfUpload.url}` : "");
-    const lineResult = await sendLineMessagingDailyReport(lineMessage);
-    if (!lineResult.sent) {
-      log.push(`owner ${ownerId} LINE Messaging skipped/error: ${lineResult.error}`);
-    }
+        const { error: saveError } = await supabase
+          .from("daily_report_snapshots")
+          .upsert({
+            owner_id: ownerId,
+            report_date: today,
+            data: { ...report, pdfUrl: pdfUpload.url },
+            generated_at: report.generatedAt,
+            total_labor_cost: report.totals.totalLaborCost,
+            total_expenses: report.totals.totalExpenses,
+            total_present: report.totals.totalPresent,
+            is_blocked: false,
+          });
 
-    await sendPushToOwner(
-      supabase,
-      ownerId,
-      `📋 รายงานประจำวัน · Daily Report ${today}`,
-      `👷 ${totals.totalPresent} คน · ฿${totals.totalLaborCost.toLocaleString()} ค่าแรง · ฿${totals.totalExpenses.toLocaleString()} รวม`,
-      `/reports/daily?date=${today}`
-    );
+        if (saveError) ownerLog.push(`snapshot save error: ${saveError.message}`);
 
-      log.push(`owner ${ownerId}: ${totals.totalPresent} workers, ฿${totals.totalLaborCost} labor, ฿${totals.totalExpenses} total`);
-      console.log("[daily-report] owner", ownerId, "done");
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      log.push(`owner ${owner.id} UNCAUGHT ERROR: ${msg}`);
-      // continue to next owner
-    }
-  }
+        const { totals } = report;
+        const lineMessage =
+          `Daily Report ${today}\n` +
+          `Workers: ${totals.totalPresent} | Late: ${totals.totalLate}\n` +
+          `Labor: THB ${totals.totalLaborCost.toLocaleString()} | Receipts: THB ${totals.totalReceiptAmount.toLocaleString()}\n` +
+          `Total: THB ${totals.totalExpenses.toLocaleString()}` +
+          (pdfUpload.url ? `\nPDF: ${pdfUpload.url}` : "");
+
+        const lineResult = await sendLineMessagingDailyReport(lineMessage);
+        if (!lineResult.sent) ownerLog.push(`LINE skipped/error: ${lineResult.error}`);
+
+        await sendPushToOwner(
+          supabase,
+          ownerId,
+          `📋 รายงานประจำวัน · Daily Report ${today}`,
+          `👷 ${totals.totalPresent} คน · ฿${totals.totalLaborCost.toLocaleString()} ค่าแรง · ฿${totals.totalExpenses.toLocaleString()} รวม`,
+          `/reports/daily?date=${today}`
+        );
+
+        ownerLog.push(`${totals.totalPresent} workers, ฿${totals.totalLaborCost} labor, ฿${totals.totalExpenses} total`);
+        console.log("[daily-report] owner", ownerId, "done");
+        return `owner ${ownerId}: ` + ownerLog.join("; ");
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        console.error("[daily-report] owner", ownerId, "UNCAUGHT ERROR:", msg);
+        return `owner ${ownerId} UNCAUGHT ERROR: ${msg}`;
+      }
+    })
+  );
 
   console.log("[daily-report] finished", new Date().toISOString());
 
-  return NextResponse.json({ ok: true, date: today, log });
+  return NextResponse.json({ ok: true, date: today, log: results });
 }
