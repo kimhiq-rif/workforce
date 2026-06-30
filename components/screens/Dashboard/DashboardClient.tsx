@@ -180,6 +180,10 @@ export function DashboardClient({
         </section>
       )}
 
+      <hr style={{ margin: "16px 0 12px", border: "none", borderTop: "1px solid var(--border, #E2E8F0)" }} />
+      <h2 style={{ fontSize: 12, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 8, padding: "0 2px" }}>
+        ปฏิทิน <span style={{ fontWeight: 400 }}>Upcoming events</span>
+      </h2>
       <CalendarPanel upcoming={upcomingEvents} today={today} />
     </>
   );
@@ -478,7 +482,12 @@ function MobileDashboard({
           </div>
         </section>
 
-        <CalendarPanel upcoming={upcomingEvents} overdueEvents={overdueEvents} today={today} showOverdue />
+        <div style={{ padding: "0 16px 4px" }}>
+          <h2 style={{ fontSize: 12, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 8 }}>
+            ปฏิทิน <span style={{ fontWeight: 400 }}>Upcoming events</span>
+          </h2>
+          <CalendarPanel upcoming={upcomingEvents} overdueEvents={overdueEvents} today={today} showOverdue />
+        </div>
       </main>
     </div>
   );
