@@ -36,6 +36,7 @@ type WorkerWithSite = Pick<
   | "assigned_site_id"
 > & {
   site?: { id: string; name_th: string; name_en: string; status: string } | null;
+  phone_verified?: boolean;
 };
 
 interface WorkersClientProps {
@@ -65,6 +66,7 @@ export function WorkersClient({ workers: initialWorkers, todayAttendance, sites,
   const [undoWorker, setUndoWorker] = useState<WorkerWithSite | null>(null);
   const [undoTimer, setUndoTimer] = useState<ReturnType<typeof setTimeout> | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showCheckinModal, setShowCheckinModal] = useState(false);
   const [selectedWorker, setSelectedWorker] = useState<WorkerWithSite | null>(null);
   const [confirmArchive, setConfirmArchive] = useState<WorkerWithSite | null>(null);
 
@@ -233,11 +235,18 @@ export function WorkersClient({ workers: initialWorkers, todayAttendance, sites,
               <p>Workers · {stats.total} คน</p>
             </div>
             {userRole === "owner" && (
-              <button className="btn-primary" onClick={() => setShowAddModal(true)}>
-                <CirclePlus size={20} />
-                เพิ่มพนักงาน
-                <small>Add worker</small>
-              </button>
+              <div style={{ display: "flex", gap: 8 }}>
+                <button className="btn-primary" onClick={() => setShowCheckinModal(true)}
+                  style={{ background: "#059669", borderColor: "#059669" }}>
+                  📋 ส่งเช็คอิน
+                  <small>Send Check-in</small>
+                </button>
+                <button className="btn-primary" onClick={() => setShowAddModal(true)}>
+                  <CirclePlus size={20} />
+                  เพิ่มพนักงาน
+                  <small>Add worker</small>
+                </button>
+              </div>
             )}
           </div>
 
@@ -391,6 +400,7 @@ export function WorkersClient({ workers: initialWorkers, todayAttendance, sites,
             search={search}
             setSearch={setSearch}
             onAdd={() => setShowAddModal(true)}
+            onCheckin={() => setShowCheckinModal(true)}
             onArchive={handleArchiveWorker}
             isOwner={userRole === "owner"}
           />
@@ -428,6 +438,13 @@ export function WorkersClient({ workers: initialWorkers, todayAttendance, sites,
         />
       )}
 
+      {showCheckinModal && (
+        <CheckinSendModal
+          workers={workers}
+          onClose={() => setShowCheckinModal(false)}
+        />
+      )}
+
       {showAddModal && (
         <AddWorkerModal
           ownerId={ownerId}
@@ -462,7 +479,7 @@ function WorkerStatusBadge({ att }: { att?: AttendanceRow }) {
 }
 
 function MobileWorkers({
-  workers, attendanceMap, stats, tab, setTab, search, setSearch, onAdd, isOwner,
+  workers, attendanceMap, stats, tab, setTab, search, setSearch, onAdd, onCheckin, isOwner,
   onArchive,
 }: {
   workers: WorkerWithSite[];
@@ -473,6 +490,7 @@ function MobileWorkers({
   search: string;
   setSearch: (v: string) => void;
   onAdd: () => void;
+  onCheckin: () => void;
   onArchive: (worker: WorkerWithSite) => void;
   isOwner: boolean;
 }) {
@@ -490,9 +508,14 @@ function MobileWorkers({
           </p>
         </div>
         {isOwner && (
-          <button onClick={onAdd} style={{ background: "transparent", border: "none", color: "white", cursor: "pointer" }}>
-            <CirclePlus size={24} />
-          </button>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button onClick={onCheckin} style={{ background: "rgba(255,255,255,0.15)", border: "none", color: "white", cursor: "pointer", borderRadius: 8, padding: "4px 8px", fontSize: 13, fontWeight: 600 }}>
+              📋 Check-in
+            </button>
+            <button onClick={onAdd} style={{ background: "transparent", border: "none", color: "white", cursor: "pointer" }}>
+              <CirclePlus size={24} />
+            </button>
+          </div>
         )}
       </div>
 
@@ -611,6 +634,168 @@ function MobileWorkers({
             </div>
           )}
         </div>
+      </div>
+    </div>
+  );
+}
+
+const ABSENT_REASONS = [
+  { value: "day_off",    label: "Day off / หยุด" },
+  { value: "sick",       label: "Sick / ป่วย" },
+  { value: "quit",       label: "Left / ออกแล้ว" },
+  { value: "other",      label: "Other / อื่นๆ" },
+];
+
+function CheckinSendModal({ workers, onClose }: { workers: WorkerWithSite[]; onClose: () => void }) {
+  const verified   = workers.filter((w) => w.phone_verified && w.is_active);
+  const unverified = workers.filter((w) => !w.phone_verified && w.is_active);
+
+  const [selected, setSelected]     = useState<Set<string>>(new Set(verified.map((w) => w.id)));
+  const [reasons,  setReasons]      = useState<Record<string, string>>({});
+  const [loading,  setLoading]      = useState(false);
+  const [copyText, setCopyText]     = useState<string | null>(null);
+  const [copied,   setCopied]       = useState(false);
+  const [error,    setError]        = useState("");
+
+  const toggle = (id: string) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const handleGenerate = async () => {
+    const workerIds = Array.from(selected);
+    if (workerIds.length === 0) { setError("Select at least one worker"); return; }
+    setLoading(true); setError("");
+    try {
+      const res  = await fetch("/api/checkin/tokens", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ workerIds }),
+      });
+      const json = await res.json();
+      if (!res.ok) { setError(json.error ?? "Error"); return; }
+      setCopyText(json.copyText);
+    } catch { setError("Network error"); }
+    finally { setLoading(false); }
+  };
+
+  const handleCopy = async () => {
+    if (!copyText) return;
+    await navigator.clipboard.writeText(copyText);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2500);
+  };
+
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.55)", zIndex: 999, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
+      <div style={{ background: "white", borderRadius: 16, padding: "24px 20px", width: "100%", maxWidth: 480, maxHeight: "90vh", overflowY: "auto" }}>
+
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18 }}>
+          <div>
+            <h2 style={{ fontSize: 18, fontWeight: 700 }}>📋 Send Check-in Links</h2>
+            <p style={{ fontSize: 13, color: "var(--text-muted)", marginTop: 2 }}>ส่งลิงก์เช็คอินให้พนักงาน</p>
+          </div>
+          <button onClick={onClose} style={{ background: "transparent", border: "none", cursor: "pointer" }}><X size={22} /></button>
+        </div>
+
+        {error && <div style={{ background: "#FEF2F2", color: "#B91C1C", borderRadius: 8, padding: "10px 14px", marginBottom: 14, fontSize: 13 }}>{error}</div>}
+
+        {copyText ? (
+          /* ── Result screen ── */
+          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+            <p style={{ fontSize: 13, color: "#059669", fontWeight: 600 }}>✓ Links generated — copy and paste to WhatsApp / LINE group</p>
+            <textarea
+              readOnly
+              value={copyText}
+              rows={Math.min(copyText.split("\n").length, 14)}
+              style={{ width: "100%", fontFamily: "monospace", fontSize: 12, padding: "10px 12px", borderRadius: 8, border: "1px solid var(--border)", resize: "none", lineHeight: 1.6 }}
+            />
+            <button onClick={handleCopy}
+              style={{ width: "100%", padding: "12px", borderRadius: 10, background: copied ? "#059669" : "#1E3A8A", color: "white", border: "none", cursor: "pointer", fontWeight: 700, fontSize: 15 }}>
+              {copied ? "✓ Copied!" : "📋 Copy All"}
+            </button>
+            <button onClick={() => { setCopyText(null); setCopied(false); }} style={{ width: "100%", padding: "10px", borderRadius: 10, border: "1px solid var(--border)", background: "white", cursor: "pointer", fontSize: 14 }}>
+              ← Back / กลับ
+            </button>
+          </div>
+        ) : (
+          /* ── Selection screen ── */
+          <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+            {/* Verified workers */}
+            {verified.length > 0 && (
+              <div>
+                <p style={{ fontSize: 12, fontWeight: 700, color: "var(--text-muted)", marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                  Verified workers ({verified.length})
+                </p>
+                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                  {verified.map((w) => (
+                    <div key={w.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 12px", borderRadius: 10, border: `2px solid ${selected.has(w.id) ? "#1E3A8A" : "var(--border)"}`, background: selected.has(w.id) ? "#EFF6FF" : "white", cursor: "pointer" }}
+                      onClick={() => toggle(w.id)}>
+                      <div style={{ width: 20, height: 20, borderRadius: 4, border: `2px solid ${selected.has(w.id) ? "#1E3A8A" : "#D1D5DB"}`, background: selected.has(w.id) ? "#1E3A8A" : "white", display: "grid", placeItems: "center", flexShrink: 0 }}>
+                        {selected.has(w.id) && <Check size={13} color="white" strokeWidth={3} />}
+                      </div>
+                      <div style={{ flex: 1 }}>
+                        <strong style={{ fontSize: 14 }}>{w.name_en}</strong>
+                        <span style={{ fontSize: 12, color: "var(--text-muted)", marginLeft: 6 }}>{w.name_th}</span>
+                      </div>
+                      {!selected.has(w.id) && (
+                        <select
+                          value={reasons[w.id] ?? ""}
+                          onClick={(e) => e.stopPropagation()}
+                          onChange={(e) => setReasons((prev) => ({ ...prev, [w.id]: e.target.value }))}
+                          style={{ fontSize: 12, padding: "4px 8px", borderRadius: 6, border: "1px solid var(--border)" }}>
+                          <option value="">Reason?</option>
+                          {ABSENT_REASONS.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
+                        </select>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Unverified workers */}
+            {unverified.length > 0 && (
+              <div>
+                <p style={{ fontSize: 12, fontWeight: 700, color: "#F97316", marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                  ⚠️ Phone not verified ({unverified.length}) — go to worker profile to verify
+                </p>
+                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                  {unverified.map((w) => (
+                    <div key={w.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 12px", borderRadius: 10, border: "1px solid #FED7AA", background: "#FFF7ED", opacity: 0.7 }}>
+                      <div style={{ width: 20, height: 20, borderRadius: 4, border: "2px solid #D1D5DB", background: "#F3F4F6", flexShrink: 0 }} />
+                      <div style={{ flex: 1 }}>
+                        <strong style={{ fontSize: 14 }}>{w.name_en}</strong>
+                        <span style={{ fontSize: 12, color: "var(--text-muted)", marginLeft: 6 }}>{w.name_th}</span>
+                      </div>
+                      <span style={{ fontSize: 11, color: "#F97316" }}>No phone verified</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {verified.length === 0 && (
+              <div style={{ textAlign: "center", padding: "24px", color: "var(--text-muted)", fontSize: 14 }}>
+                No workers with verified phones yet.<br />
+                Go to a worker profile and tap "Verify Phone".
+              </div>
+            )}
+
+            <div style={{ display: "flex", gap: 10, marginTop: 4 }}>
+              <button onClick={onClose} style={{ flex: 1, padding: "11px", border: "1px solid var(--border)", borderRadius: 10, background: "white", cursor: "pointer", fontSize: 14 }}>
+                Cancel / ยกเลิก
+              </button>
+              <button onClick={handleGenerate} disabled={loading || selected.size === 0}
+                style={{ flex: 2, padding: "12px", borderRadius: 10, background: "#059669", color: "white", border: "none", cursor: "pointer", fontWeight: 700, fontSize: 15, opacity: (loading || selected.size === 0) ? 0.5 : 1 }}>
+                {loading ? "Generating…" : `Generate Links (${selected.size})`}
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

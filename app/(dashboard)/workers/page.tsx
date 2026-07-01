@@ -15,7 +15,7 @@ export default async function WorkersPage() {
     .from("workers")
     .select(`
       id, name_th, name_en, role_th, role_en,
-      daily_wage, phone, is_temporary, is_active, photo_url,
+      daily_wage, phone, phone_verified, is_temporary, is_active, photo_url,
       assigned_site_id,
       site:assigned_site_id(id, name_th, name_en, status)
     `)
