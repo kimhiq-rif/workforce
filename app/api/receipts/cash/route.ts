@@ -50,7 +50,7 @@ export async function POST(req: NextRequest) {
     externalIds: [ownerId],
     title: "🧾 ใบเสร็จเงินสด · Cash receipt",
     body: `${profile.name_th} · ${site_name_th ?? ""}${amountLabel}`.trim(),
-    url: "/suppliers",
+    url: `/suppliers?receipt=${receipt.id}`,
     tag: `cash_receipt_${receipt.id}`,
   });
 
