@@ -1,4 +1,3 @@
-import path from "node:path";
 import React from "react";
 import {
   Circle,
@@ -51,16 +50,17 @@ export const REPORT_FONT_FAMILY = "NotoSansThai";
 
 let fontsRegistered = false;
 
+const NOTO_CDN = "https://cdn.jsdelivr.net/npm/@fontsource/noto-sans-thai@5.2.8/files";
+
 export function registerReportFonts() {
   if (fontsRegistered) return;
 
-  const fontDir = path.join(process.cwd(), "node_modules", "@fontsource", "noto-sans-thai", "files");
   Font.register({
     family: REPORT_FONT_FAMILY,
     fonts: [
-      { src: path.join(fontDir, "noto-sans-thai-thai-400-normal.woff"), fontWeight: 400 },
-      { src: path.join(fontDir, "noto-sans-thai-thai-600-normal.woff"), fontWeight: 600 },
-      { src: path.join(fontDir, "noto-sans-thai-thai-700-normal.woff"), fontWeight: 700 },
+      { src: `${NOTO_CDN}/noto-sans-thai-thai-400-normal.woff`, fontWeight: 400 },
+      { src: `${NOTO_CDN}/noto-sans-thai-thai-600-normal.woff`, fontWeight: 600 },
+      { src: `${NOTO_CDN}/noto-sans-thai-thai-700-normal.woff`, fontWeight: 700 },
     ],
   });
 
