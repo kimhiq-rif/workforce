@@ -1,59 +1,270 @@
-# Workforce Project Context
+# Workforce — Project Context
+**עודכן:** 2026-07-01
 
-Updated: 2026-06-17
+---
 
-## Canonical workspace
+## מיקום ומסלולי עבודה
 
-This folder is the persistent Codex workspace for the app:
+- **GitHub:** `https://github.com/kimhiq-rif/workforce`
+- **Vercel:** Production → `main` branch בלבד
+- **Push:** `git push origin main` (remote name = `origin`)
+- **Supabase:** `https://keihzjpkshrucqwiwzoy.supabase.co`
+- **App URL:** `https://workforce-ivory-delta.vercel.app`
+- **Env vars:** `.env.local` (לא מחויב לgit)
 
-`C:\Users\User\Documents\Codex\projects\workforce`
+---
 
-The older working copy was:
+## תיאור המוצר
 
-`C:\Users\User\.claude\workforce`
+Workforce — אפליקציית Next.js + Supabase לניהול אתרי בנייה בתאילנד.
+מיועדת לבעלים, מנהלי שדה, נהגים/מנהלי רכב.
+Stack: Next.js 14 App Router · Supabase (Auth + DB + Storage) · OneSignal Web Push · Vercel
 
-Use the persistent Codex workspace as the source of truth for future Codex work unless the user explicitly says otherwise.
+---
 
-## Product summary
+## תפקידים (Roles)
 
-Workforce is a Next.js + Supabase app for site/workforce management in Thailand, focused around owners, field managers, sites, workers, suppliers, receipts, reports, finance, calendar tasks, and daily operational visibility.
+| Role | Code | גישה |
+|------|------|------|
+| בעלים | `owner` | גישה מלאה, desktop + iPhone |
+| מנהל שדה | `field_manager` | אתרים + נוכחות, מנותב לאתר משויך |
+| נהג/מנהל רכב | `technical_admin` | כל FM + קבלות + QR, מסלול `/driver` |
 
-The user is currently prioritizing functional stability and testability. Do not redesign the app yet unless explicitly instructed.
+---
 
-## Current priority
+## ארכיטקטורה — auth
 
-1. Keep the app running.
-2. Fix functional bugs discovered during QA.
-3. Keep the QA report updated without deleting old findings.
-4. Mark findings as fixed, pending QA, QA pass, or deferred.
-5. Only after the functional pass, stop and ask the user for detailed design instructions.
+```typescript
+// lib/auth-context.ts
+getAppUserContext() → { user, profile, ownerId, serviceClient }
 
-## Important constraints
+// ownerId logic:
+ownerId = profile.role === "owner" ? profile.id : profile.owner_id
 
-- Do not remove the QA history from `docs/QA_REPORT.md`.
-- Do not expose secrets from `.env.local` in chat, docs, commits, or logs.
-- Do not delete the old `.claude\workforce` folder.
-- Prefer editing this persistent project folder, then sync to Git/GitHub when available.
-- The user expects permanent context to live inside this project so future sessions do not start from zero.
-
-## Known environment notes
-
-- `npm` and `git` may not be available in PATH.
-- Builds can be run through the bundled Codex Node runtime if needed:
-
-```powershell
-& 'C:\Users\User\.cache\codex-runtimes\codex-primary-runtime\dependencies\node\bin\node.exe' '.\node_modules\next\dist\bin\next' build
+// serviceClient = bypasses RLS — להשתמש בserver routes בלבד
 ```
 
-## Supabase/auth notes
+---
 
-- Supabase Auth alone is not enough for the app.
-- The app also expects a matching `public.users` row.
-- Current implementation bootstraps/reads the current Auth user through app/server context.
-- RLS recursion and grants issues were fixed with migration `supabase/migrations/004_fix_users_rls_and_grants.sql`.
+## ארכיטקטורה — קבלות (Receipts)
 
-## Design notes
+### סטטוסים
+| סטטוס | משמעות |
+|--------|---------|
+| `pending_review` | קבלת מזומן שנשלחה — ממתינה לאישור בעלים |
+| `pending` | קבלת ספק רגילה |
+| `pending_qr` | תשלום QR ממתין |
+| `pending_sorting` | ממתינה למיון |
+| `approved` | אושרה |
+| `paid` | שולמה |
+| `disputed` | בוטלה / יש בעיה |
 
-The current visual design is not final. The user said the left sidebar should remain colored, but the current color/logo/design are not the chosen design. Selected design references are in earlier Codex folders and should be reviewed later.
+### Cash Receipt Flow
+```
+DriverClient → uploadPhoto() → /api/receipts/analyze (OCR Claude Haiku)
+→ handleCashSend() → POST /api/receipts/cash (server-side)
+→ serviceClient.insert() + sendOneSignalPush()
+```
 
-Pause before design work and ask for detailed instructions.
+**חשוב:** `handleCashSend` חסום עד ש-OCR מסיים (`analyzing === true`)
+
+### API routes
+- `POST /api/receipts/cash` — מכניס קבלת מזומן, שולח push לבעלים
+- `POST /api/receipts/analyze` — OCR עם Claude Haiku 4.5
+- `POST /api/push` — שליחת push ידנית
+
+---
+
+## ארכיטקטורה — Storage
+
+### bucket: `receipt-photos`
+- **פרטי** (`public = false`)
+- `photo_url` בDB מאחסן **storage path** (לא URL)
+  - דוגמה: `receipts/cash/owner123/1234567890.jpg`
+- **לתצוגה**: חייב לייצר signed URL
+
+```typescript
+// suppliers/page.tsx — SSR normalization
+if (photoUrl && !photoUrl.startsWith("http")) {
+  const { data: signed } = await supabase.storage
+    .from("receipt-photos")
+    .createSignedUrl(photoUrl, 3600); // 1 שעה
+  photoUrl = signed?.signedUrl ?? null;
+}
+```
+
+---
+
+## ארכיטקטורה — Push Notifications (OneSignal)
+
+```typescript
+// lib/send-push.ts
+sendOneSignalPush({ externalIds, title, body, url, tag })
+// external_id = users.id (לא email)
+// url = absolute URL עם NEXT_PUBLIC_APP_URL כ-prefix
+```
+
+- `NEXT_PUBLIC_APP_URL=https://workforce-ivory-delta.vercel.app` — חייב ב-Vercel env vars
+- Mobile PWA: בעלים חייב להתקין PWA ולאשר push
+- Deep-link: `/suppliers?receipt=<id>` → מועבר כ-`initialClosingReceipt` prop ב-SSR
+
+---
+
+## ארכיטקטורה — Deep Link מ-Push
+
+```typescript
+// suppliers/page.tsx (server component)
+export default async function SuppliersPage({ searchParams }) {
+  const { receipt: deepLinkReceiptId } = await searchParams;
+  const initialClosingReceipt = deepLinkReceiptId
+    ? normalizedReceipts.find(r => r.id === deepLinkReceiptId) ?? null
+    : null;
+  // מועבר ל-SuppliersClient כ-prop
+}
+
+// SuppliersClient.tsx
+const [closingReceipt, setClosingReceipt] = useState(initialClosingReceipt ?? null);
+// מודל נפתח מיד ב-SSR — לא תלוי ב-JS
+```
+
+---
+
+## ארכיטקטורה — Crons (Vercel Hobby — daily only)
+
+| Cron | Schedule (UTC) | שעה בנגקוק | מה עושה |
+|------|---------------|------------|---------|
+| `daily-reset` | `0 17 * * *` | 00:00 | איפוס סטטוס אתרים, עדכון עובדים, push לבעלים |
+| `receipts-reminder` | `0 9 * * *` | 16:00 | push תזכורת לסגירת קבלות פתוחות |
+| `qr-followup-check` | `30 8 * * *` | 15:30 | בדיקת QR |
+
+**חשוב:** `receipts-reminder` מכסה: `pending_sorting`, `pending_qr`, `pending`, `pending_review`
+
+### מחזור יממה
+```
+16:00 → push תזכורת "סגור קבלות לפני 17:00"
+00:00 → איפוס: live/rain/half_day/day_off → "waiting" + עובדים → אתרים
+בוקר → דשבורד נקי (waiting = מצב בסיס, לא התראה)
+```
+
+---
+
+## ארכיטקטורה — Dashboard מובייל
+
+### totalAlerts
+```typescript
+// DashboardClient.tsx
+const totalAlerts = openReceiptsCount + reviewSites + criticalItems;
+// !! waitingSites לא נספר — waiting = מצב בסיס לאחר איפוס
+```
+
+### ניווט Tiles / Signal Cards
+| כרטיס | מסלול |
+|-------|-------|
+| Sites | `/sites` |
+| Workers | `/workers` |
+| Complete | `/sites` |
+| Alerts | ללא (composite metric) |
+| Live now / Complete / Rain / Needs check | `/sites` |
+| Critical | `/finance` |
+| Receipts | `/suppliers` |
+
+---
+
+## קבצים קריטיים
+
+```
+app/
+  (dashboard)/
+    page.tsx                      — Dashboard SSR
+    suppliers/page.tsx            — Suppliers SSR + deep-link + signed URLs
+    finance/page.tsx              — Finance (pending + pending_review)
+  api/
+    receipts/
+      cash/route.ts               — POST cash receipt (server-side, RLS bypass)
+      analyze/route.ts            — OCR עם Claude Haiku
+    cron/
+      daily-reset/route.ts        — 00:00 Bangkok
+      receipts-reminder/route.ts  — 16:00 Bangkok
+
+components/
+  screens/
+    Suppliers/
+      SuppliersClient.tsx         — ReceiptClosingModal, deep-link prop, buildClosingStats
+      ReceiptTriageModal.tsx      — תצוגה מפורטת של קבלה
+    Driver/
+      DriverClient.tsx            — uploadPhoto, runOCR, handleCashSend
+    Dashboard/
+      DashboardClient.tsx         — MobileMetricTile, MobileSignalCard (href support)
+  OneSignalInit.tsx               — אתחול OneSignal
+  EnablePushPrompt.tsx            — בקשת הרשאת push
+
+lib/
+  auth-context.ts                 — getAppUserContext()
+  send-push.ts                    — sendOneSignalPush()
+  onesignal.ts                    — client-side OneSignal utils
+  format.ts                       — formatThaiDate, bangkokDate, formatCurrency
+  supabase/
+    server.ts                     — createServiceClient() (RLS bypass)
+    client.ts                     — createClient() (browser)
+
+supabase/migrations/
+  030_storage_buckets.sql         — receipt-photos bucket (פרטי!)
+```
+
+---
+
+## כללים עסקיים קריטיים
+
+### נוכחות
+- עובד שדווח באתר A → מועבר אוטומטית מתור A, מופיע ב-B עם נקודה צבעונית
+- העברה ≠ איחור: דווח A לפני 08:00, B אחרי 08:00 → לא איחור
+
+### חצי יום (נעול 2026-06-15)
+- בוקר: הגיע לפני 12:00 בלבד → זיהוי אוטומטי
+- אחר הצהריים: 12:00–12:30 = ללא איחור; 12:30–13:00 = איחור + חצי יום; אחרי 13:00 = חריגה
+
+### גשם
+- בטווח-אתר, לא גלובלי
+- ניתן לסמן רק אם אין דיווחים עדיין OR בעלים מחליט (עם פאנל החלטת שכר)
+
+### Event Sourcing
+- כל פעולה = event. מקוריים לא נמחקים. תיקונים דורשים הערה.
+
+### Timezone
+- תמיד Asia/Bangkok. שעת שרת = מקור האמת.
+
+---
+
+## צבעי מותג (נעולים)
+
+| Token | Hex | שימוש |
+|-------|-----|-------|
+| Brand primary | `#1E3A8A` | ניווט, כותרות, פעולות ראשיות |
+| Brand accent | `#FF6A00` | פעולה חשובה, קבלות, פרויקט ארוך |
+| Brand violet | `#6C5CE7` | פרויקט קצר, Move Stage, תיקונים |
+| Live | `#06B6D4` | נקודת סטטוס, גבול דק |
+| Finished | `#22C55E` | אישור, בוצע, שכר נטו |
+| Day off | `#3B82F6` | יום חופש / גשם |
+| Check | `#F59E0B` | דורש בדיקה, חצי יום |
+| Waiting | `#F97316` | חריגות בלבד — סמנים מאוחרים |
+| Critical | `#EF4444` | שגיאה / חריגה |
+
+**כלל עיצוב:** רקעים לבן / `#F2F4FF` בלבד.
+
+---
+
+## בעיות ידועות
+
+1. `attendance_events` — אין unique constraint ברמת DB על (worker_id, event_date, site_id) — UI מונע כפילויות בלבד
+2. Desktop push — WIRASAKMANCLASH צריך לאשר push ב-Chrome desktop ידנית
+3. `bcryptjs` + `@anthropic-ai/sdk` — שגיאות TS בחלק מהcontexts — packages קיימים ב-package.json, לא שגיאת runtime
+
+---
+
+## הוראות סנכרון זיכרון מקומי
+
+בסשן local, הוסף שורה אחת ל-`~/.claude/CLAUDE.md`:
+```
+@/path/to/workforce/PROJECT_CONTEXT.md
+```
+כך Claude תמיד טוען את ההקשר המעודכן מה-repo.
