@@ -13,7 +13,7 @@ import { SiteStatusBadge, siteStatusColor } from "@/components/ui/SiteStatusBadg
 import {
   ChevronLeft, ChevronRight, Camera, MapPin, CloudRain,
   Sun, Users, Clock, FileText, AlertTriangle, Check,
-  UserCheck, Zap, UserPlus, X as XIcon, PlayCircle, Send, ImagePlus,
+  UserCheck, Zap, UserPlus, X as XIcon, PlayCircle, Send, ImagePlus, Pencil,
 } from "lucide-react";
 import { formatThaiDate, formatEnDate, formatCurrency, formatTime } from "@/lib/format";
 import { computeAttendanceWageReason, computeWageAmount, canSetRainStatus, wageReasonLabel } from "@/lib/wage-logic";
@@ -103,6 +103,28 @@ export function SiteDetailClient({
 
   const currentStage = stages.find((s) => s.is_current) ?? null;
   const [showOvertime, setShowOvertime] = useState(false);
+
+  // Site name editing
+  const [editingName, setEditingName] = useState(false);
+  const [editNameTh, setEditNameTh] = useState(site.name_th);
+  const [editNameEn, setEditNameEn] = useState(site.name_en ?? "");
+  const [savingName, setSavingName] = useState(false);
+  const [siteName, setSiteName] = useState({ th: site.name_th, en: site.name_en ?? "" });
+
+  async function handleSaveName() {
+    if (!editNameTh.trim()) return;
+    setSavingName(true);
+    const res = await fetch(`/api/sites/${site.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name_th: editNameTh.trim(), name_en: editNameEn.trim() || editNameTh.trim() }),
+    });
+    setSavingName(false);
+    if (!res.ok) { showToast("Error saving name"); return; }
+    setSiteName({ th: editNameTh.trim(), en: editNameEn.trim() || editNameTh.trim() });
+    setEditingName(false);
+    showToast("✓ Site name updated");
+  }
 
   // Close Project
   const [closeModal, setCloseModal] = useState(false);
@@ -580,11 +602,42 @@ export function SiteDetailClient({
           >
             <ChevronLeft size={16} /> กลับ · Back to Sites
           </Link>
-          <h1 style={{ fontSize: 31, fontWeight: 700, marginBottom: 2, display: "flex", alignItems: "center", gap: 10 }}>
-            {site.name_th}
-            {site.status === "live" && <span className="live-dot" />}
-          </h1>
-          <p style={{ fontSize: 14, color: "var(--text-muted)" }}>{site.name_en} · Site detail</p>
+          {editingName ? (
+            <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 6 }}>
+              <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                <input
+                  value={editNameTh}
+                  onChange={(e) => setEditNameTh(e.target.value)}
+                  placeholder="ชื่อไทย"
+                  autoFocus
+                  onKeyDown={(e) => { if (e.key === "Enter") handleSaveName(); if (e.key === "Escape") setEditingName(false); }}
+                  style={{ fontSize: 22, fontWeight: 700, padding: "4px 10px", border: "2px solid var(--brand-primary)", borderRadius: 8, width: 220 }}
+                />
+                <input
+                  value={editNameEn}
+                  onChange={(e) => setEditNameEn(e.target.value)}
+                  placeholder="English name"
+                  onKeyDown={(e) => { if (e.key === "Enter") handleSaveName(); if (e.key === "Escape") setEditingName(false); }}
+                  style={{ fontSize: 14, padding: "4px 10px", border: "1px solid var(--border)", borderRadius: 8, width: 180 }}
+                />
+                <button onClick={handleSaveName} disabled={savingName} style={{ padding: "6px 14px", background: "#1E3A8A", color: "white", border: "none", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 600 }}>
+                  {savingName ? "…" : "Save"}
+                </button>
+                <button onClick={() => setEditingName(false)} style={{ padding: "6px 10px", background: "transparent", border: "1px solid var(--border)", borderRadius: 8, cursor: "pointer", fontSize: 13 }}>✕</button>
+              </div>
+            </div>
+          ) : (
+            <h1 style={{ fontSize: 31, fontWeight: 700, marginBottom: 2, display: "flex", alignItems: "center", gap: 10 }}>
+              {siteName.th}
+              {site.status === "live" && <span className="live-dot" />}
+              {userRole === "owner" && (
+                <button onClick={() => { setEditNameTh(siteName.th); setEditNameEn(siteName.en); setEditingName(true); }} title="Edit name" style={{ background: "transparent", border: "none", cursor: "pointer", padding: 4, opacity: 0.4, display: "flex", alignItems: "center" }}>
+                  <Pencil size={16} />
+                </button>
+              )}
+            </h1>
+          )}
+          <p style={{ fontSize: 14, color: "var(--text-muted)" }}>{siteName.en} · Site detail</p>
           {/* Stage target badge — shows target, or owner control to set one */}
           {isLongProject && currentStage && (
             <StageTargetBadge
