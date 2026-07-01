@@ -22,8 +22,9 @@ export async function POST(req: NextRequest) {
       is_active: true,
     })
     .select("id, name_th, name_en, contact_phone, category, qr_code_data")
-    .single();
+    .maybeSingle();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (!data) return NextResponse.json({ error: "Insert returned no data" }, { status: 500 });
   return NextResponse.json({ data });
 }

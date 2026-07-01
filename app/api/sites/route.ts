@@ -32,9 +32,10 @@ export async function POST(req: NextRequest) {
       is_active: true,
     })
     .select("id, name_th, name_en, location_th, location_en, status, project_type")
-    .single();
+    .maybeSingle();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (!data) return NextResponse.json({ error: "Insert returned no data" }, { status: 500 });
 
   // For long projects: create stage records
   if (validType === "long" && Array.isArray(stages) && stages.length > 0) {

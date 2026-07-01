@@ -63,11 +63,12 @@ export async function POST(req: NextRequest) {
       corrected_at: new Date().toISOString(),
     })
     .select("id, corrected_at")
-    .single();
+    .maybeSingle();
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
+  if (!data) return NextResponse.json({ error: "Insert returned no data" }, { status: 500 });
 
   supabase.from("audit_log").insert({
     owner_id: profile.id,

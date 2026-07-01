@@ -18,7 +18,7 @@ export default async function SiteDetailPage({ params }: Props) {
     .select("*, manager:manager_id(id, name_th, name_en)")
     .eq("id", params.siteId)
     .eq("owner_id", ownerId)
-    .single();
+    .maybeSingle();
 
   if (!site) notFound();
 

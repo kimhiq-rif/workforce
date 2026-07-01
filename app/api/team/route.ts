@@ -69,12 +69,16 @@ export async function POST(req: NextRequest) {
       session_timeout_hours: 8,
     })
     .select("id, auth_id, role, name_th, name_en, phone, created_at")
-    .single();
+    .maybeSingle();
 
   if (dbError) {
     // Roll back auth user if DB insert fails
     await supabase.auth.admin.deleteUser(authData.user.id);
     return NextResponse.json({ error: dbError.message }, { status: 500 });
+  }
+  if (!member) {
+    await supabase.auth.admin.deleteUser(authData.user.id);
+    return NextResponse.json({ error: "Insert returned no data" }, { status: 500 });
   }
 
   supabase.from("audit_log").insert({

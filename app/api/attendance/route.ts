@@ -70,8 +70,11 @@ export async function POST(req: NextRequest) {
       late_deduction_baht: lateDeductionBaht,
     }, { onConflict: "owner_id,worker_id,event_date,site_id" })
     .select()
-    .single();
+    .maybeSingle();
 
+  if (!data && !error) {
+    return NextResponse.json({ error: "Upsert returned no data" }, { status: 500 });
+  }
   if (error) {
     const status = error.code === "23505" ? 409 : 500;
     return NextResponse.json({ error: error.message, code: error.code }, { status });

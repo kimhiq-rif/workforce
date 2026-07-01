@@ -31,9 +31,10 @@ export async function POST(req: NextRequest) {
       image_taken_at: image_taken_at || null,
     })
     .select("*")
-    .single();
+    .maybeSingle();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (!data) return NextResponse.json({ error: "Insert returned no data" }, { status: 500 });
   return NextResponse.json({ data });
 }
 

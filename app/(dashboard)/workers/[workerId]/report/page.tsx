@@ -18,7 +18,7 @@ export default async function WorkerReportPage({ params }: Props) {
     .select("*")
     .eq("id", params.workerId)
     .eq("owner_id", ownerId)
-    .single();
+    .maybeSingle();
 
   if (!worker) notFound();
 
@@ -26,7 +26,7 @@ export default async function WorkerReportPage({ params }: Props) {
     .from("users")
     .select("name_th, name_en")
     .eq("id", ownerId)
-    .single();
+    .maybeSingle();
 
   const thirtyDaysAgo = new Date();
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);

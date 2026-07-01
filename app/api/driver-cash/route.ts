@@ -104,8 +104,9 @@ export async function POST(req: NextRequest) {
       notes: notes ?? null,
     })
     .select("id, amount, created_at")
-    .single();
+    .maybeSingle();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (!data) return NextResponse.json({ error: "Insert returned no data" }, { status: 500 });
   return NextResponse.json({ ok: true, entry: data });
 }

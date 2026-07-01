@@ -21,7 +21,7 @@ export default async function WorkerProfilePage({ params }: Props) {
     `)
     .eq("id", params.workerId)
     .eq("owner_id", ownerId)
-    .single();
+    .maybeSingle();
 
   if (!worker) notFound();
 

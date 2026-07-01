@@ -27,9 +27,10 @@ export async function POST(req: NextRequest) {
       is_active: true,
     })
     .select("id, name_th, name_en, role_th, role_en, daily_wage, phone, is_temporary, is_active, assigned_site_id, site:assigned_site_id(id, name_th, name_en, status)")
-    .single();
+    .maybeSingle();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (!data) return NextResponse.json({ error: "Insert returned no data" }, { status: 500 });
 
   serviceClient.from("audit_log").insert({
     owner_id: ownerId,

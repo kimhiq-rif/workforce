@@ -28,9 +28,10 @@ export async function POST(req: NextRequest) {
       status: "pending",
     })
     .select("*, supplier:supplier_id(name_th, name_en), site:site_id(name_th, name_en)")
-    .single();
+    .maybeSingle();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (!data) return NextResponse.json({ error: "Insert returned no data" }, { status: 500 });
   return NextResponse.json({ data });
 }
 

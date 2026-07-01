@@ -14,7 +14,7 @@ export default async function SettingsPage() {
     .from("workday_settings")
     .select("*")
     .eq("owner_id", ownerId)
-    .single();
+    .maybeSingle();
 
   // Fetch team members (for Users section)
   const { data: teamMembers } = await supabase

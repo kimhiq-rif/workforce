@@ -15,7 +15,7 @@ export default async function ReportsPage() {
     .from("users")
     .select("id, role, owner_id")
     .eq("auth_id", user.id)
-    .single();
+    .maybeSingle();
 
   const ownerId = profile?.role === "owner" ? profile.id : profile?.owner_id;
   const today = todayBangkok();

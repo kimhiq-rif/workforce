@@ -211,7 +211,7 @@ export async function POST(
       snapshot_json: snapshot,
     })
     .select("id")
-    .single();
+    .maybeSingle();
 
   if (reportErr || !report) {
     return NextResponse.json({ error: "Failed to save stage report" }, { status: 500 });

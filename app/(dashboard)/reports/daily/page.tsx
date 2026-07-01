@@ -27,7 +27,7 @@ export default async function DailyReportPage({ searchParams }: PageProps) {
     .from("users")
     .select("id, role, owner_id")
     .eq("auth_id", user.id)
-    .single();
+    .maybeSingle();
   if (!actor) redirect("/login");
 
   const ownerId = actor.role === "owner" ? actor.id : actor.owner_id;

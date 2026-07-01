@@ -38,11 +38,12 @@ export async function POST(req: NextRequest) {
       ocr_supplier_hint: ocr_supplier_hint ?? null,
     })
     .select("id")
-    .single();
+    .maybeSingle();
 
   if (dbError) {
     return NextResponse.json({ error: dbError.message }, { status: 500 });
   }
+  if (!receipt) return NextResponse.json({ error: "Insert returned no data" }, { status: 500 });
 
   // Push to owner — server-side, no browser session needed
   const amountLabel = amount ? ` ฿${Number(amount).toLocaleString()}` : "";

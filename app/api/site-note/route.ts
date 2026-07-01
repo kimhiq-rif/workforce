@@ -48,11 +48,12 @@ export async function POST(req: NextRequest) {
       { onConflict: "site_id,note_date" }
     )
     .select("id, note")
-    .single();
+    .maybeSingle();
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
+  if (!saved) return NextResponse.json({ error: "Upsert returned no data" }, { status: 500 });
 
   // Push to the field manager(s) who reported attendance here today.
   const { data: events } = await serviceClient

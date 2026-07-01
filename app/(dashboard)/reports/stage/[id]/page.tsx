@@ -15,7 +15,7 @@ export default async function StageReportPage({
     .select(`*, sites ( name_th, name_en, project_type )`)
     .eq("id", params.id)
     .eq("owner_id", ownerId)
-    .single();
+    .maybeSingle();
 
   if (error || !report) notFound();
 
