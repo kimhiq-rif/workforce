@@ -585,6 +585,7 @@ export function WorkerProfileClient({ worker: initialWorker, attendanceHistory, 
         <EditWorkerModal
           key={worker.updated_at}
           worker={worker}
+          ownerId={ownerId}
           onClose={() => setShowEditModal(false)}
           onSaved={(updated) => {
             setWorker((w) => ({ ...w, ...updated }));
@@ -881,8 +882,9 @@ function MobileWorkerProfile({ worker, attendanceHistory, advances, stats, onAdd
   );
 }
 
-function EditWorkerModal({ worker, onClose, onSaved }: {
+function EditWorkerModal({ worker, ownerId, onClose, onSaved }: {
   worker: Worker;
+  ownerId: string;
   onClose: () => void;
   onSaved: (updated: Partial<Worker>) => void;
 }) {
@@ -895,10 +897,28 @@ function EditWorkerModal({ worker, onClose, onSaved }: {
   const [email, setEmail] = useState((worker as any).email ?? "");
   const [visaExpiry, setVisaExpiry] = useState((worker as any).visa_expiry_date ?? "");
   const [isTemp, setIsTemp] = useState(worker.is_temporary ?? false);
+  const [hasNoPhone, setHasNoPhone] = useState((worker as any).has_no_phone ?? false);
+  const [companionId, setCompanionId] = useState<string>((worker as any).companion_worker_id ?? "");
+  const [companions, setCompanions] = useState<{ id: string; name_th: string; name_en: string | null; phone: string | null }[]>([]);
+  const [loadingCompanions, setLoadingCompanions] = useState(false);
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(worker.photo_url ?? null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+
+  async function loadCompanions() {
+    setLoadingCompanions(true);
+    const { data } = await supabase
+      .from("workers")
+      .select("id, name_th, name_en, phone")
+      .eq("owner_id", ownerId)
+      .eq("phone_verified", true)
+      .eq("is_active", true)
+      .neq("id", worker.id)
+      .order("name_th");
+    setCompanions(data ?? []);
+    setLoadingCompanions(false);
+  }
 
   async function handleSave() {
     if (!nameTh.trim()) { setError("ต้องกรอกชื่อ · Name required"); return; }
@@ -921,12 +941,14 @@ function EditWorkerModal({ worker, onClose, onSaved }: {
     const dbPatch = {
       name_th: nameTh.trim(),
       name_en: nameEn.trim() || null,
-      phone: phone.trim() || null,
+      phone: hasNoPhone ? null : (phone.trim() || null),
       daily_wage: wageNum,
       age: age ? Number(age) : null,
       email: email.trim() || null,
       visa_expiry_date: visaExpiry || null,
       is_temporary: isTemp,
+      has_no_phone: hasNoPhone,
+      companion_worker_id: hasNoPhone ? (companionId || null) : null,
       ...(newPhotoUrl ? { photo_url: newPhotoUrl } : {}),
     };
 
@@ -1009,10 +1031,61 @@ function EditWorkerModal({ worker, onClose, onSaved }: {
 
           {/* Phone / Wage / Age row */}
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 80px", gap: 10 }}>
-            {field("เบอร์โทร · Phone", phone, setPhone, { type: "tel", placeholder: "08X-XXX-XXXX" })}
+            {!hasNoPhone && field("เบอร์โทร · Phone", phone, setPhone, { type: "tel", placeholder: "08X-XXX-XXXX" })}
+            {hasNoPhone && (
+              <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                <span style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)" }}>เบอร์โทร · Phone</span>
+                <div style={{ padding: "9px 12px", border: "1px solid var(--border)", borderRadius: 8, fontSize: 14, color: "var(--text-muted)", background: "var(--surface)" }}>—</div>
+              </label>
+            )}
             {field("ค่าแรง/วัน · Wage (฿) *", wage, setWage, { type: "number", placeholder: "500" })}
             {field("อายุ · Age", age, setAge, { type: "number", placeholder: "25" })}
           </div>
+
+          {/* No-phone toggle */}
+          <label style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer", padding: "10px 12px", border: `1px solid ${hasNoPhone ? "var(--brand-primary)" : "var(--border)"}`, borderRadius: 8, background: hasNoPhone ? "rgba(255,106,0,0.05)" : "white" }}>
+            <input
+              type="checkbox"
+              checked={hasNoPhone}
+              onChange={(e) => {
+                setHasNoPhone(e.target.checked);
+                if (e.target.checked && companions.length === 0) loadCompanions();
+                if (!e.target.checked) setCompanionId("");
+              }}
+              style={{ width: 16, height: 16, cursor: "pointer" }}
+            />
+            <div>
+              <div style={{ fontSize: 14, fontWeight: 600 }}>ללא טלפון · No phone</div>
+              <div style={{ fontSize: 12, color: "var(--text-muted)" }}>עובד זה אינו מחזיק טלפון — ידווח ע"י עובד מלווה</div>
+            </div>
+          </label>
+
+          {/* Companion picker — shown only when has_no_phone */}
+          {hasNoPhone && (
+            <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+              <span style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)" }}>עובד מלווה · Companion worker</span>
+              {loadingCompanions ? (
+                <div style={{ padding: "9px 12px", fontSize: 13, color: "var(--text-muted)" }}>טוען…</div>
+              ) : companions.length === 0 ? (
+                <div style={{ padding: "9px 12px", border: "1px solid var(--border)", borderRadius: 8, fontSize: 13, color: "#B91C1C", background: "#FEF2F2" }}>
+                  אין עובדים עם טלפון מאומת. יש לאמת טלפון של עובד קודם.
+                </div>
+              ) : (
+                <select
+                  value={companionId}
+                  onChange={(e) => setCompanionId(e.target.value)}
+                  style={{ padding: "9px 12px", border: "1px solid var(--border)", borderRadius: 8, fontSize: 14 }}
+                >
+                  <option value="">— בחר עובד מלווה —</option>
+                  {companions.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name_th}{c.name_en ? ` · ${c.name_en}` : ""}{c.phone ? ` (${c.phone})` : ""}
+                    </option>
+                  ))}
+                </select>
+              )}
+            </label>
+          )}
 
           {/* Temporary toggle */}
           <label style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer", padding: "10px 12px", border: "1px solid var(--border)", borderRadius: 8 }}>
