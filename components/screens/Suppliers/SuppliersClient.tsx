@@ -863,6 +863,17 @@ function ReceiptClosingModal({
   return (
     <ModalWrapper title="ตรวจสอบใบเสร็จ · Review receipt" subtitle={receipt.receipt_number ?? receipt.id.slice(0, 8)} onClose={onClose}>
       {error && <ErrorBox msg={error} />}
+
+      {receipt.photo_url && (
+        <a href={receipt.photo_url} target="_blank" rel="noopener noreferrer" style={{ display: "block" }}>
+          <img
+            src={receipt.photo_url}
+            alt="receipt photo"
+            style={{ width: "100%", maxHeight: 260, objectFit: "contain", borderRadius: 10, background: "#f3f4f6", display: "block" }}
+          />
+        </a>
+      )}
+
       <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
         {issues.map((issue) => (
           <span key={issue.type} style={{ borderRadius: 999, background: "#FEF2F2", color: "#B91C1C", padding: "5px 9px", fontSize: 12, fontWeight: 700 }}>
