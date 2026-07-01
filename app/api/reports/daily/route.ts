@@ -35,9 +35,29 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const date = searchParams.get("date") ?? new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Bangkok" });
 
+  // DEBUG: expose ownerId + raw sites count to diagnose empty report
+  const { data: debugSites, error: debugSitesError } = await supabase
+    .from("sites")
+    .select("id, owner_id, is_active, name_th")
+    .eq("owner_id", ownerId);
+  const { data: debugAllSites } = await supabase
+    .from("sites")
+    .select("id, owner_id, is_active, name_th")
+    .limit(5);
+
   const report = await buildDailyReport(supabase, ownerId, date);
 
-  return NextResponse.json(report);
+  return NextResponse.json({
+    ...report,
+    _debug: {
+      ownerId,
+      actorRole: actor.role,
+      sitesForOwner: debugSites?.length ?? 0,
+      sitesForOwnerIsActive: debugSites?.filter(s => s.is_active)?.length ?? 0,
+      sitesAll5: debugAllSites?.map(s => ({ id: s.id.slice(0,8), owner_id: s.owner_id?.slice(0,8), is_active: s.is_active, name: s.name_th })),
+      sitesError: debugSitesError?.message ?? null,
+    },
+  });
 }
 
 // POST /api/reports/daily — owner-only manual trigger (same pipeline as cron)
