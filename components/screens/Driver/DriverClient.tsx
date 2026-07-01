@@ -493,17 +493,17 @@ export function DriverClient({ userId, ownerId, driverName, sites, suppliers }: 
         <div style={{ padding: "12px 16px 32px", borderTop: "1px solid var(--border)" }}>
           <button
             onClick={isCash ? handleCashSend : handlePaymentRequestSend}
-            disabled={sending || !selectedSiteId}
+            disabled={sending || !selectedSiteId || (isCash && analyzing)}
             style={{
               width: "100%", padding: "16px", borderRadius: 12, border: "none",
-              background: selectedSiteId ? (isCash ? "#1E3A8A" : "#7C3AED") : "#E5E7EB",
-              color: selectedSiteId ? "white" : "#9CA3AF",
-              fontSize: 16, fontWeight: 700, cursor: selectedSiteId ? "pointer" : "not-allowed",
+              background: selectedSiteId && !(isCash && analyzing) ? (isCash ? "#1E3A8A" : "#7C3AED") : "#E5E7EB",
+              color: selectedSiteId && !(isCash && analyzing) ? "white" : "#9CA3AF",
+              fontSize: 16, fontWeight: 700, cursor: (selectedSiteId && !(isCash && analyzing)) ? "pointer" : "not-allowed",
               display: "flex", alignItems: "center", justifyContent: "center", gap: 10,
             }}
           >
             {isCash ? <Camera size={20} /> : <QrCode size={20} />}
-            {sending ? "กำลังส่ง…" : isCash ? "ส่งใบเสร็จ · Send receipt" : "ส่งคำขอชำระ · Send payment request"}
+            {sending ? "กำลังส่ง…" : (isCash && analyzing) ? "กำลังอ่านใบเสร็จ… · Reading…" : isCash ? "ส่งใบเสร็จ · Send receipt" : "ส่งคำขอชำระ · Send payment request"}
           </button>
         </div>
       </div>

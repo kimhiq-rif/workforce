@@ -102,7 +102,7 @@ const RECEIPT_TABS = [
 ];
 
 const RECEIPT_CONFIRMED_STATUSES = new Set(["approved", "paid"]);
-const RECEIPT_PENDING_STATUSES = new Set(["pending", "pending_qr", "pending_payment", "pending_sorting", "paid_pending_sorting", "waiting_owner_payment"]);
+const RECEIPT_PENDING_STATUSES = new Set(["pending", "pending_review", "pending_qr", "pending_payment", "pending_sorting", "paid_pending_sorting", "waiting_owner_payment"]);
 const RECEIPT_PROBLEM_STATUSES = new Set(["needs_review", "disputed"]);
 
 type ReceiptClosingIssueType = "missing_supplier" | "missing_amount" | "missing_site" | "pending_action" | "problem_status";
@@ -198,7 +198,7 @@ export function SuppliersClient({
   const filteredReceipts = useMemo(() => {
     const q = search.toLowerCase();
     return receipts.filter((r) => {
-      const matchTab = tab === "all" || r.status === tab;
+      const matchTab = tab === "all" || r.status === tab || (tab === "pending" && r.status === "pending_review");
       const matchSearch = !q
         || (r.supplier?.name_th ?? "").toLowerCase().includes(q)
         || (r.site?.name_th ?? "").toLowerCase().includes(q);
@@ -208,7 +208,7 @@ export function SuppliersClient({
 
   const stats = useMemo(() => ({
     total:       receipts.length,
-    pending:     receipts.filter((r) => r.status === "pending").length,
+    pending:     receipts.filter((r) => r.status === "pending" || r.status === "pending_review").length,
     totalAmount: receipts.reduce((s, r) => s + (r.amount ?? 0), 0),
     disputed:    receipts.filter((r) => r.status === "disputed").length,
   }), [receipts]);
