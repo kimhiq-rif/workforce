@@ -300,7 +300,6 @@ function AddMemberModal({ onClose, onAdded }: {
   onClose: () => void;
   onAdded: (m: Member) => void;
 }) {
-  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPw, setShowPw] = useState(false);
   const [nameTh, setNameTh] = useState("");
@@ -309,10 +308,16 @@ function AddMemberModal({ onClose, onAdded }: {
   const [role, setRole] = useState<"field_manager" | "technical_admin">("field_manager");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [createdCreds, setCreatedCreds] = useState<{ email: string; password: string; member: Member } | null>(null);
+  const [copied, setCopied] = useState(false);
 
   async function handleSave() {
-    if (!email.trim() || !password || !nameTh.trim()) {
-      setError("Email, password and Thai name are required");
+    if (!password || !nameTh.trim()) {
+      setError("Name and password are required");
+      return;
+    }
+    if (password.length < 6) {
+      setError("Password must be at least 6 characters");
       return;
     }
     setSaving(true);
@@ -322,7 +327,6 @@ function AddMemberModal({ onClose, onAdded }: {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        email: email.trim(),
         password,
         name_th: nameTh.trim(),
         name_en: nameEn.trim() || nameTh.trim(),
@@ -339,78 +343,128 @@ function AddMemberModal({ onClose, onAdded }: {
       return;
     }
 
-    onAdded(data.member as Member);
+    setCreatedCreds({ email: data.login_email, password, member: data.member as Member });
+  }
+
+  async function handleCopy() {
+    if (!createdCreds) return;
+    await navigator.clipboard.writeText(
+      `Login email: ${createdCreds.email}\nPassword: ${createdCreds.password}`
+    );
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  }
+
+  function handleDone() {
+    if (createdCreds) onAdded(createdCreds.member);
   }
 
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 998, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
       <div style={{ background: "white", borderRadius: 16, padding: "28px 24px", width: "100%", maxWidth: 460, maxHeight: "90vh", overflowY: "auto" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 22 }}>
-          <h2 style={{ fontSize: 20, fontWeight: 700 }}>
-            เพิ่มสมาชิก
-            <small style={{ display: "block", fontSize: 13, fontWeight: 400, color: "var(--text-muted)" }}>Add team member</small>
-          </h2>
-          <button onClick={onClose} style={{ background: "transparent", border: "none", cursor: "pointer" }}><X size={24} /></button>
-        </div>
 
-        {error && (
-          <div style={{ background: "#FEF2F2", color: "#B91C1C", borderRadius: 8, padding: "10px 14px", marginBottom: 16, fontSize: 13 }}>{error}</div>
-        )}
-
-        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-          {/* Role */}
-          <div>
-            <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)", marginBottom: 8 }}>ตำแหน่ง · Role *</div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              {ROLES.map((r) => (
-                <label
-                  key={r.value}
-                  style={{
-                    display: "flex", alignItems: "flex-start", gap: 12, padding: "12px 14px",
-                    border: `2px solid ${role === r.value ? "var(--brand-primary)" : "var(--border)"}`,
-                    borderRadius: 10, cursor: "pointer",
-                    background: role === r.value ? "#EFF6FF" : "white",
-                  }}
-                >
-                  <input type="radio" name="role" value={r.value} checked={role === r.value} onChange={() => setRole(r.value)} style={{ marginTop: 3, accentColor: "var(--brand-primary)" }} />
-                  <div style={{ flex: 1 }}>
-                    <strong style={{ fontSize: 14 }}>{r.th} · {r.en}</strong>
-                    <small style={{ display: "block", color: "var(--text-muted)", fontSize: 12, marginTop: 2 }}>{r.desc}</small>
-                  </div>
-                  {role === r.value && <Check size={16} color="var(--brand-primary)" style={{ flexShrink: 0, marginTop: 2 }} />}
-                </label>
-              ))}
+        {createdCreds ? (
+          /* ── Success: show credentials to copy ── */
+          <>
+            <div style={{ textAlign: "center", marginBottom: 20 }}>
+              <div style={{ fontSize: 40, marginBottom: 8 }}>✓</div>
+              <h2 style={{ fontSize: 18, fontWeight: 700, color: "#111827" }}>
+                {createdCreds.member.name_th} added!
+              </h2>
+              <p style={{ fontSize: 13, color: "var(--text-muted)", marginTop: 4 }}>
+                Send these login credentials via WhatsApp/LINE
+              </p>
             </div>
-          </div>
 
-          {/* Name */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-            <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-              <span style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)" }}>ชื่อภาษาไทย *</span>
-              <input value={nameTh} onChange={(e) => setNameTh(e.target.value)} placeholder="ชื่อ นามสกุล" style={{ padding: "9px 12px", border: "1px solid var(--border)", borderRadius: 8, fontSize: 14 }} />
-            </label>
-            <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-              <span style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)" }}>Name (English)</span>
-              <input value={nameEn} onChange={(e) => setNameEn(e.target.value)} placeholder="First Last" style={{ padding: "9px 12px", border: "1px solid var(--border)", borderRadius: 8, fontSize: 14 }} />
-            </label>
-          </div>
+            <div style={{ background: "#F0F9FF", border: "1px solid #BAE6FD", borderRadius: 10, padding: "14px 16px", marginBottom: 16 }}>
+              <div style={{ fontSize: 12, color: "#0369A1", fontWeight: 600, marginBottom: 8 }}>Login credentials · ข้อมูลเข้าสู่ระบบ</div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                <div style={{ fontSize: 13, color: "#374151" }}>
+                  <span style={{ color: "var(--text-muted)" }}>Email: </span>
+                  <strong style={{ fontFamily: "monospace", fontSize: 13 }}>{createdCreds.email}</strong>
+                </div>
+                <div style={{ fontSize: 13, color: "#374151" }}>
+                  <span style={{ color: "var(--text-muted)" }}>Password: </span>
+                  <strong style={{ fontFamily: "monospace", fontSize: 14, letterSpacing: 1 }}>{createdCreds.password}</strong>
+                </div>
+              </div>
+            </div>
 
-          {/* Phone */}
-          <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-            <span style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)" }}>เบอร์โทร (optional)</span>
-            <input value={phone} onChange={(e) => setPhone(e.target.value)} type="tel" placeholder="+66 8X XXX XXXX" style={{ padding: "9px 12px", border: "1px solid var(--border)", borderRadius: 8, fontSize: 14 }} />
-          </label>
-
-          {/* Login */}
-          <div style={{ borderTop: "1px solid var(--border)", paddingTop: 14 }}>
-            <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)", marginBottom: 10 }}>ข้อมูลการเข้าสู่ระบบ · Login credentials</div>
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              <button
+                onClick={handleCopy}
+                style={{ width: "100%", padding: "11px", background: "#1E3A8A", color: "white", border: "none", borderRadius: 10, cursor: "pointer", fontSize: 14, fontWeight: 600, display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}
+              >
+                {copied ? <><Check size={16} /> Copied!</> : "📋 Copy credentials"}
+              </button>
+              <button
+                onClick={handleDone}
+                style={{ width: "100%", padding: "11px", border: "1px solid var(--border)", borderRadius: 10, background: "white", cursor: "pointer", fontSize: 14 }}
+              >
+                Done / เสร็จสิ้น
+              </button>
+            </div>
+          </>
+        ) : (
+          /* ── Form ── */
+          <>
+            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 22 }}>
+              <h2 style={{ fontSize: 20, fontWeight: 700 }}>
+                เพิ่มสมาชิก
+                <small style={{ display: "block", fontSize: 13, fontWeight: 400, color: "var(--text-muted)" }}>Add team member</small>
+              </h2>
+              <button onClick={onClose} style={{ background: "transparent", border: "none", cursor: "pointer" }}><X size={24} /></button>
+            </div>
+
+            {error && (
+              <div style={{ background: "#FEF2F2", color: "#B91C1C", borderRadius: 8, padding: "10px 14px", marginBottom: 16, fontSize: 13 }}>{error}</div>
+            )}
+
+            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+              {/* Role */}
+              <div>
+                <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)", marginBottom: 8 }}>ตำแหน่ง · Role *</div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                  {ROLES.map((r) => (
+                    <label
+                      key={r.value}
+                      style={{ display: "flex", alignItems: "flex-start", gap: 12, padding: "12px 14px", border: `2px solid ${role === r.value ? "var(--brand-primary)" : "var(--border)"}`, borderRadius: 10, cursor: "pointer", background: role === r.value ? "#EFF6FF" : "white" }}
+                    >
+                      <input type="radio" name="role" value={r.value} checked={role === r.value} onChange={() => setRole(r.value)} style={{ marginTop: 3, accentColor: "var(--brand-primary)" }} />
+                      <div style={{ flex: 1 }}>
+                        <strong style={{ fontSize: 14 }}>{r.th} · {r.en}</strong>
+                        <small style={{ display: "block", color: "var(--text-muted)", fontSize: 12, marginTop: 2 }}>{r.desc}</small>
+                      </div>
+                      {role === r.value && <Check size={16} color="var(--brand-primary)" style={{ flexShrink: 0, marginTop: 2 }} />}
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              {/* Name */}
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                  <span style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)" }}>ชื่อภาษาไทย *</span>
+                  <input value={nameTh} onChange={(e) => setNameTh(e.target.value)} placeholder="ชื่อ นามสกุล" style={{ padding: "9px 12px", border: "1px solid var(--border)", borderRadius: 8, fontSize: 14 }} />
+                </label>
+                <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                  <span style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)" }}>Name (English)</span>
+                  <input value={nameEn} onChange={(e) => setNameEn(e.target.value)} placeholder="First Last" style={{ padding: "9px 12px", border: "1px solid var(--border)", borderRadius: 8, fontSize: 14 }} />
+                </label>
+              </div>
+
+              {/* Phone */}
               <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                <span style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)" }}>Email *</span>
-                <input value={email} onChange={(e) => setEmail(e.target.value)} type="email" placeholder="manager@example.com" style={{ padding: "9px 12px", border: "1px solid var(--border)", borderRadius: 8, fontSize: 14 }} autoComplete="off" />
+                <span style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)" }}>เบอร์โทร (optional)</span>
+                <input value={phone} onChange={(e) => setPhone(e.target.value)} type="tel" placeholder="+66 8X XXX XXXX" style={{ padding: "9px 12px", border: "1px solid var(--border)", borderRadius: 8, fontSize: 14 }} />
               </label>
-              <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                <span style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)" }}>Temporary password * (min 6 chars)</span>
+
+              {/* Password only */}
+              <div style={{ borderTop: "1px solid var(--border)", paddingTop: 14 }}>
+                <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)", marginBottom: 10 }}>
+                  รหัสผ่านชั่วคราว · Temporary password
+                  <span style={{ fontWeight: 400, fontSize: 11, marginLeft: 4 }}>(min 6 chars)</span>
+                </div>
                 <div style={{ position: "relative" }}>
                   <input
                     value={password}
@@ -424,21 +478,24 @@ function AddMemberModal({ onClose, onAdded }: {
                     {showPw ? <EyeOff size={16} color="var(--text-muted)" /> : <Eye size={16} color="var(--text-muted)" />}
                   </button>
                 </div>
-              </label>
+                <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 6 }}>
+                  Login email will be generated automatically — you'll see it after creating
+                </div>
+              </div>
             </div>
-          </div>
-        </div>
 
-        <div style={{ display: "flex", gap: 12, marginTop: 22 }}>
-          <button onClick={onClose} style={{ flex: 1, padding: "11px", border: "1px solid var(--border)", borderRadius: 10, background: "white", cursor: "pointer", fontSize: 14 }}>
-            <span className="th-text">ยกเลิก</span><span className="en-text">Cancel</span>
-          </button>
-          <button onClick={handleSave} disabled={saving} className="btn-primary" style={{ flex: 2, justifyContent: "center" }}>
-            {saving
-              ? <><span className="th-text">กำลังสร้าง…</span><span className="en-text">Creating…</span></>
-              : <><span className="th-text">สร้างบัญชี</span><span className="en-text">Create account</span></>}
-          </button>
-        </div>
+            <div style={{ display: "flex", gap: 12, marginTop: 22 }}>
+              <button onClick={onClose} style={{ flex: 1, padding: "11px", border: "1px solid var(--border)", borderRadius: 10, background: "white", cursor: "pointer", fontSize: 14 }}>
+                <span className="th-text">ยกเลิก</span><span className="en-text">Cancel</span>
+              </button>
+              <button onClick={handleSave} disabled={saving} className="btn-primary" style={{ flex: 2, justifyContent: "center" }}>
+                {saving
+                  ? <><span className="th-text">กำลังสร้าง…</span><span className="en-text">Creating…</span></>
+                  : <><span className="th-text">สร้างบัญชี</span><span className="en-text">Create account</span></>}
+              </button>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );

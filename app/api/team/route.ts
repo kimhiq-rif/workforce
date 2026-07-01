@@ -1,7 +1,12 @@
 // Copyright © 2026 Workforce. All rights reserved.
 import { NextRequest, NextResponse } from "next/server";
+import { randomBytes } from "crypto";
 import { getAppUserContext } from "@/lib/auth-context";
 import { createServiceClient } from "@/lib/supabase/server";
+
+function generateInternalEmail(): string {
+  return `wf-${randomBytes(5).toString("hex")}@internal.wf`;
+}
 
 export async function GET() {
   const { ownerId, profile } = await getAppUserContext();
@@ -27,8 +32,8 @@ export async function POST(req: NextRequest) {
   }
 
   const body = await req.json();
-  const { email, password, name_th, name_en, role, phone } = body as {
-    email: string;
+  const { email: rawEmail, password, name_th, name_en, role, phone } = body as {
+    email?: string;
     password: string;
     name_th: string;
     name_en: string;
@@ -36,12 +41,14 @@ export async function POST(req: NextRequest) {
     phone?: string;
   };
 
-  if (!email || !password || !name_th || !role) {
+  if (!password || !name_th || !role) {
     return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
   }
   if (password.length < 6) {
     return NextResponse.json({ error: "Password must be at least 6 characters" }, { status: 400 });
   }
+
+  const email = rawEmail?.trim() || generateInternalEmail();
 
   const supabase = createServiceClient();
 
@@ -90,7 +97,7 @@ export async function POST(req: NextRequest) {
     new_value: { role, name_th: member.name_th, name_en: member.name_en },
   }).then(() => {}, () => {});
 
-  return NextResponse.json({ member }, { status: 201 });
+  return NextResponse.json({ member, login_email: email }, { status: 201 });
 }
 
 export async function DELETE(req: NextRequest) {
