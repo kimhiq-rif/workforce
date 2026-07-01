@@ -16,7 +16,7 @@ export async function GET(req: Request) {
   const { data: pendingReceipts } = await supabase
     .from("receipts")
     .select("owner_id")
-    .in("status", ["pending_sorting", "pending_qr", "pending"])
+    .in("status", ["pending_sorting", "pending_qr", "pending", "pending_review"])
     .eq("is_deleted", false)
     .throwOnError();
 

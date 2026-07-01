@@ -169,7 +169,7 @@ export async function GET(req: NextRequest) {
       .from("receipts")
       .select("id")
       .eq("owner_id", ownerId)
-      .in("status", ["pending_sorting", "paid_pending_sorting"]);
+      .in("status", ["pending_sorting", "paid_pending_sorting", "pending_review", "pending", "pending_qr"]);
 
     if (pendingReceipts?.length) {
       pushQueue.push({

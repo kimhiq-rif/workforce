@@ -6,10 +6,15 @@ import { todayBangkok } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 
-export default async function SuppliersPage() {
+export default async function SuppliersPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ receipt?: string }>;
+}) {
   const { user, profile, ownerId, serviceClient: supabase } = await getAppUserContext();
   if (!user || !profile || !ownerId) redirect("/login");
   const today = todayBangkok();
+  const { receipt: deepLinkReceiptId } = await searchParams;
 
   // Suppliers list
   const { data: suppliers } = await supabase
@@ -123,6 +128,10 @@ export default async function SuppliersPage() {
     scanned_by_user: Array.isArray(r.scanned_by_user) ? r.scanned_by_user[0] ?? null : r.scanned_by_user,
   }));
 
+  const initialClosingReceipt = deepLinkReceiptId
+    ? (normalizedReceipts.find((r) => r.id === deepLinkReceiptId) ?? null)
+    : null;
+
   return (
     <SuppliersClient
       suppliers={suppliers ?? []}
@@ -134,6 +143,7 @@ export default async function SuppliersPage() {
       driverCashData={driverCashData}
       myBalance={myBalance}
       pendingQrReceipts={pendingQrReceipts}
+      initialClosingReceipt={initialClosingReceipt}
     />
   );
 }

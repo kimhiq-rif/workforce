@@ -295,7 +295,7 @@ function MobileDashboard({
   const reviewSites = sites.filter((site) => site.status === "review" || site.hasPendingWage).length;
   const waitingSites = sites.filter((site) => site.status === "waiting").length;
   const criticalItems = pendingWageDecisions;
-  const totalAlerts = openReceiptsCount + reviewSites + waitingSites + criticalItems;
+  const totalAlerts = openReceiptsCount + reviewSites + criticalItems;
   const recentUpdates = sites
     .flatMap((site) =>
       site.todayWorkers
@@ -355,19 +355,19 @@ function MobileDashboard({
             <MobileMetricTile value={sites.length}
               label={<><span className="th-text">ไซต์</span><span className="en-text">Sites</span></>}
               subLabel={<><span className="th-text">งานทั้งหมด</span><span className="en-text">All work</span></>}
-              icon={<MapPin size={17} />} color="#1E3A8A" />
+              icon={<MapPin size={17} />} color="#1E3A8A" href="/sites" />
             <MobileMetricTile value={totalReported}
               label={<><span className="th-text">คนงาน</span><span className="en-text">Workers</span></>}
               subLabel={<><span className="th-text">จาก {totalExpected}</span><span className="en-text">of {totalExpected}</span></>}
-              icon={<Users size={17} />} color="#06B6D4" />
+              icon={<Users size={17} />} color="#06B6D4" href="/workers" />
             <MobileMetricTile value={completedSites}
               label={<><span className="th-text">เสร็จแล้ว</span><span className="en-text">Complete</span></>}
               subLabel={<><span className="th-text">ไซต์เสร็จ</span><span className="en-text">Sites done</span></>}
-              icon={<CheckCircle2 size={17} />} color="#22C55E" />
+              icon={<CheckCircle2 size={17} />} color="#22C55E" href="/sites" />
             <MobileMetricTile value={totalAlerts}
               label={<><span className="th-text">แจ้งเตือน</span><span className="en-text">Alerts</span></>}
               subLabel={<><span className="th-text">ต้องดำเนินการ</span><span className="en-text">Need action</span></>}
-              icon={<AlertCircle size={17} />} color="#FF6A00" href="/sites" />
+              icon={<AlertCircle size={17} />} color="#FF6A00" />
           </div>
         </section>
 
@@ -399,23 +399,23 @@ function MobileDashboard({
             <MobileSignalCard icon={<Activity size={18} />}
               title={<><span className="th-text">กำลังทำงาน</span><span className="en-text">Live now</span></>}
               detail={<><span className="th-text">{liveSites} ไซต์</span><span className="en-text">{liveSites} active</span></>}
-              color="#06B6D4" />
+              color="#06B6D4" href="/sites" />
             <MobileSignalCard icon={<CheckCircle2 size={18} />}
               title={<><span className="th-text">เสร็จแล้ว</span><span className="en-text">Complete</span></>}
               detail={<><span className="th-text">{completedSites} ไซต์</span><span className="en-text">{completedSites} sites</span></>}
-              color="#22C55E" />
+              color="#22C55E" href="/sites" />
             <MobileSignalCard icon={<CloudRain size={18} />}
               title={<><span className="th-text">ฝน / หยุด</span><span className="en-text">Rain / off</span></>}
               detail={<><span className="th-text">{rainSites} ไซต์</span><span className="en-text">{rainSites} sites</span></>}
-              color="#3B82F6" />
+              color="#3B82F6" href="/sites" />
             <MobileSignalCard icon={<AlertCircle size={18} />}
               title={<><span className="th-text">ต้องตรวจสอบ</span><span className="en-text">Needs check</span></>}
-              detail={<><span className="th-text">{reviewSites + waitingSites} รายการ</span><span className="en-text">{reviewSites + waitingSites} items</span></>}
-              color="#FF6A00" />
+              detail={<><span className="th-text">{reviewSites} รายการ</span><span className="en-text">{reviewSites} items</span></>}
+              color="#FF6A00" href="/sites" />
             <MobileSignalCard icon={<AlertTriangle size={18} />}
               title={<><span className="th-text">วิกฤต</span><span className="en-text">Critical</span></>}
               detail={<><span className="th-text">{criticalItems} การดำเนินการ</span><span className="en-text">{criticalItems} actions</span></>}
-              color="#FF4444" />
+              color="#FF4444" href="/finance" />
             <MobileSignalCard icon={<FileText size={18} />}
               title={<><span className="th-text">ใบเสร็จ</span><span className="en-text">Receipts</span></>}
               detail={<><span className="th-text">{openReceiptsCount} รอดำเนินการ</span><span className="en-text">{openReceiptsCount} open</span></>}

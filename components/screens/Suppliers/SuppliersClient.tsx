@@ -2,7 +2,7 @@
 // Copyright © 2026 Workforce. All rights reserved.
 
 import { useState, useMemo, useRef, useEffect } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import NextImage from "next/image";
 import { createClient } from "@/lib/supabase/client";
 import { DashboardShell } from "@/components/layout/DashboardShell";
@@ -91,6 +91,7 @@ interface SuppliersClientProps {
   driverCashData: DriverCashSummary[];
   myBalance: { totalGiven: number; totalSpent: number; balance: number } | null;
   pendingQrReceipts: PendingQrReceipt[];
+  initialClosingReceipt?: ReceiptRow | null;
 }
 
 const RECEIPT_TABS = [
@@ -132,7 +133,10 @@ function getReceiptClosingIssues(receipt: ReceiptRow): ReceiptClosingIssue[] {
 }
 
 function buildClosingStats(receipts: ReceiptRow[]) {
-  const blockingReceipts = receipts.filter((receipt) => getReceiptClosingIssues(receipt).length > 0);
+  const CLOSED_STATUSES = new Set(["disputed", "approved", "paid"]);
+  const blockingReceipts = receipts.filter(
+    (receipt) => !CLOSED_STATUSES.has(receipt.status) && getReceiptClosingIssues(receipt).length > 0
+  );
   const approvedTotal = receipts
     .filter((receipt) => RECEIPT_CONFIRMED_STATUSES.has(receipt.status))
     .reduce((sum, receipt) => sum + (receiptAmount(receipt) ?? 0), 0);
@@ -155,10 +159,9 @@ function buildClosingStats(receipts: ReceiptRow[]) {
 
 export function SuppliersClient({
   suppliers: initSuppliers, receipts: initReceipts, sites, ownerId, today, userId,
-  driverCashData, myBalance, pendingQrReceipts: initPendingQr,
+  driverCashData, myBalance, pendingQrReceipts: initPendingQr, initialClosingReceipt,
 }: SuppliersClientProps) {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const supabase = createClient();
   const { role, assignedSiteId } = useUserRole();
   const isDriverManager = role === "technical_admin";
@@ -173,22 +176,10 @@ export function SuppliersClient({
   const [giveCashDriver, setGiveCashDriver] = useState<DriverCashSummary | null>(null);
   const [pendingQr, setPendingQr] = useState(initPendingQr);
   const [openQrReceipt, setOpenQrReceipt] = useState<PendingQrReceipt | null>(null);
-  const [closingReceipt, setClosingReceipt] = useState<ReceiptRow | null>(null);
+  const [closingReceipt, setClosingReceipt] = useState<ReceiptRow | null>(initialClosingReceipt ?? null);
   const [editingSupplier, setEditingSupplier] = useState<Supplier | null>(null);
   const [desktopView, setDesktopView] = useState<"receipts" | "suppliers">("receipts");
   const [desktopSelectedSupplier, setDesktopSelectedSupplier] = useState<Supplier | null>(null);
-
-  // Deep-link from push notification: ?receipt=<id> opens the closing modal directly
-  useEffect(() => {
-    const receiptId = searchParams.get("receipt");
-    if (!receiptId) return;
-    const target = initReceipts.find((r) => r.id === receiptId);
-    if (target) {
-      setClosingReceipt(target);
-      router.replace("/suppliers");
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchParams]);
 
   function showToast(msg: string) {
     setToast(msg);
