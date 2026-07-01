@@ -123,6 +123,27 @@ export async function GET(req: NextRequest) {
           return `owner ${ownerId}: already ran today (skipped)`;
         }
 
+        // ── Freeze push: sent at report-time (17:00 Bangkok) ─────────────────────
+        // Warns owner the daily report is being generated now — last chance to act on pending items.
+        const { data: pendingReceipts } = await supabase
+          .from("receipts")
+          .select("id")
+          .eq("owner_id", ownerId)
+          .in("status", ["pending_sorting", "pending_qr", "pending", "pending_review"])
+          .eq("is_deleted", false);
+
+        const pendingCount = pendingReceipts?.length ?? 0;
+        await sendPushToOwner(
+          supabase,
+          ownerId,
+          `🔒 הקפאה · Report generating now`,
+          pendingCount > 0
+            ? `⚠️ ${pendingCount} ใบเสร็จยังรอ · Daily report กำลังสร้าง`
+            : `📋 Daily report กำลังสร้าง · ${today}`,
+          `/reports/daily?date=${today}`
+        );
+        ownerLog.push(`freeze push sent (${pendingCount} pending receipts)`);
+
         console.log("[daily-report] owner", ownerId, "building report...");
         const report = await buildDailyReport(supabase, ownerId, today);
         console.log("[daily-report] owner", ownerId, "report built, blocked:", report.isBlocked);
