@@ -11,6 +11,7 @@ interface Props { params: { workerId: string } }
 export default async function WorkerProfilePage({ params }: Props) {
   const { user, profile, ownerId, serviceClient: supabase } = await getAppUserContext();
   if (!user || !ownerId) redirect("/login");
+  if (profile?.role === "technical_admin") redirect("/driver");
   const today = todayBangkok();
 
   const { data: worker } = await supabase

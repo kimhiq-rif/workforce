@@ -7,19 +7,22 @@ import {
   Home, MapPin, Users, Truck, Calendar, FileText,
   Wallet, Settings,
 } from "lucide-react";
+import { useUserRole } from "@/components/layout/UserRoleContext";
 
 const NAV_ITEMS = [
-  { href: "/",          icon: Home,          th: "แดชบอร์ด",       en: "Dashboard" },
-  { href: "/sites",     icon: MapPin,         th: "ไซต์",           en: "Sites" },
-  { href: "/workers",   icon: Users,          th: "พนักงาน",        en: "Workers" },
-  { href: "/suppliers", icon: Truck,          th: "ซัพพลายเออร์",   en: "Suppliers" },
-  { href: "/calendar",  icon: Calendar,       th: "ปฏิทิน",         en: "Calendar" },
-  { href: "/reports",   icon: FileText,       th: "รายงาน",         en: "Reports" },
-  { href: "/finance",   icon: Wallet,         th: "การเงิน",        en: "Finance" },
+  { href: "/",          icon: Home,          th: "แดชบอร์ด",       en: "Dashboard",    driverOk: true  },
+  { href: "/sites",     icon: MapPin,         th: "ไซต์",           en: "Sites",        driverOk: true  },
+  { href: "/workers",   icon: Users,          th: "พนักงาน",        en: "Workers",      driverOk: false },
+  { href: "/suppliers", icon: Truck,          th: "ซัพพลายเออร์",   en: "Suppliers",    driverOk: true  },
+  { href: "/calendar",  icon: Calendar,       th: "ปฏิทิน",         en: "Calendar",     driverOk: false },
+  { href: "/reports",   icon: FileText,       th: "รายงาน",         en: "Reports",      driverOk: false },
+  { href: "/finance",   icon: Wallet,         th: "การเงิน",        en: "Finance",      driverOk: false },
 ];
 
 export function Sidebar() {
   const pathname = usePathname();
+  const { role } = useUserRole();
+  const isDriver = role === "technical_admin";
 
   function isActive(href: string) {
     if (href === "/") return pathname === "/";
@@ -63,7 +66,7 @@ export function Sidebar() {
 
       {/* Nav items */}
       <nav className="flex-1">
-        {NAV_ITEMS.map(({ href, icon: Icon, th, en }) => (
+        {NAV_ITEMS.filter((item) => !isDriver || item.driverOk).map(({ href, icon: Icon, th, en }) => (
           <Link
             key={href}
             href={href}

@@ -17,6 +17,7 @@ export default async function ReportsPage() {
     .eq("auth_id", user.id)
     .maybeSingle();
 
+  if (profile?.role === "technical_admin") redirect("/driver");
   const ownerId = profile?.role === "owner" ? profile.id : profile?.owner_id;
   const today = todayBangkok();
 

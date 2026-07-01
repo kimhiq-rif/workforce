@@ -9,6 +9,7 @@ export const dynamic = "force-dynamic";
 export default async function WorkersPage() {
   const { user, ownerId, serviceClient: supabase, profile } = await getAppUserContext();
   if (!user || !ownerId) redirect("/login");
+  if (profile?.role === "technical_admin") redirect("/driver");
   const today = todayBangkok();
 
   const { data: workers } = await supabase

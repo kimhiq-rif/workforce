@@ -778,34 +778,36 @@ export function SiteDetailClient({
         <div className="table-card">
           <div
             className="table-header"
-            style={{ gridTemplateColumns: "2fr 100px 120px 120px 110px" }}
+            style={{ gridTemplateColumns: isDriver ? "2fr 100px 120px" : "2fr 100px 120px 120px 110px" }}
           >
             <span><span className="th-text">พนักงาน</span><span className="en-text">Worker</span></span>
             <span><span className="th-text">เวลาเข้า</span><span className="en-text">Arrival</span></span>
             <span><span className="th-text">สถานะ</span><span className="en-text">Status</span></span>
-            <span><span className="th-text">ค่าแรง</span><span className="en-text">Wage reason</span></span>
-            <span><span className="th-text">ยอด</span><span className="en-text">Amount</span></span>
+            {!isDriver && <span><span className="th-text">ค่าแรง</span><span className="en-text">Wage reason</span></span>}
+            {!isDriver && <span><span className="th-text">ยอด</span><span className="en-text">Amount</span></span>}
           </div>
 
           {workers.length === 0 ? (
             <div style={{ padding: "24px 20px", textAlign: "center", color: "var(--text-muted)", fontSize: 14 }}>
               ยังไม่มีพนักงานในไซต์ · No workers assigned
-              <br />
-              <Link href="/workers" style={{ color: "var(--brand-primary)", fontSize: 13 }}>
-                ไปที่ Workers → เพิ่มพนักงาน
-              </Link>
+              {!isDriver && (
+                <><br />
+                <Link href="/workers" style={{ color: "var(--brand-primary)", fontSize: 13 }}>
+                  ไปที่ Workers → เพิ่มพนักงาน
+                </Link></>
+              )}
             </div>
           ) : (
             workers.map((worker) => {
               const event = attendanceEvents.find((e) => e.worker_id === worker.id);
               const wageLabel = wageReasonLabel(event?.wage_reason ?? null);
+              const gridCols = isDriver ? "2fr 100px 120px" : "2fr 100px 120px 120px 110px";
+              const RowEl = isDriver ? "div" : Link;
+              const rowProps = isDriver
+                ? { key: worker.id, className: "table-row", style: { gridTemplateColumns: gridCols, display: "grid" as const, padding: "12px 20px", gap: 12, color: "inherit" } }
+                : { key: worker.id, href: `/workers/${worker.id}`, className: "table-row", style: { gridTemplateColumns: gridCols, display: "grid" as const, padding: "12px 20px", gap: 12, textDecoration: "none", color: "inherit" } };
               return (
-                <Link
-                  key={worker.id}
-                  href={`/workers/${worker.id}`}
-                  className="table-row"
-                  style={{ gridTemplateColumns: "2fr 100px 120px 120px 110px", display: "grid", padding: "12px 20px", gap: 12, textDecoration: "none", color: "inherit" }}
-                >
+                <RowEl {...(rowProps as any)}>
                   <span style={{ display: "flex", alignItems: "center", gap: 10 }}>
                     <div className="avatar" style={{ width: 34, height: 34, fontSize: 11, flexShrink: 0, overflow: "hidden", padding: worker.photo_url ? 0 : undefined }}>
                       {worker.photo_url ? <img src={worker.photo_url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : worker.name_th[0]}
@@ -842,38 +844,19 @@ export function SiteDetailClient({
                     )}
                   </span>
 
-                  <span style={{ fontSize: 13, color: "var(--text-muted)" }}>
-                    {event?.wage_reason ? wageLabel.th : "-"}
-                  </span>
-
-                  <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                    {event?.wage_amount != null ? (
-                      <strong style={{ fontSize: 15, color: event.wage_amount > 0 ? "var(--text-primary)" : "var(--text-muted)" }}>
-                        ฿{formatCurrency(event.wage_amount)}
-                      </strong>
-                    ) : (
-                      <span style={{ color: "var(--text-muted)", fontSize: 13 }}>-</span>
-                    )}
-                    {!event && (
-                      <button
-                        onClick={(e) => { e.preventDefault(); startCamera(worker); }}
-                        className="btn-primary"
-                        style={{ padding: "4px 10px", fontSize: 12 }}
-                      >
-                        <Camera size={14} /> ถ่าย
-                      </button>
-                    )}
-                    {userRole === "owner" && otherSites.length > 0 && (
-                      <button
-                        onClick={(e) => { e.preventDefault(); setTransferModal({ worker }); }}
-                        title="ย้ายไปไซต์อื่น · Transfer"
-                        style={{ background: "transparent", border: "1px solid var(--border)", borderRadius: 6, padding: "3px 6px", cursor: "pointer", display: "flex", alignItems: "center", color: "var(--text-muted)" }}
-                      >
-                        <UserPlus size={13} />
-                      </button>
-                    )}
-                  </span>
-                </Link>
+                  {!isDriver && <span style={{ fontSize: 13, color: "var(--text-muted)" }}>{event?.wage_reason ? wageLabel.th : "-"}</span>}
+                  {!isDriver ? (
+                    <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                      {event?.wage_amount != null ? <strong style={{ fontSize: 15, color: event.wage_amount > 0 ? "var(--text-primary)" : "var(--text-muted)" }}>฿{formatCurrency(event.wage_amount)}</strong> : <span style={{ color: "var(--text-muted)", fontSize: 13 }}>-</span>}
+                      {!event && <button onClick={(e) => { e.preventDefault(); startCamera(worker); }} className="btn-primary" style={{ padding: "4px 10px", fontSize: 12 }}><Camera size={14} /> ถ่าย</button>}
+                      {userRole === "owner" && otherSites.length > 0 && <button onClick={(e) => { e.preventDefault(); setTransferModal({ worker }); }} title="Transfer" style={{ background: "transparent", border: "1px solid var(--border)", borderRadius: 6, padding: "3px 6px", cursor: "pointer", display: "flex", alignItems: "center", color: "var(--text-muted)" }}><UserPlus size={13} /></button>}
+                    </span>
+                  ) : (
+                    <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                      {!event && <button onClick={(e) => { e.preventDefault(); startCamera(worker); }} className="btn-primary" style={{ padding: "4px 10px", fontSize: 12 }}><Camera size={14} /> ถ่าย</button>}
+                    </span>
+                  )}
+                </RowEl>
               );
             })
           )}

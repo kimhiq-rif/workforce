@@ -5,18 +5,21 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Home, Users, QrCode, MapPin, MoreHorizontal } from "lucide-react";
 import { getBilingualLabel, useLangMode } from "@/components/layout/useLangMode";
+import { useUserRole } from "@/components/layout/UserRoleContext";
 
 const BOTTOM_ITEMS = [
-  { href: "/",          icon: Home,          th: "แดชบอร์ด", en: "Dashboard" },
-  { href: "/workers",   icon: Users,          th: "พนักงาน",  en: "Workers" },
-  { href: "/suppliers", icon: QrCode,         th: "สแกน",     en: "Scan",    accent: true },
-  { href: "/sites",     icon: MapPin,         th: "ไซต์",     en: "Sites" },
-  { href: "/more",      icon: MoreHorizontal, th: "เพิ่มเติม",en: "More" },
+  { href: "/",          icon: Home,          th: "แดชบอร์ด", en: "Dashboard", driverOk: true  },
+  { href: "/workers",   icon: Users,          th: "พนักงาน",  en: "Workers",   driverOk: false },
+  { href: "/suppliers", icon: QrCode,         th: "สแกน",     en: "Scan",      accent: true, driverOk: true  },
+  { href: "/sites",     icon: MapPin,         th: "ไซต์",     en: "Sites",     driverOk: true  },
+  { href: "/more",      icon: MoreHorizontal, th: "เพิ่มเติม",en: "More",      driverOk: true  },
 ];
 
 export function BottomNav() {
   const pathname = usePathname();
   const langMode = useLangMode();
+  const { role } = useUserRole();
+  const isDriver = role === "technical_admin";
 
   function isActive(href: string) {
     if (href === "/") return pathname === "/";
@@ -25,7 +28,7 @@ export function BottomNav() {
 
   return (
     <nav className="bottom-nav mobile-only" aria-label="Mobile navigation">
-      {BOTTOM_ITEMS.map(({ href, icon: Icon, th, en, accent }) => {
+      {BOTTOM_ITEMS.filter((item) => !isDriver || item.driverOk).map(({ href, icon: Icon, th, en, accent }) => {
         const label = getBilingualLabel(langMode, th, en);
         return (
           <Link
