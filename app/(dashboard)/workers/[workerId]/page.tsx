@@ -54,6 +54,16 @@ export default async function WorkerProfilePage({ params }: Props) {
     .eq("is_active", true)
     .order("name_th");
 
+  // Check-in token history (last 30 days)
+  const { data: checkinTokens } = await supabase
+    .from("attendance_tokens")
+    .select("id, created_at, expires_at, used_at")
+    .eq("worker_id", params.workerId)
+    .eq("owner_id", ownerId)
+    .gte("created_at", new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString())
+    .order("created_at", { ascending: false })
+    .limit(30);
+
   const normalizedWorker = {
     ...worker,
     site: Array.isArray(worker.site) ? worker.site[0] ?? null : worker.site,
@@ -70,6 +80,7 @@ export default async function WorkerProfilePage({ params }: Props) {
       attendanceHistory={normalizedAttendanceHistory}
       advances={advances ?? []}
       sites={sites ?? []}
+      checkinTokens={checkinTokens ?? []}
       ownerId={ownerId}
       today={today}
       userRole={profile?.role ?? "field_manager"}

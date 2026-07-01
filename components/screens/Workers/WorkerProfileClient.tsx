@@ -24,6 +24,13 @@ type AttendanceRow = {
   site?: { name_th: string; name_en: string } | null;
 };
 
+type CheckinTokenRow = {
+  id: string;
+  created_at: string;
+  expires_at: string;
+  used_at: string | null;
+};
+
 type AdvanceRow = {
   id: string;
   amount: number;
@@ -36,13 +43,14 @@ interface WorkerProfileClientProps {
   worker: Worker & { site?: { id: string; name_th: string; name_en: string; status: string } | null };
   attendanceHistory: AttendanceRow[];
   advances: AdvanceRow[];
+  checkinTokens: CheckinTokenRow[];
   sites: { id: string; name_th: string; name_en: string }[];
   ownerId: string;
   today: string;
   userRole?: string;
 }
 
-export function WorkerProfileClient({ worker: initialWorker, attendanceHistory, advances: initialAdvances, sites, ownerId, today, userRole }: WorkerProfileClientProps) {
+export function WorkerProfileClient({ worker: initialWorker, attendanceHistory, advances: initialAdvances, checkinTokens, sites, ownerId, today, userRole }: WorkerProfileClientProps) {
   const router = useRouter();
   const supabase = createClient();
   const [worker, setWorker] = useState(initialWorker);
@@ -469,6 +477,45 @@ export function WorkerProfileClient({ worker: initialWorker, attendanceHistory, 
               )}
             </div>
           </div>
+
+          {/* Check-in link history */}
+          {checkinTokens.length > 0 && (
+            <div style={{ marginTop: 28 }}>
+              <h2 style={{ fontSize: 19, fontWeight: 600, marginBottom: 14 }}>
+                ประวัติลิงก์เช็คอิน
+                <span style={{ display: "block", fontSize: 13, fontWeight: 400, color: "var(--text-muted)" }}>Check-in link history · last 30 days</span>
+              </h2>
+              <div className="table-card">
+                <div className="table-header" style={{ gridTemplateColumns: "1.4fr 100px 100px 110px" }}>
+                  <span><span className="th-text">วันที่</span><span className="en-text">Date</span></span>
+                  <span><span className="th-text">ส่งลิงก์</span><span className="en-text">Sent</span></span>
+                  <span><span className="th-text">เช็คอิน</span><span className="en-text">Used</span></span>
+                  <span><span className="th-text">เวลา</span><span className="en-text">Time (BKK)</span></span>
+                </div>
+                {checkinTokens.map((t) => {
+                  const sentDate = new Date(t.created_at).toLocaleDateString("en-CA", { timeZone: "Asia/Bangkok" });
+                  const usedTime = t.used_at
+                    ? new Date(t.used_at).toLocaleTimeString("en-GB", { timeZone: "Asia/Bangkok", hour: "2-digit", minute: "2-digit" })
+                    : null;
+                  const expired = !t.used_at && new Date(t.expires_at) < new Date();
+                  return (
+                    <div key={t.id} className="table-row" style={{ gridTemplateColumns: "1.4fr 100px 100px 110px", display: "grid", padding: "11px 20px", gap: 12, alignItems: "center" }}>
+                      <span style={{ fontSize: 14 }}>{sentDate}</span>
+                      <span style={{ fontSize: 12, color: "#15803D", fontWeight: 600 }}>✓ Sent</span>
+                      <span>
+                        {t.used_at
+                          ? <span style={{ background: "#F0FDF4", color: "#15803D", padding: "3px 8px", borderRadius: 5, fontSize: 11, fontWeight: 600 }}>✓ Used</span>
+                          : expired
+                            ? <span style={{ background: "#F3F4F6", color: "#9CA3AF", padding: "3px 8px", borderRadius: 5, fontSize: 11 }}>Expired</span>
+                            : <span style={{ background: "#FFF7ED", color: "#C2410C", padding: "3px 8px", borderRadius: 5, fontSize: 11 }}>Pending</span>}
+                      </span>
+                      <span style={{ fontSize: 14, fontWeight: 600 }}>{usedTime ?? "—"}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           {/* Advances section */}
           {advances.length > 0 && (
