@@ -57,6 +57,8 @@ export function WorkerProfileClient({ worker: initialWorker, attendanceHistory, 
   const [resetting, setResetting] = useState(false);
   const [copiedCreds, setCopiedCreds] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [phoneVerified, setPhoneVerified] = useState(!!(initialWorker as any).phone_verified);
+  const [verifyingPhone, setVerifyingPhone] = useState(false);
 
   function showToast(msg: string) {
     setToast(msg);
@@ -166,6 +168,15 @@ export function WorkerProfileClient({ worker: initialWorker, attendanceHistory, 
     await doDeactivate();
   }
 
+  async function handleVerifyPhone() {
+    setVerifyingPhone(true);
+    const res = await fetch(`/api/workers/${worker.id}/verify-phone`, { method: "PATCH" });
+    setVerifyingPhone(false);
+    if (!res.ok) { showToast("שגיאה · Error verifying"); return; }
+    setPhoneVerified(true);
+    showToast("✓ Phone verified — worker can now receive check-in links");
+  }
+
   async function handleResetPassword() {
     if (!confirm(`รีเซ็ตรหัสผ่านของ ${worker.name_en}? · Reset password?`)) return;
     setResetting(true);
@@ -206,6 +217,33 @@ export function WorkerProfileClient({ worker: initialWorker, attendanceHistory, 
           ))}
         </div>
       </section>
+
+      {worker.phone && userRole === "owner" && (
+        <section className="attention-card">
+          <h2>
+            <Phone size={14} style={{ display: "inline", verticalAlign: "middle", marginRight: 5 }} />
+            เบอร์โทร <span>Phone check-in</span>
+          </h2>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 8, padding: "8px 10px", background: phoneVerified ? "#F0FDF4" : "#FFF7ED", border: `1px solid ${phoneVerified ? "#A7F3D0" : "#FDE68A"}`, borderRadius: 8 }}>
+            <span style={{ fontSize: 14, fontWeight: 600, fontFamily: "monospace" }}>{worker.phone}</span>
+            <span style={{ fontSize: 11, fontWeight: 600, padding: "3px 8px", borderRadius: 5, background: phoneVerified ? "#D1FAE5" : "#FEF3C7", color: phoneVerified ? "#065F46" : "#92400E" }}>
+              {phoneVerified ? "✓ Verified" : "Not verified"}
+            </span>
+          </div>
+          {!phoneVerified && (
+            <button
+              onClick={handleVerifyPhone}
+              disabled={verifyingPhone}
+              style={{ width: "100%", marginTop: 10, padding: "9px", background: "#1E3A8A", color: "white", border: "none", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 600, opacity: verifyingPhone ? 0.6 : 1 }}
+            >
+              {verifyingPhone ? "Verifying…" : "✓ Verify Phone / ยืนยันเบอร์"}
+            </button>
+          )}
+          {phoneVerified && (
+            <p style={{ fontSize: 11, color: "#15803D", marginTop: 8, textAlign: "center" }}>Ready to receive daily check-in links</p>
+          )}
+        </section>
+      )}
 
       <section className="attention-card">
         <h2>ไซต์ที่ทำงาน <span>Assigned site</span></h2>
