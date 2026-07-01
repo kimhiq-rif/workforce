@@ -367,7 +367,7 @@ function MobileDashboard({
             <MobileMetricTile value={totalAlerts}
               label={<><span className="th-text">แจ้งเตือน</span><span className="en-text">Alerts</span></>}
               subLabel={<><span className="th-text">ต้องดำเนินการ</span><span className="en-text">Need action</span></>}
-              icon={<AlertCircle size={17} />} color="#FF6A00" />
+              icon={<AlertCircle size={17} />} color="#FF6A00" href="/sites" />
           </div>
         </section>
 
@@ -419,7 +419,7 @@ function MobileDashboard({
             <MobileSignalCard icon={<FileText size={18} />}
               title={<><span className="th-text">ใบเสร็จ</span><span className="en-text">Receipts</span></>}
               detail={<><span className="th-text">{openReceiptsCount} รอดำเนินการ</span><span className="en-text">{openReceiptsCount} open</span></>}
-              color="#8B5CF6" />
+              color="#8B5CF6" href="/suppliers" />
           </div>
         </section>
 
@@ -499,15 +499,17 @@ function MobileMetricTile({
   subLabel,
   icon,
   color,
+  href,
 }: {
   value: number | string;
   label: React.ReactNode;
   subLabel: React.ReactNode;
   icon: React.ReactNode;
   color: string;
+  href?: string;
 }) {
-  return (
-    <div className="mobile-metric-tile">
+  const inner = (
+    <div className="mobile-metric-tile" style={href ? { cursor: "pointer" } : undefined}>
       <span className="mobile-metric-icon" style={{ color, background: `${color}14` }}>
         {icon}
       </span>
@@ -516,6 +518,7 @@ function MobileMetricTile({
       <small>{subLabel}</small>
     </div>
   );
+  return href ? <Link href={href}>{inner}</Link> : inner;
 }
 
 function MobileSignalCard({
@@ -523,14 +526,16 @@ function MobileSignalCard({
   title,
   detail,
   color,
+  href,
 }: {
   icon: React.ReactNode;
   title: React.ReactNode;
   detail: React.ReactNode;
   color: string;
+  href?: string;
 }) {
-  return (
-    <div className="mobile-signal-card" style={{ borderLeftColor: color }}>
+  const inner = (
+    <div className="mobile-signal-card" style={{ borderLeftColor: color, cursor: href ? "pointer" : undefined }}>
       <span className="mobile-signal-icon" style={{ color, background: `${color}14` }}>
         {icon}
       </span>
@@ -540,6 +545,7 @@ function MobileSignalCard({
       </span>
     </div>
   );
+  return href ? <Link href={href}>{inner}</Link> : inner;
 }
 
 function daysUntil(eventDate: string, today: string): number {

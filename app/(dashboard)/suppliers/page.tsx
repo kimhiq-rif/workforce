@@ -30,7 +30,8 @@ export default async function SuppliersPage() {
       id, site_id, supplier_id, receipt_number, amount, status, category, description, notes, photo_url,
       payment_type, paid_from_driver_cash, gps_lat, gps_lng, submitted_by, created_at,
       site:site_id(id, name_th, name_en),
-      supplier:supplier_id(id, name_th, name_en)
+      supplier:supplier_id(id, name_th, name_en),
+      submitter:submitted_by(name_th, name_en)
     `)
     .eq("owner_id", ownerId)
     .gte("created_at", `${fromDate}T00:00:00+07:00`)
@@ -65,6 +66,7 @@ export default async function SuppliersPage() {
         photo_url: photoUrl,
         site: Array.isArray(receipt.site) ? receipt.site[0] ?? null : receipt.site,
         supplier: Array.isArray(receipt.supplier) ? receipt.supplier[0] ?? null : receipt.supplier,
+        submitter: Array.isArray(receipt.submitter) ? receipt.submitter[0] ?? null : receipt.submitter,
       };
     })
   );

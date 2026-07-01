@@ -59,6 +59,7 @@ type ReceiptRow = {
   created_at: string;
   site?: { id: string; name_th: string; name_en: string } | null;
   supplier?: { id: string; name_th: string; name_en: string } | null;
+  submitter?: { name_th: string; name_en: string } | null;
 };
 
 interface DriverCashSummary {
@@ -186,7 +187,8 @@ export function SuppliersClient({
       setClosingReceipt(target);
       router.replace("/suppliers");
     }
-  }, []);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
 
   function showToast(msg: string) {
     setToast(msg);
@@ -782,9 +784,14 @@ function ReceiptClosingPanel({
               >
                 <span style={{ minWidth: 0 }}>
                   <span style={{ display: "block", fontSize: 13, fontWeight: 700, color: "#7F1D1D" }}>
-                    {receipt.supplier?.name_th ?? receipt.receipt_number ?? "Receipt"}
+                    {receipt.submitter?.name_th ?? receipt.supplier?.name_th ?? receipt.receipt_number ?? "Receipt"}
                   </span>
-                  <span style={{ display: "block", fontSize: 11, color: "#991B1B", marginTop: 2 }}>
+                  <span style={{ display: "block", fontSize: 11, color: "#991B1B", marginTop: 1 }}>
+                    {formatThaiDate(new Date(receipt.created_at))}
+                    {" · "}
+                    {new Date(receipt.created_at).toLocaleTimeString("th-TH", { timeZone: "Asia/Bangkok", hour: "2-digit", minute: "2-digit", hour12: false })}
+                  </span>
+                  <span style={{ display: "block", fontSize: 11, color: "#991B1B", marginTop: 1 }}>
                     {issues.slice(0, 2).map((issue) => issue.label).join(" / ")}
                   </span>
                 </span>
@@ -860,9 +867,23 @@ function ReceiptClosingModal({
     if (!ok) setError("Could not update receipt.");
   }
 
+  const submittedAt = new Date(receipt.created_at);
+  const submittedDateLabel = `${formatThaiDate(submittedAt)} · ${submittedAt.toLocaleTimeString("th-TH", { timeZone: "Asia/Bangkok", hour: "2-digit", minute: "2-digit", hour12: false })}`;
+
   return (
     <ModalWrapper title="ตรวจสอบใบเสร็จ · Review receipt" subtitle={receipt.receipt_number ?? receipt.id.slice(0, 8)} onClose={onClose}>
       {error && <ErrorBox msg={error} />}
+
+      <div style={{ fontSize: 13, color: "var(--text-muted)", display: "flex", gap: 6, flexWrap: "wrap" }}>
+        <span style={{ fontWeight: 700, color: "var(--text-primary)" }}>
+          {receipt.submitter?.name_th ?? "—"}
+        </span>
+        <span>·</span>
+        <span>{submittedDateLabel}</span>
+        {receipt.description && (
+          <><span>·</span><span style={{ fontStyle: "italic" }}>{receipt.description}</span></>
+        )}
+      </div>
 
       {receipt.photo_url && (
         <a href={receipt.photo_url} target="_blank" rel="noopener noreferrer" style={{ display: "block" }}>
