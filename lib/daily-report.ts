@@ -368,7 +368,7 @@ export async function buildDailyReport(
   // ── 1. Fetch all active sites ───────────────────────────────────────────────
   const { data: sites } = await supabase
     .from("sites")
-    .select("id, name_th, name_en, status, color")
+    .select("id, name_th, name_en, status")
     .eq("owner_id", ownerId)
     .eq("is_active", true)
     .order("name_th");
