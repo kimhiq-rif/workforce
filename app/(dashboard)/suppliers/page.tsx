@@ -51,11 +51,23 @@ export default async function SuppliersPage() {
     .eq("is_active", true)
     .order("name_th");
 
-  const normalizedReceipts = (receipts ?? []).map((receipt) => ({
-    ...receipt,
-    site: Array.isArray(receipt.site) ? receipt.site[0] ?? null : receipt.site,
-    supplier: Array.isArray(receipt.supplier) ? receipt.supplier[0] ?? null : receipt.supplier,
-  }));
+  const normalizedReceipts = await Promise.all(
+    (receipts ?? []).map(async (receipt) => {
+      let photoUrl = receipt.photo_url as string | null;
+      if (photoUrl && !photoUrl.startsWith("http")) {
+        const { data: signed } = await supabase.storage
+          .from("receipt-photos")
+          .createSignedUrl(photoUrl, 3600);
+        photoUrl = signed?.signedUrl ?? null;
+      }
+      return {
+        ...receipt,
+        photo_url: photoUrl,
+        site: Array.isArray(receipt.site) ? receipt.site[0] ?? null : receipt.site,
+        supplier: Array.isArray(receipt.supplier) ? receipt.supplier[0] ?? null : receipt.supplier,
+      };
+    })
+  );
 
   // Driver cash float data
   const { data: driverManagers } = await supabase
