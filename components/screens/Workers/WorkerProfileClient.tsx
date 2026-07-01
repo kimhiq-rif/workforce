@@ -13,6 +13,7 @@ import { wageReasonLabel } from "@/lib/wage-logic";
 import type { Worker } from "@/types/database";
 
 type AttendanceRow = {
+  id: string;
   event_date: string;
   arrival_time: string | null;
   status: string;
@@ -58,6 +59,8 @@ export function WorkerProfileClient({ worker: initialWorker, attendanceHistory, 
   const [toast, setToast] = useState("");
   const [showAdvanceModal, setShowAdvanceModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [halfDayRow, setHalfDayRow] = useState<AttendanceRow | null>(null);
+  const [attendance, setAttendance] = useState<AttendanceRow[]>(attendanceHistory);
   const [editingWage, setEditingWage] = useState(false);
   const [newWage, setNewWage] = useState(String(initialWorker.daily_wage));
   const [showAccessModal, setShowAccessModal] = useState(false);
@@ -432,18 +435,19 @@ export function WorkerProfileClient({ worker: initialWorker, attendanceHistory, 
                 <span><span className="th-text">ค่าแรง</span><span className="en-text">Wage</span></span>
               </div>
 
-              {attendanceHistory.length === 0 ? (
+              {attendance.length === 0 ? (
                 <div style={{ padding: "28px", textAlign: "center", color: "var(--text-muted)", fontSize: 14 }}>
                   ยังไม่มีประวัติ · No attendance history
                 </div>
               ) : (
-                attendanceHistory.map((a) => {
+                attendance.map((a) => {
                   const wl = wageReasonLabel(a.wage_reason);
                   return (
                     <div
                       key={a.event_date}
                       className="table-row"
-                      style={{ gridTemplateColumns: "1.4fr 1.2fr 110px 110px 100px", display: "grid", padding: "11px 20px", gap: 12, alignItems: "center" }}
+                      onClick={userRole === "owner" ? () => setHalfDayRow(a) : undefined}
+                      style={{ gridTemplateColumns: "1.4fr 1.2fr 110px 110px 100px", display: "grid", padding: "11px 20px", gap: 12, alignItems: "center", cursor: userRole === "owner" ? "pointer" : "default" }}
                     >
                       <span>
                         <span className="cell-th">{formatThaiDate(a.event_date)}</span>
@@ -457,6 +461,7 @@ export function WorkerProfileClient({ worker: initialWorker, attendanceHistory, 
                             href={`https://www.google.com/maps?q=${a.photo_lat},${a.photo_lng}`}
                             target="_blank"
                             rel="noopener noreferrer"
+                            onClick={(e) => e.stopPropagation()}
                             style={{ display: "block", fontSize: 10, color: "#3B82F6", marginTop: 1, textDecoration: "none" }}
                           >
                             📍 GPS
@@ -592,6 +597,19 @@ export function WorkerProfileClient({ worker: initialWorker, attendanceHistory, 
             setNewWage(String(updated.daily_wage ?? worker.daily_wage));
             setShowEditModal(false);
             showToast("อัปเดตข้อมูลพนักงานแล้ว · Worker updated");
+          }}
+        />
+      )}
+
+      {halfDayRow && (
+        <HalfDayCorrectionModal
+          row={halfDayRow}
+          worker={worker}
+          onClose={() => setHalfDayRow(null)}
+          onSaved={(updatedRow) => {
+            setAttendance((prev) => prev.map((a) => a.id === updatedRow.id ? { ...a, ...updatedRow } : a));
+            setHalfDayRow(null);
+            showToast("תוקן לחצי יום · Half-day correction saved");
           }}
         />
       )}
@@ -1115,6 +1133,116 @@ function EditWorkerModal({ worker, ownerId, onClose, onSaved }: {
             {saving
               ? <><span className="th-text">กำลังบันทึก…</span><span className="en-text">Saving…</span></>
               : <><span className="th-text">บันทึก</span><span className="en-text">Save</span></>}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function HalfDayCorrectionModal({ row, worker, onClose, onSaved }: {
+  row: AttendanceRow;
+  worker: Worker;
+  onClose: () => void;
+  onSaved: (updated: Partial<AttendanceRow> & { id: string }) => void;
+}) {
+  const [halfDayType, setHalfDayType] = useState<"AM" | "PM">("AM");
+  const [reason, setReason] = useState("");
+  const [adminCode, setAdminCode] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+
+  const halfWage = Math.round((worker.daily_wage ?? 0) / 2);
+
+  async function handleSave() {
+    if (!reason.trim()) { setError("נדרשת סיבה · Reason required"); return; }
+    if (!adminCode.trim()) { setError("נדרש קוד מנהל · Admin code required"); return; }
+    setSaving(true);
+    setError("");
+
+    const res = await fetch("/api/corrections/halfday", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ attendanceEventId: row.id, halfDayType, reason, adminCode }),
+    });
+    const data = await res.json();
+    setSaving(false);
+    if (!res.ok) { setError(data.error ?? "שגיאה · Error"); return; }
+    onSaved({ id: row.id, wage_amount: data.wage_amount, wage_reason: data.wage_reason });
+  }
+
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 998, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
+      <div style={{ background: "white", borderRadius: 16, padding: "28px 24px", width: "100%", maxWidth: 400 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 20 }}>
+          <h2 style={{ fontSize: 18, fontWeight: 700 }}>
+            תיקון חצי יום <small style={{ fontSize: 12, fontWeight: 400, color: "var(--text-muted)" }}>Half-day correction</small>
+          </h2>
+          <button onClick={onClose} style={{ background: "transparent", border: "none", cursor: "pointer" }}><X size={22} /></button>
+        </div>
+
+        <div style={{ background: "var(--surface)", borderRadius: 10, padding: "10px 14px", marginBottom: 18, fontSize: 14 }}>
+          <strong>{formatThaiDate(row.event_date)}</strong>
+          <span style={{ color: "var(--text-muted)", marginLeft: 8 }}>{row.site?.name_th ?? ""}</span>
+          <div style={{ marginTop: 4, color: "var(--text-muted)", fontSize: 12 }}>
+            שכר נוכחי: ฿{formatCurrency(row.wage_amount ?? 0)} → ฿{formatCurrency(halfWage)} (חצי)
+          </div>
+        </div>
+
+        {error && <div style={{ background: "#FEF2F2", color: "#B91C1C", borderRadius: 8, padding: "10px 14px", marginBottom: 14, fontSize: 13 }}>{error}</div>}
+
+        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+          {/* AM / PM toggle */}
+          <div>
+            <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)", marginBottom: 6 }}>סוג חצי יום · Half-day type</div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+              {(["AM", "PM"] as const).map((t) => (
+                <button
+                  key={t}
+                  onClick={() => setHalfDayType(t)}
+                  style={{
+                    padding: "10px", borderRadius: 10, fontWeight: 600, fontSize: 15, cursor: "pointer",
+                    border: `2px solid ${halfDayType === t ? "var(--brand-primary)" : "var(--border)"}`,
+                    background: halfDayType === t ? "rgba(255,106,0,0.08)" : "white",
+                    color: halfDayType === t ? "var(--brand-primary)" : "var(--text-primary)",
+                  }}
+                >
+                  {t === "AM" ? "🌅 AM — בוקר" : "🌆 PM — אחר הצהריים"}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Reason */}
+          <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+            <span style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)" }}>סיבה · Reason *</span>
+            <input
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              placeholder="למשל: עזב מוקדם, טיפול רפואי"
+              style={{ padding: "9px 12px", border: "1px solid var(--border)", borderRadius: 8, fontSize: 14 }}
+            />
+          </label>
+
+          {/* Admin code */}
+          <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+            <span style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)" }}>קוד מנהל · Admin code *</span>
+            <input
+              value={adminCode}
+              onChange={(e) => setAdminCode(e.target.value)}
+              type="password"
+              placeholder="••••"
+              style={{ padding: "9px 12px", border: "1px solid var(--border)", borderRadius: 8, fontSize: 14 }}
+              onKeyDown={(e) => e.key === "Enter" && handleSave()}
+            />
+          </label>
+        </div>
+
+        <div style={{ display: "flex", gap: 10, marginTop: 20 }}>
+          <button onClick={onClose} style={{ flex: 1, padding: "11px", border: "1px solid var(--border)", borderRadius: 10, background: "white", cursor: "pointer", fontSize: 14 }}>ביטול</button>
+          <button onClick={handleSave} disabled={saving} className="btn-primary" style={{ flex: 2, justifyContent: "center" }}>
+            <Check size={16} />
+            {saving ? "שומר…" : `אשר חצי יום — ฿${formatCurrency(halfWage)}`}
           </button>
         </div>
       </div>

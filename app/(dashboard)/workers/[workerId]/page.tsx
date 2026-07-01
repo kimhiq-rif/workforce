@@ -33,7 +33,7 @@ export default async function WorkerProfilePage({ params }: Props) {
 
   const { data: attendanceHistory } = await supabase
     .from("attendance_events")
-    .select("event_date, arrival_time, status, is_late, wage_amount, wage_reason, site:site_id(name_th, name_en)")
+    .select("id, event_date, arrival_time, status, is_late, wage_amount, wage_reason, site:site_id(name_th, name_en)")
     .eq("worker_id", params.workerId)
     .gte("event_date", fromDate)
     .order("event_date", { ascending: false });
