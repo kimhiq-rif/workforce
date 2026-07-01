@@ -127,20 +127,7 @@ export async function GET(req: NextRequest) {
         const report = await buildDailyReport(supabase, ownerId, today);
         console.log("[daily-report] owner", ownerId, "report built, blocked:", report.isBlocked);
 
-        if (report.isBlocked) {
-          const reasons = report.blockReasons.map((r) => r.messageTh).join(", ");
-          await sendPushToOwner(
-            supabase,
-            ownerId,
-            `⛔ รายงานถูกบล็อก · Daily report blocked`,
-            reasons,
-            `/reports/daily`
-          );
-          ownerLog.push(`BLOCKED: ${reasons}`);
-          console.log("[daily-report] owner", ownerId, "done (blocked)");
-          return ownerLog.join("; ");
-        }
-
+        // Generate report regardless of blocking — blocked items are shown as warnings in push/LINE
         const pdf = await generateDailyReportPdf(report);
         const pdfUpload = await uploadDailyReportPdf(supabase, ownerId, today, pdf);
         if (pdfUpload.error) ownerLog.push(`pdf upload error: ${pdfUpload.error}`);
@@ -155,31 +142,35 @@ export async function GET(req: NextRequest) {
             total_labor_cost: report.totals.totalLaborCost,
             total_expenses: report.totals.totalExpenses,
             total_present: report.totals.totalPresent,
-            is_blocked: false,
+            is_blocked: report.isBlocked,
           });
 
         if (saveError) ownerLog.push(`snapshot save error: ${saveError.message}`);
 
         const { totals } = report;
+        const pendingNote = report.isBlocked
+          ? ` | ⚠️ ${report.blockReasons.length} פריטים פתוחים`
+          : "";
+
         const lineMessage =
-          `Daily Report ${today}\n` +
+          `Daily Report ${today}${report.isBlocked ? " ⚠️ pending items" : ""}\n` +
           `Workers: ${totals.totalPresent} | Late: ${totals.totalLate}\n` +
           `Labor: THB ${totals.totalLaborCost.toLocaleString()} | Receipts: THB ${totals.totalReceiptAmount.toLocaleString()}\n` +
           `Total: THB ${totals.totalExpenses.toLocaleString()}` +
+          (report.isBlocked ? `\n⚠️ ${report.blockReasons.map((r) => r.messageTh).join(", ")}` : "") +
           (pdfUpload.url ? `\nPDF: ${pdfUpload.url}` : "");
 
         const lineResult = await sendLineMessagingDailyReport(lineMessage);
         if (!lineResult.sent) ownerLog.push(`LINE skipped/error: ${lineResult.error}`);
 
-        await sendPushToOwner(
-          supabase,
-          ownerId,
-          `📋 รายงานประจำวัน · Daily Report ${today}`,
-          `👷 ${totals.totalPresent} คน · ฿${totals.totalLaborCost.toLocaleString()} ค่าแรง · ฿${totals.totalExpenses.toLocaleString()} รวม`,
-          `/reports/daily?date=${today}`
-        );
+        const pushTitle = report.isBlocked
+          ? `📋 รายงานประจำวัน ⚠️ · Daily Report ${today}`
+          : `📋 รายงานประจำวัน · Daily Report ${today}`;
+        const pushBody = `👷 ${totals.totalPresent} คน · ฿${totals.totalLaborCost.toLocaleString()} ค่าแรง · ฿${totals.totalExpenses.toLocaleString()} รวม${pendingNote}`;
 
-        ownerLog.push(`${totals.totalPresent} workers, ฿${totals.totalLaborCost} labor, ฿${totals.totalExpenses} total`);
+        await sendPushToOwner(supabase, ownerId, pushTitle, pushBody, `/reports/daily?date=${today}`);
+
+        ownerLog.push(`${totals.totalPresent} workers, ฿${totals.totalLaborCost} labor, ฿${totals.totalExpenses} total${report.isBlocked ? " (blocked items present)" : ""}`);
         console.log("[daily-report] owner", ownerId, "done");
         return `owner ${ownerId}: ` + ownerLog.join("; ");
       } catch (err) {

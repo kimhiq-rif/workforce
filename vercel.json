@@ -7,38 +7,6 @@
     {
       "path": "/api/cron/daily-report",
       "schedule": "0 10 * * *"
-    },
-    {
-      "path": "/api/cron/halfmonth-report",
-      "schedule": "0 3 * * *"
-    },
-    {
-      "path": "/api/cron/daily-reset",
-      "schedule": "0 17 * * *"
-    },
-    {
-      "path": "/api/cron/stage-target-reminder",
-      "schedule": "0 1 * * *"
-    },
-    {
-      "path": "/api/cron/overtime-reminder",
-      "schedule": "30 1 * * *"
-    },
-    {
-      "path": "/api/cron/stage-target-reminder",
-      "schedule": "30 9 * * *"
-    },
-    {
-      "path": "/api/cron/calendar-reminder",
-      "schedule": "0 8 * * *"
-    },
-    {
-      "path": "/api/cron/qr-followup-check",
-      "schedule": "30 8 * * *"
-    },
-    {
-      "path": "/api/cron/visa-reminder",
-      "schedule": "0 2 * * *"
     }
   ]
 }
