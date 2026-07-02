@@ -208,11 +208,7 @@ export function SettingsClient({ profile, workdaySettings, teamMembers, workers,
       });
       const json = await res.json();
       if (!res.ok) {
-        if (json.error === "no_email") {
-          showToast("⚠️ กรุณาเพิ่มอีเมลให้พนักงานนี้ก่อน · Add email to worker first");
-        } else {
-          showToast(json.error ?? "Error");
-        }
+        showToast(json.error ?? "Error");
         return;
       }
       setInviteCredentials({ email: json.email, temp_password: json.temp_password });

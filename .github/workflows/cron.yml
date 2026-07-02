@@ -1,0 +1,62 @@
+name: Scheduled reminders
+
+# Restores the 7 reminder crons dropped from vercel.json when they were
+# trimmed to fit Vercel Hobby's 2-cron limit (see commit 4df6a56).
+# Each route already validates `Authorization: Bearer $CRON_SECRET`
+# the same way Vercel's native cron does — this just calls them externally.
+
+on:
+  schedule:
+    - cron: "0 3 * * *"   # halfmonth-report        · 10:00 Bangkok
+    - cron: "0 17 * * *"  # daily-reset              · 00:00 Bangkok (next day)
+    - cron: "0 1 * * *"   # stage-target-reminder AM · 08:00 Bangkok
+    - cron: "30 1 * * *"  # overtime-reminder        · 08:30 Bangkok
+    - cron: "30 9 * * *"  # stage-target-reminder PM · 16:30 Bangkok
+    - cron: "0 8 * * *"   # calendar-reminder        · 15:00 Bangkok
+    - cron: "30 8 * * *"  # qr-followup-check        · 15:30 Bangkok
+    - cron: "0 2 * * *"   # visa-reminder            · 09:00 Bangkok
+  workflow_dispatch:
+
+jobs:
+  trigger:
+    runs-on: ubuntu-latest
+    steps:
+      - name: halfmonth-report
+        if: github.event.schedule == '0 3 * * *' || github.event_name == 'workflow_dispatch'
+        run: curl -sf -X GET "$PROD_URL/api/cron/halfmonth-report" -H "Authorization: Bearer $CRON_SECRET"
+        env: { PROD_URL: "${{ vars.PROD_URL }}", CRON_SECRET: "${{ secrets.CRON_SECRET }}" }
+
+      - name: daily-reset
+        if: github.event.schedule == '0 17 * * *' || github.event_name == 'workflow_dispatch'
+        run: curl -sf -X GET "$PROD_URL/api/cron/daily-reset" -H "Authorization: Bearer $CRON_SECRET"
+        env: { PROD_URL: "${{ vars.PROD_URL }}", CRON_SECRET: "${{ secrets.CRON_SECRET }}" }
+
+      - name: stage-target-reminder-am
+        if: github.event.schedule == '0 1 * * *' || github.event_name == 'workflow_dispatch'
+        run: curl -sf -X GET "$PROD_URL/api/cron/stage-target-reminder" -H "Authorization: Bearer $CRON_SECRET"
+        env: { PROD_URL: "${{ vars.PROD_URL }}", CRON_SECRET: "${{ secrets.CRON_SECRET }}" }
+
+      - name: overtime-reminder
+        if: github.event.schedule == '30 1 * * *' || github.event_name == 'workflow_dispatch'
+        run: curl -sf -X GET "$PROD_URL/api/cron/overtime-reminder" -H "Authorization: Bearer $CRON_SECRET"
+        env: { PROD_URL: "${{ vars.PROD_URL }}", CRON_SECRET: "${{ secrets.CRON_SECRET }}" }
+
+      - name: stage-target-reminder-pm
+        if: github.event.schedule == '30 9 * * *' || github.event_name == 'workflow_dispatch'
+        run: curl -sf -X GET "$PROD_URL/api/cron/stage-target-reminder" -H "Authorization: Bearer $CRON_SECRET"
+        env: { PROD_URL: "${{ vars.PROD_URL }}", CRON_SECRET: "${{ secrets.CRON_SECRET }}" }
+
+      - name: calendar-reminder
+        if: github.event.schedule == '0 8 * * *' || github.event_name == 'workflow_dispatch'
+        run: curl -sf -X GET "$PROD_URL/api/cron/calendar-reminder" -H "Authorization: Bearer $CRON_SECRET"
+        env: { PROD_URL: "${{ vars.PROD_URL }}", CRON_SECRET: "${{ secrets.CRON_SECRET }}" }
+
+      - name: qr-followup-check
+        if: github.event.schedule == '30 8 * * *' || github.event_name == 'workflow_dispatch'
+        run: curl -sf -X GET "$PROD_URL/api/cron/qr-followup-check" -H "Authorization: Bearer $CRON_SECRET"
+        env: { PROD_URL: "${{ vars.PROD_URL }}", CRON_SECRET: "${{ secrets.CRON_SECRET }}" }
+
+      - name: visa-reminder
+        if: github.event.schedule == '0 2 * * *' || github.event_name == 'workflow_dispatch'
+        run: curl -sf -X GET "$PROD_URL/api/cron/visa-reminder" -H "Authorization: Bearer $CRON_SECRET"
+        env: { PROD_URL: "${{ vars.PROD_URL }}", CRON_SECRET: "${{ secrets.CRON_SECRET }}" }

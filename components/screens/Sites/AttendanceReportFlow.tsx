@@ -737,7 +737,6 @@ export function AttendanceReportFlow({
           ref={fileInputRef}
           type="file"
           accept="image/*"
-          capture="environment"
           style={{ display: "none" }}
           onChange={handleMobileFileInput}
         />

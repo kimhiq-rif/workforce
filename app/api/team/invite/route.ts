@@ -38,11 +38,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Worker not found" }, { status: 404 });
   }
 
-  if (!worker.email?.trim()) {
-    return NextResponse.json({ error: "no_email" }, { status: 400 });
-  }
-
-  const email = worker.email.trim();
+  // Worker may not have a real email — generate a stable placeholder login
+  // (Supabase Auth requires *some* email; owner shares it via WhatsApp anyway).
+  const email = worker.email?.trim() || `w.${worker.id}@workforce.local`;
   const tempPassword = generateTempPassword();
 
   // If worker already has an auth account — reset temp password and fix role/owner_id
